@@ -119,31 +119,32 @@ function AdminLogin() {
   const navigate = useNavigate()
 
   const handleLogin = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+  e.preventDefault()
+  setLoading(true)
+  setError('')
 
-    try {
-      const res = await axios.post(
-        `${import.meta.env.VITE_API_URL}/auth/login`,
-        { email, password },
-        { withCredentials: true }
-      )
+  try {
+    const res = await axios.post(
+      `${import.meta.env.VITE_API_URL}/auth/login`,
+      { email, password }
+    )
 
-      if (res.data.success && res.data.user?.role === 'ADMIN') {
-        localStorage.setItem('adminToken', res.data.token)
-        localStorage.setItem('adminUser', JSON.stringify(res.data.user))
-        navigate('/dashboard')
-      } else {
-        setError('UNAUTHORIZED. ONLY THE KING MAY ENTER.')
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'ACCESS DENIED')
-    } finally {
-      setLoading(false)
+    // FIXED: Correct path to user object
+    const user = res.data.data?.user || res.data.user
+
+    if (res.data.success && user?.role === 'ADMIN') {
+      localStorage.setItem('adminToken', res.data.data?.token || res.data.token)
+      localStorage.setItem('adminUser', JSON.stringify(user))
+      navigate('/dashboard')
+    } else {
+      setError('UNAUTHORIZED. ONLY THE KING MAY ENTER.')
     }
+  } catch (err) {
+    setError(err.response?.data?.message || 'ACCESS DENIED')
+  } finally {
+    setLoading(false)
   }
-
+}
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full">
