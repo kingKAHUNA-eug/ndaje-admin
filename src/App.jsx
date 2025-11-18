@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
-
-
-// Heroicons
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom"
+import axios from 'axios'
 import {
   ChartBarIcon,
   UsersIcon,
@@ -111,8 +110,109 @@ const initialOrders = [
   }
 ]
 
+
+function AdminLogin() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const navigate = useNavigate()
+
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    try {
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL}/auth/login`,
+        { email, password },
+        { withCredentials: true }
+      )
+
+      if (res.data.success && res.data.user?.role === 'ADMIN') {
+        localStorage.setItem('adminToken', res.data.token)
+        localStorage.setItem('adminUser', JSON.stringify(res.data.user))
+        navigate('/dashboard')
+      } else {
+        setError('UNAUTHORIZED. ONLY THE KING MAY ENTER.')
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'ACCESS DENIED')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="max-w-md w-full">
+        {/* Logo & Title */}
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-900 rounded-2xl mb-6 shadow-2xl">
+            <span className="text-white text-4xl font-black">N</span>
+          </div>
+          <h1 className="text-4xl font-black text-gray-900">NDAJE</h1>
+          <p className="text-xl text-gray-600 mt-2">Hotel Supply Command Center</p>
+          <p className="text-sm text-gray-500 mt-4">Administrative Access Only</p>
+        </div>
+
+        {/* Login Card */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
+          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">Sign in to Admin Panel</h2>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                placeholder="admin@ndaje.rw"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                placeholder="Enter your password"
+              />
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm font-medium">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 bg-blue-900 hover:bg-blue-800 text-white font-bold text-lg rounded-xl transition disabled:opacity-60 disabled:cursor-not-allowed shadow-lg"
+            >
+              {loading ? 'Authenticating...' : 'Sign In'}
+            </button>
+          </form>
+
+          <div className="mt-8 text-center text-xs text-gray-500">
+            <p>© 2025 NDAJE Supply Chain • Rwanda</p>
+            <p className="mt-1 font-medium text-gray-700">All hotels will be supplied. All will comply.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ==================== DASHBOARD COMPONENT ====================
 function AdminDashboard() {
-  
   const [activeTab, setActiveTab] = useState('overview')
   const [managers, setManagers] = useState(initialManagers)
   const [drivers, setDrivers] = useState(initialDrivers)
@@ -121,22 +221,11 @@ function AdminDashboard() {
   const [showAddDriver, setShowAddDriver] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // New user forms
-  const [newManager, setNewManager] = useState({
-    name: '',
-    email: '',
-    phone: ''
-  })
-  const [newDriver, setNewDriver] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    vehicle: ''
-  })
+  const [newManager, setNewManager] = useState({ name: '', email: '', phone: '' })
+  const [newDriver, setNewDriver] = useState({ name: '', email: '', phone: '', vehicle: '' })
 
   const chartData = useMemo(() => generateChartData(), [])
 
-  // Stats calculations
   const stats = useMemo(() => ({
     totalRevenue: orders.reduce((sum, order) => sum + order.total, 0),
     totalOrders: orders.length,
@@ -196,7 +285,6 @@ function AdminDashboard() {
     setDrivers(prev => prev.filter(driver => driver.id !== driverId))
   }
 
-  // Filtered data based on search
   const filteredManagers = managers.filter(manager =>
     manager.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     manager.email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -257,10 +345,8 @@ function AdminDashboard() {
               <span className="text-white text-sm font-bold">A</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-blue-900 truncate">
-           
-              </p>
-              <p className="text-xs text-blue-600 truncate">Administrator</p>
+              <p className="text-sm font-medium text-blue-900 truncate">Administrator</p>
+              <p className="text-xs text-blue-600 truncate">King of Rwanda</p>
             </div>
           </div>
         </div>
@@ -268,7 +354,6 @@ function AdminDashboard() {
 
       {/* Main Content */}
       <div className="ml-64 p-8">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-blue-900 capitalize">
@@ -339,9 +424,7 @@ function AdminDashboard() {
                     <div>
                       <p className="text-sm text-gray-600">{stat.title}</p>
                       <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-                      <p className={`text-sm mt-2 ${
-                        stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'
-                      }`}>
+                      <p className={`text-sm mt-2 ${stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
                         {stat.change} from last month
                       </p>
                     </div>
@@ -678,131 +761,148 @@ function AdminDashboard() {
             </div>
           </div>
         )}
+
+        {/* Add Manager Modal */}
+        {showAddManager && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Add New Manager</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                  <input
+                    type="text"
+                    value={newManager.name}
+                    onChange={(e) => setNewManager(prev => ({...prev, name: e.target.value}))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                    placeholder="Enter manager name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <input
+                    type="email"
+                    value={newManager.email}
+                    onChange={(e) => setNewManager(prev => ({...prev, email: e.target.value}))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                    placeholder="Enter email address"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                  <input
+                    type="tel"
+                    value={newManager.phone}
+                    onChange={(e) => setNewManager(prev => ({...prev, phone: e.target.value}))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                    placeholder="Enter phone number"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowAddManager(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={addManager}
+                  disabled={!newManager.name || !newManager.email || !newManager.phone}
+                  className="flex-1 px-4 py-2 bg-blue-900 text-white rounded-xl hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Add Manager
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Driver Modal */}
+        {showAddDriver && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Add New Driver</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                  <input
+                    type="text"
+                    value={newDriver.name}
+                    onChange={(e) => setNewDriver(prev => ({...prev, name: e.target.value}))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                    placeholder="Enter driver name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <input
+                    type="email"
+                    value={newDriver.email}
+                    onChange={(e) => setNewDriver(prev => ({...prev, email: e.target.value}))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                    placeholder="Enter email address"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                  <input
+                    type="tel"
+                    value={newDriver.phone}
+                    onChange={(e) => setNewDriver(prev => ({...prev, phone: e.target.value}))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                    placeholder="Enter phone number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Vehicle</label>
+                  <input
+                    type="text"
+                    value={newDriver.vehicle}
+                    onChange={(e) => setNewDriver(prev => ({...prev, vehicle: e.target.value}))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
+                    placeholder="Enter vehicle details"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowAddDriver(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={addDriver}
+                  disabled={!newDriver.name || !newDriver.email || !newDriver.phone || !newDriver.vehicle}
+                  className="flex-1 px-4 py-2 bg-blue-900 text-white rounded-xl hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Add Driver
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Add Manager Modal */}
-      {showAddManager && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Add New Manager</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                <input
-                  type="text"
-                  value={newManager.name}
-                  onChange={(e) => setNewManager(prev => ({...prev, name: e.target.value}))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
-                  placeholder="Enter manager name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                <input
-                  type="email"
-                  value={newManager.email}
-                  onChange={(e) => setNewManager(prev => ({...prev, email: e.target.value}))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
-                  placeholder="Enter email address"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                <input
-                  type="tel"
-                  value={newManager.phone}
-                  onChange={(e) => setNewManager(prev => ({...prev, phone: e.target.value}))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
-                  placeholder="Enter phone number"
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowAddManager(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={addManager}
-                disabled={!newManager.name || !newManager.email || !newManager.phone}
-                className="flex-1 px-4 py-2 bg-blue-900 text-white rounded-xl hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Add Manager
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Driver Modal */}
-      {showAddDriver && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Add New Driver</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                <input
-                  type="text"
-                  value={newDriver.name}
-                  onChange={(e) => setNewDriver(prev => ({...prev, name: e.target.value}))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
-                  placeholder="Enter driver name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                <input
-                  type="email"
-                  value={newDriver.email}
-                  onChange={(e) => setNewDriver(prev => ({...prev, email: e.target.value}))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
-                  placeholder="Enter email address"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                <input
-                  type="tel"
-                  value={newDriver.phone}
-                  onChange={(e) => setNewDriver(prev => ({...prev, phone: e.target.value}))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
-                  placeholder="Enter phone number"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Vehicle</label>
-                <input
-                  type="text"
-                  value={newDriver.vehicle}
-                  onChange={(e) => setNewDriver(prev => ({...prev, vehicle: e.target.value}))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200 focus:border-blue-500"
-                  placeholder="Enter vehicle details"
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowAddDriver(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={addDriver}
-                disabled={!newDriver.name || !newDriver.email || !newDriver.phone || !newDriver.vehicle}
-                className="flex-1 px-4 py-2 bg-blue-900 text-white rounded-xl hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Add Driver
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
 
-export default AdminDashboard
+// ==================== PROTECTED ROUTE ====================
+function ProtectedRoute({ children }) {
+  const token = localStorage.getItem('adminToken')
+  return token ? children : <Navigate to="/" replace />
+}
+
+// ==================== MAIN APP ====================
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<AdminLogin />} />
+        <Route path="/dashboard/*" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
