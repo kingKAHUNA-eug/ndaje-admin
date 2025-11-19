@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom"
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom"
 import axios from 'axios'
 import {
   ChartBarIcon, UsersIcon, TruckIcon, Cog6ToothIcon, PlusIcon,
   MagnifyingGlassIcon, EyeIcon, PencilSquareIcon, TrashIcon,
   LockClosedIcon, LockOpenIcon, ClipboardDocumentListIcon,
   ShoppingCartIcon, CurrencyDollarIcon, UserGroupIcon,
-  MapPinIcon, PhoneIcon, EnvelopeIcon, ArrowTrendingUpIcon
+  MapPinIcon, PhoneIcon, EnvelopeIcon, ArrowTrendingUpIcon,
+  ClockIcon, CheckCircleIcon, ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline'
 
 const API_URL = import.meta.env.VITE_API_URL
 
-// ==================== ADMIN LOGIN ====================
-function AdminLogin() {
+function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -27,16 +27,17 @@ function AdminLogin() {
     try {
       const res = await axios.post(`${API_URL}/auth/login`, { email, password })
       const user = res.data.data?.user || res.data.user
+      const token = res.data.data?.token || res.data.token
 
-      if (res.data.success && user?.role === 'ADMIN') {
-        localStorage.setItem('adminToken', res.data.data?.token || res.data.token)
-        localStorage.setItem('adminUser', JSON.stringify(user))
+      if (res.data.success && ['ADMIN', 'MANAGER'].includes(user.role)) {
+        localStorage.setItem('token', token)
+        localStorage.setItem('user', JSON.stringify(user))
         navigate('/dashboard')
       } else {
-        setError('UNAUTHORIZED. ONLY THE KING MAY ENTER.')
+        setError('Access denied. Staff access only.')
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'ACCESS DENIED')
+      setError(err.response?.data?.message || 'Login failed')
     } finally {
       setLoading(false)
     }
@@ -51,11 +52,11 @@ function AdminLogin() {
           </div>
           <h1 className="text-4xl font-black text-gray-900">NDAJE</h1>
           <p className="text-xl text-gray-600 mt-2">Hotel Supply Command Center</p>
-          <p className="text-sm text-gray-500 mt-4">Administrative Access Only</p>
+          <p className="text-sm text-gray-500 mt-4">Staff Access Only</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">Sign in to Admin Panel</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">Staff Sign In</h2>
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
@@ -66,7 +67,7 @@ function AdminLogin() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                placeholder="admin@ndaje.rw"
+                placeholder="staff@ndaje.rw"
               />
             </div>
 
@@ -91,9 +92,9 @@ function AdminLogin() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-blue-900 hover:bg-blue-800 text-white font-bold text-lg rounded-xl transition disabled:opacity-60 disabled:cursor-not-allowed shadow-lg"
+              className="w-full py-4 bg-blue-900 hover:bg-blue-800 text-white font-bold text-lg rounded-xl transition disabled:opacity-60 shadow-lg"
             >
-              {loading ? 'Authenticating...' : 'Sign In'}
+              {loading ? 'Authenticating...' : 'Enter Command Center'}
             </button>
           </form>
 
@@ -107,7 +108,91 @@ function AdminLogin() {
   )
 }
 
-// ==================== ADMIN DASHBOARD (100% REAL) ====================
+function DashboardLayout({ children }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const user = JSON.parse(localStorage.getItem('user') || 'null')
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  const menuItems = user?.role === 'ADMIN' ? [
+    { name: 'Overview', path: '/dashboard/overview', icon: ChartBarIcon },
+    { name: 'Managers', path: '/dashboard/managers', icon: UsersIcon },
+    { name: 'Drivers', path: '/dashboard/drivers', icon: TruckIcon },
+    { name: 'Pending Quotes', path: '/dashboard/quotes', icon: ClockIcon },
+    { name: 'Orders', path: '/dashboard/orders', icon: ClipboardDocumentListIcon },
+    { name: 'Settings', path: '/dashboard/settings', icon: Cog6ToothIcon }
+  ] : [
+    { name: 'Pending Quotes', path: '/dashboard/quotes', icon: ClockIcon },
+    { name: 'My Orders', path: '/dashboard/my-orders', icon: CheckCircleIcon }
+  ]
+
+  const logout = () => {
+    localStorage.clear()
+    navigate('/')
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex">
+      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white shadow-lg transition-all duration-300 flex flex-col`}>
+        <div className="p-6 border-b border-blue-100">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-blue-900 rounded-xl flex items-center justify-center">
+              <span className="text-white text-2xl font-black">N</span>
+            </div>
+            {sidebarOpen && (
+              <div>
+                <h1 className="text-xl font-bold text-blue-900">NDAJE</h1>
+                <p className="text-xs text-gray-600">{user?.role} Portal</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <nav className="flex-1 p-4 space-y-2">
+          {menuItems.map(item => {
+            const Icon = item.icon
+            const active = location.pathname.startsWith(item.path)
+            return (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  active ? 'bg-blue-900 text-white shadow-lg' : 'text-gray-700 hover:bg-blue-50'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                {sidebarOpen && <span className="font-medium">{item.name}</span>}
+              </button>
+            )
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-blue-100">
+          <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 text-red-600">
+            <ArrowRightOnRectangleIcon className="w-5 h-5" />
+            {sidebarOpen && <span className="font-medium">Logout</span>}
+         baby          </button>
+        </div>
+      </div>
+
+      <div className="flex-1">
+        <div className="bg-white shadow-sm border-b px-8 py-4 flex items-center justify-between">
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-2xl">Menu</button>
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium text-gray-700">
+              {user?.name || 'Staff'} • <span className="text-blue-900 font-bold">{user?.role}</span>
+            </span>
+          </div>
+        </div>
+        <div className="p-8">
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// YOUR FULL ORIGINAL ADMIN DASHBOARD — 100% PRESERVED
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview')
   const [managers, setManagers] = useState([])
@@ -121,9 +206,8 @@ function AdminDashboard() {
   const [newManager, setNewManager] = useState({ name: '', email: '', phone: '', password: '' })
   const [newDriver, setNewDriver] = useState({ name: '', email: '', phone: '', password: '', vehicle: '' })
 
-  const token = localStorage.getItem('adminToken')
+  const token = localStorage.getItem('token')
 
-  // FETCH ALL REAL DATA
   useEffect(() => {
     const fetchAllData = async () => {
       if (!token) return
@@ -209,7 +293,6 @@ function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
-      {/* Sidebar */}
       <div className="fixed inset-y-0 left-0 w-64 bg-white shadow-lg">
         <div className="p-6 border-b border-blue-100">
           <div className="flex items-center gap-3">
@@ -259,7 +342,6 @@ function AdminDashboard() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="ml-64 p-8">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -282,7 +364,6 @@ function AdminDashboard() {
           </div>
         </div>
 
-        {/* Overview */}
         {activeTab === 'overview' && (
           <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -337,7 +418,6 @@ function AdminDashboard() {
           </div>
         )}
 
-        {/* Managers Tab */}
         {activeTab === 'managers' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -372,7 +452,6 @@ function AdminDashboard() {
           </div>
         )}
 
-        {/* Drivers Tab */}
         {activeTab === 'drivers' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -406,7 +485,6 @@ function AdminDashboard() {
           </div>
         )}
 
-        {/* Orders Tab */}
         {activeTab === 'orders' && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
@@ -446,20 +524,15 @@ function AdminDashboard() {
           </div>
         )}
 
-        {/* Add Manager Modal */}
         {showAddManager && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl p-6 w-full max-w-md">
               <h3 className="text-xl font-semibold mb-4">Add New Manager</h3>
               <div className="space-y-4">
-                <input placeholder="Name" value={newManager.name} onChange={e => setNewManager(prev => ({...prev, name: e.target.value}))}
-                  className="w-full px-4 py-3 border rounded-xl" />
-                <input placeholder="Email" value={newManager.email} onChange={e => setNewManager(prev => ({...prev, email: e.target.value}))}
-                  className="w-full px-4 py-3 border rounded-xl" />
-                <input placeholder="Phone" value={newManager.phone} onChange={e => setNewManager(prev => ({...prev, phone: e.target.value}))}
-                  className="w-full px-4 py-3 border rounded-xl" />
-                <input type="password" placeholder="Password" value={newManager.password} onChange={e => setNewManager(prev => ({...prev, password: e.target.value}))}
-                  className="w-full px-4 py-3 border rounded-xl" />
+                <input placeholder="Name" value={newManager.name} onChange={e => setNewManager(prev => ({...prev, name: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+                <input placeholder="Email" value={newManager.email} onChange={e => setNewManager(prev => ({...prev, email: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+                <input placeholder="Phone" value={newManager.phone} onChange={e => setNewManager(prev => ({...prev, phone: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+                <input type="password" placeholder="Password" value={newManager.password} onChange={e => setNewManager(prev => ({...prev, password: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
               </div>
               <div className="flex gap-3 mt-6">
                 <button onClick={() => setShowAddManager(false)} className="flex-1 px-4 py-2 border rounded-xl">Cancel</button>
@@ -469,22 +542,16 @@ function AdminDashboard() {
           </div>
         )}
 
-        {/* Add Driver Modal */}
         {showAddDriver && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl p-6 w-full max-w-md">
               <h3 className="text-xl font-semibold mb-4">Add New Driver</h3>
               <div className="space-y-4">
-                <input placeholder="Name" value={newDriver.name} onChange={e => setNewDriver(prev => ({...prev, name: e.target.value}))}
-                  className="w-full px-4 py-3 border rounded-xl" />
-                <input placeholder="Email" value={newDriver.email} onChange={e => setNewDriver(prev => ({...prev, email: e.target.value}))}
-                  className="w-full px-4 py-3 border rounded-xl" />
-                <input placeholder="Phone" value={newDriver.phone} onChange={e => setNewDriver(prev => ({...prev, phone: e.target.value}))}
-                  className="w-full px-4 py-3 border rounded-xl" />
-                <input type="password" placeholder="Password" value={newDriver.password} onChange={e => setNewDriver(prev => ({...prev, password: e.target.value}))}
-                  className="w-full px-4 py-3 border rounded-xl" />
-                <input placeholder="Vehicle (e.g. Toyota Hiace - RAB 123 A)" value={newDriver.vehicle} onChange={e => setNewDriver(prev => ({...prev, vehicle: e.target.value}))}
-                  className="w-full px-4 py-3 border rounded-xl" />
+                <input placeholder="Name" value={newDriver.name} onChange={e => setNewDriver(prev => ({...prev, name: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+                <input placeholder="Email" value={newDriver.email} onChange={e => setNewDriver(prev => ({...prev, email: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+                <input placeholder="Phone" value={newDriver.phone} onChange={e => setNewDriver(prev => ({...prev, phone: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+                <input type="password" placeholder="Password" value={newDriver.password} onChange={e => setNewDriver(prev => ({...prev, password: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+                <input placeholder="Vehicle (e.g. Toyota Hiace - RAB 123 A)" value={newDriver.vehicle} onChange={e => setNewDriver(prev => ({...prev, vehicle: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
               </div>
               <div className="flex gap-3 mt-6">
                 <button onClick={() => setShowAddDriver(false)} className="flex-1 px-4 py-2 border rounded-xl">Cancel</button>
@@ -498,20 +565,149 @@ function AdminDashboard() {
   )
 }
 
-// ==================== PROTECTED ROUTE ====================
-function ProtectedRoute({ children }) {
-  const token = localStorage.getItem('adminToken')
-  return token ? children : <Navigate to="/" replace />
+function ManagerQuotes() {
+  const [quotes, setQuotes] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchQuotes = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const res = await axios.get(`${API_URL}/api/manager/quotes/pending`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        setQuotes(res.data.data || [])
+      } catch (err) { console.error(err) }
+      setLoading(false)
+    }
+    fetchQuotes()
+  }, [])
+
+  const approveQuote = async (quoteId, prices) => {
+    try {
+      const token = localStorage.getItem('token')
+      await axios.post(`${API_URL}/api/manager/quotes/${quoteId}/price`, { prices }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setQuotes(prev => prev.filter(q => q.id !== quoteId))
+      alert('Quote approved successfully!')
+    } catch (err) {
+      alert('Failed to approve quote')
+    }
+  }
+
+  if (loading) return <div className="text-center py-20 text-3xl font-black text-blue-900">Loading Quotes...</div>
+
+  return (
+    <div>
+      <h1 className="text-3xl font-bold text-blue-900 mb-8">Pending Quotes to Price</h1>
+      {quotes.length === 0 ? (
+        <div className="text-center py-20 text-gray-500 text-2xl">No pending quotes</div>
+      ) : (
+        <div className="space-y-10">
+          {quotes.map(quote => (
+            <div key={quote.id} className="bg-white rounded-2xl shadow-xl p-8 border">
+              <div className="flex justify-between items-start mb-8">
+                <div>
+                  <h3 className="text-2xl font-bold text-blue-900">{quote.client?.hotelName || quote.client?.name}</h3>
+                  <p className="text-gray-600 mt-2 flex items-center gap-2">
+                    <PhoneIcon className="w-5 h-5" /> {quote.client?.phone}
+                  </p>
+                </div>
+                <span className="px-6 py-3 bg-yellow-100 text-yellow-800 rounded-full font-bold">PENDING</span>
+              </div>
+              <QuotePricingForm quote={quote} onApprove={approveQuote} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
-// ==================== MAIN APP ====================
+function QuotePricingForm({ quote, onApprove }) {
+  const [prices, setPrices] = useState({})
+
+  const handleSubmit = () => {
+    const pricedItems = Object.entries(prices).map(([productId, price]) => ({
+      productId,
+      finalPrice: Number(price)
+    }))
+    if (pricedItems.length !== quote.items.length) {
+      alert('Please price all items!')
+      return
+    }
+    onApprove(quote.id, pricedItems)
+  }
+
+  return (
+    <>
+      <div className="space-y-6">
+        {quote.items.map(item => (
+          <div key={item.productId} className="flex items-center justify-between p-6 bg-gray-50 rounded-xl">
+            <div>
+              <p className="text-xl font-bold">{item.product?.name}</p>
+              <p className="text-gray-600">Quantity: {item.quantity} {item.product?.unit}</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <input
+                type="number"
+                placeholder="0"
+                className="w-48 px-6 py-4 border-2 border-blue-300 rounded-xl text-right text-2xl font-bold"
+                onChange={e => setPrices(p => ({ ...p, [item.productId]: e.target.value }))}
+              />
+              <span className="text-2xl font-bold text-gray-700">RWF</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-10 text-right">
+        <button
+          onClick={handleSubmit}
+          className="px-16 py-5 bg-blue-900 text-white text-xl font-bold rounded-xl hover:bg-blue-800 shadow-xl"
+        >
+          APPROVE & CREATE ORDER
+        </button>
+      </div>
+    </>
+  )
+}
+
+function ProtectedDashboard() {
+  const user = JSON.parse(localStorage.getItem('user') || 'null')
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/')
+    } else if (user.role === 'ADMIN') {
+      navigate('/dashboard/overview', { replace: true })
+    } else if (user.role === 'MANAGER') {
+      navigate('/dashboard/quotes', { replace: true })
+    }
+  }, [user, navigate])
+
+  if (!user) return null
+
+  return (
+    <DashboardLayout>
+      <Routes>
+        <Route path="/overview" element={user.role === 'ADMIN' ? <AdminDashboard /> : <Navigate to="/dashboard/quotes" />} />
+        <Route path="/quotes" element={<ManagerQuotes />} />
+        <Route path="/my-orders" element={<div className="text-center py-32"><h1 className="text-4xl font-bold text-blue-900">My Orders</h1><p className="text-xl text-gray-600 mt-4">Coming soon</p></div>} />
+        <Route path="*" element={<Navigate to={user.role === 'ADMIN' ? '/dashboard/overview' : '/dashboard/quotes'} />} />
+      </Routes>
+    </DashboardLayout>
+  )
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<AdminLogin />} />
-        <Route path="/dashboard/*" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/" element={<Login />} />
+        <Route path="/dashboard/*" element={<ProtectedDashboard />} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
   )
