@@ -217,7 +217,7 @@ function ProductsPanel() {
 
   const fetchProducts = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/api/products`, {
+      const res = await axios.get(`${API_BASE}/products`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setProducts(res.data.data || [])
@@ -231,11 +231,11 @@ function ProductsPanel() {
   const handleSubmit = async () => {
     try {
       if (editing) {
-        await axios.put(`${API_BASE}/api/products/${editing.id}`, form, {
+        await axios.put(`${API_BASE}/products/${editing.id}`, form, {
           headers: { Authorization: `Bearer ${token}` }
         })
       } else {
-        await axios.post(`${API_BASE}/api/products`, form, {
+        await axios.post(`${API_BASE}/products`, form, {
           headers: { Authorization: `Bearer ${token}` }
         })
       }
@@ -251,7 +251,7 @@ function ProductsPanel() {
   const handleDelete = async (id) => {
     if (!confirm('Delete this product?')) return
     try {
-      await axios.delete(`${API_BASE}/api/products/${id}`, {
+      await axios.delete(`${API_BASE}/products/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       fetchProducts()
@@ -707,7 +707,7 @@ function ManagerQuotes() {
     const fetchQuotes = async () => {
       try {
         const token = localStorage.getItem('token')
-        const res = await axios.get(`${API_BASE}/api/manager/quotes/pending`, {
+        const res = await axios.get(`${API_BASE}/manager/quotes/pending`, {
           headers: { Authorization: `Bearer ${token}` }
         })
         setQuotes(res.data.data || [])
@@ -720,7 +720,7 @@ function ManagerQuotes() {
   const approveQuote = async (quoteId, prices) => {
     try {
       const token = localStorage.getItem('token')
-      await axios.post(`${API_BASE}/api/manager/quotes/${quoteId}/price`, { prices }, {
+      await axios.post(`${API_BASE}/manager/quotes/${quoteId}/price`, { prices }, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setQuotes(prev => prev.filter(q => q.id !== quoteId))
