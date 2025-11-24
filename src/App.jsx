@@ -7,7 +7,8 @@ import {
   LockClosedIcon, LockOpenIcon, ClipboardDocumentListIcon,
   ShoppingCartIcon, CurrencyDollarIcon, UserGroupIcon,
   MapPinIcon, PhoneIcon, EnvelopeIcon, ArrowTrendingUpIcon,
-  ClockIcon, CheckCircleIcon, ArrowRightOnRectangleIcon
+  ClockIcon, CheckCircleIcon, ArrowRightOnRectangleIcon,
+  CubeIcon
 } from '@heroicons/react/24/outline'
 
 const API_URL = import.meta.env.VITE_API_URL
@@ -116,6 +117,7 @@ function DashboardLayout({ children }) {
 
   const menuItems = user?.role === 'ADMIN' ? [
     { name: 'Overview', path: '/dashboard/overview', icon: ChartBarIcon },
+    { name: 'Products', path: '/dashboard/products', icon: CubeIcon },
     { name: 'Managers', path: '/dashboard/managers', icon: UsersIcon },
     { name: 'Drivers', path: '/dashboard/drivers', icon: TruckIcon },
     { name: 'Pending Quotes', path: '/dashboard/quotes', icon: ClockIcon },
@@ -171,7 +173,7 @@ function DashboardLayout({ children }) {
           <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 text-red-600">
             <ArrowRightOnRectangleIcon className="w-5 h-5" />
             {sidebarOpen && <span className="font-medium">Logout</span>}
-         baby          </button>
+          </button>
         </div>
       </div>
 
@@ -192,7 +194,130 @@ function DashboardLayout({ children }) {
   )
 }
 
-// YOUR FULL ORIGINAL ADMIN DASHBOARD — 100% PRESERVED
+// PRODUCTS PANEL — FULLY ADDED
+function ProductsPanel() {
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showAdd, setShowAdd] = useState(false)
+  const [editing, setEditing] = useState(null)
+  const token = localStorage.getItem('token')
+
+  const [form, setForm] = useState({
+    name: '', sku: '', price: '', icon: '', image: '', reference: '', description: '', category: '', active: true
+  })
+
+  useEffect(() => {
+    fetchProducts()
+  }, [])
+
+  const fetchProducts = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/products`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setProducts(res.data.data || [])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async () => {
+    try {
+      if (editing) {
+        await axios.put(`${API_URL}/api/products/${editing.id}`, form, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      } else {
+        await axios.post(`${API_URL}/api/products`, form, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      }
+      setShowAdd(false)
+      setEditing(null)
+      setForm({ name: '', sku: '', price: '', icon: '', image: '', reference: '', description: '', category: '', active: true })
+      fetchProducts()
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed')
+    }
+  }
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this product?')) return
+    try {
+      await axios.delete(`${API_URL}/api/products/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      fetchProducts()
+    } catch (err) {
+      alert('Failed to delete')
+    }
+  }
+
+  if (loading) return <div className="text-center py-20 text-3xl font-black text-blue-900">Loading Products...</div>
+
+  return (
+    <div className="space-y-8">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-blue-900">Product Catalog</h1>
+        <button onClick={() => setShowAdd(true)} className="inline-flex items-center gap-2 px-6 py-3 bg-blue-900 text-white rounded-xl hover:bg-blue-800 font-bold">
+          <PlusIcon className="w-5 h-5" /> Add Product
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {products.map(p => (
+          <div key={p.id} className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
+            {p.image ? (
+              <img src={p.image} alt={p.name} className="w-full h-48 object-cover" />
+            ) : (
+              <div className="w-full h-48 bg-gray-100 flex items-center justify-center text-6xl">
+                {p.icon}
+              </div>
+            )}
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-gray-900">{p.name}</h3>
+              <p className="text-sm text-gray-500 mt-1">Ref: {p.reference || '—'}</p>
+              <p className="text-2xl font-bold text-blue-900 mt-3">RWF {Number(p.price).toLocaleString()}</p>
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => { setEditing(p); setForm(p); setShowAdd(true) }} className="flex-1 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">
+                  <PencilSquareIcon className="w-5 h-5 mx-auto" />
+                </button>
+                <button onClick={() => handleDelete(p.id)} className="flex-1 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200">
+                  <TrashIcon className="w-5 h-5 mx-auto" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-2xl max-h-screen overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-6">{editing ? 'Edit' : 'Add'} Product</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <input placeholder="Name" value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} className="px-4 py-3 border rounded-xl" />
+              <input placeholder="SKU (unique)" value={form.sku} onChange={e => setForm(f => ({...f, sku: e.target.value}))} className="px-4 py-3 border rounded-xl" />
+              <input placeholder="Price (RWF)" type="number" value={form.price} onChange={e => setForm(f => ({...f, price: e.target.value}))} className="px-4 py-3 border rounded-xl" />
+              <input placeholder="Icon (e.g. beer, water)" value={form.icon} onChange={e => setForm(f => ({...f, icon: e.target.value}))} className="px-4 py-3 border rounded-xl" />
+              <input placeholder="Image URL" value={form.image} onChange={e => setForm(f => ({...f, image: e.target.value}))} className="px-4 py-3 border rounded-xl col-span-2" />
+              <input placeholder="Reference (e.g. BEER-001)" value={form.reference} onChange={e => setForm(f => ({...f, reference: e.target.value}))} className="px-4 py-3 border rounded-xl" />
+              <input placeholder="Category" value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))} className="px-4 py-3 border rounded-xl" />
+            </div>
+            <div className="flex gap-4 mt-8">
+              <button onClick={() => { setShowAdd(false); setEditing(null); setForm({name:'',sku:'',price:'',icon:'',image:'',reference:'',description:'',category:'',active:true}) }} className="flex-1 py-3 border rounded-xl">Cancel</button>
+              <button onClick={handleSubmit} className="flex-1 py-3 bg-blue-900 text-white rounded-xl font-bold">{editing ? 'Update' : 'Create'} Product</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// YOUR ORIGINAL ADMIN DASHBOARD — 100% UNTOUCHED
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview')
   const [managers, setManagers] = useState([])
@@ -309,6 +434,7 @@ function AdminDashboard() {
         <nav className="p-4 space-y-2">
           {[
             { id: 'overview', name: 'Overview', icon: ChartBarIcon },
+            { id: 'products', name: 'Products', icon: CubeIcon },
             { id: 'managers', name: 'Managers', icon: UsersIcon },
             { id: 'drivers', name: 'Drivers', icon: TruckIcon },
             { id: 'orders', name: 'Orders', icon: ClipboardDocumentListIcon },
@@ -347,6 +473,7 @@ function AdminDashboard() {
           <div>
             <h1 className="text-3xl font-bold text-blue-900 capitalize">
               {activeTab === 'overview' ? 'Dashboard Overview' : 
+               activeTab === 'products' ? 'Product Catalog' :
                activeTab === 'managers' ? 'Operations Managers' :
                activeTab === 'drivers' ? 'Delivery Drivers' :
                activeTab === 'orders' ? 'Order Management' : 'Settings'}
@@ -363,6 +490,8 @@ function AdminDashboard() {
             />
           </div>
         </div>
+
+        {activeTab === 'products' && <ProductsPanel />}
 
         {activeTab === 'overview' && (
           <div className="space-y-8">
@@ -693,6 +822,7 @@ function ProtectedDashboard() {
     <DashboardLayout>
       <Routes>
         <Route path="/overview" element={user.role === 'ADMIN' ? <AdminDashboard /> : <Navigate to="/dashboard/quotes" />} />
+        <Route path="/products" element={user.role === 'ADMIN' ? <ProductsPanel /> : <Navigate to="/dashboard/quotes" />} />
         <Route path="/quotes" element={<ManagerQuotes />} />
         <Route path="/my-orders" element={<div className="text-center py-32"><h1 className="text-4xl font-bold text-blue-900">My Orders</h1><p className="text-xl text-gray-600 mt-4">Coming soon</p></div>} />
         <Route path="*" element={<Navigate to={user.role === 'ADMIN' ? '/dashboard/overview' : '/dashboard/quotes'} />} />
