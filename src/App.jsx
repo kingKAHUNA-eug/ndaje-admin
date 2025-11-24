@@ -6,6 +6,7 @@ const API_BASE = import.meta.env.VITE_API_URL
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom"
 import axios from 'axios'
+import { useRef, useEffect } from 'react';
 import {
   ChartBarIcon, UsersIcon, TruckIcon, Cog6ToothIcon, PlusIcon,
   MagnifyingGlassIcon, EyeIcon, PencilSquareIcon, TrashIcon,
@@ -206,11 +207,32 @@ function ProductsPanel() {
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState(null)
   const token = localStorage.getItem('token')
-
+  const widgetRef = useRef();
   const [form, setForm] = useState({
     name: '', sku: '', price: '', icon: '', image: '', reference: '', description: '', category: '', active: true
   })
-
+useEffect(() => {
+  if (window.cloudinary) {
+    widgetRef.current = window.cloudinary.createUploadWidget(
+      {
+        cloud_name: 'dzjsdgqegf',
+        upload_preset: 'ndaje-products',
+        cropping: true,
+        folder: 'ndaje-products',
+        sources: ['local', 'camera', 'url', 'facebook', 'instagram'],
+        cropping_aspect_ratio: 1,
+        show_skip_crop_button: false
+      },
+      (error, result) => {
+        if (!error && result && result.event === 'success') {
+          setForm(f => ({ ...f, image: result.info.secure_url }));
+        }
+      }
+    );
+  } else {
+    console.error('Cloudinary not loaded — check script tag');
+  }
+}, []);
   useEffect(() => {
     fetchProducts()
   }, [])
@@ -331,46 +353,32 @@ function ProductsPanel() {
               <input placeholder="SKU (unique)" value={form.sku} onChange={e => setForm(f => ({...f, sku: e.target.value}))} className="px-4 py-3 border rounded-xl" />
               <input placeholder="Price (RWF)" type="number" value={form.price} onChange={e => setForm(f => ({...f, price: e.target.value}))} className="px-4 py-3 border rounded-xl" />
               <input placeholder="Icon (e.g. beer, water)" value={form.icon} onChange={e => setForm(f => ({...f, icon: e.target.value}))} className="px-4 py-3 border rounded-xl" />
-              <div className="col-span-2">
+  <div className="col-span-2">
   <label className="block text-sm font-semibold text-gray-700 mb-2">Product Image</label>
 
-  {/* Preview if image exists */}
   {form.image ? (
-    <div className="relative rounded-xl overflow-hidden border-2 border-blue-200">
-      <img src={form.image} alt="Product" className="w-full h-80 object-cover" />
+    <div className="relative rounded-xl overflow-hidden border-2 border-green-200 bg-green-50">
+      <img src={form.image} alt="Product Preview" className="w-full h-80 object-cover" />
       <button
         onClick={() => setForm(f => ({ ...f, image: '' }))}
         className="absolute top-3 right-3 bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:bg-red-700 transition"
       >
-        X
+        ×
       </button>
     </div>
   ) : (
-    /* Upload button */
     <button
       type="button"
-      onClick={() => {
-        window.cloudinary.openUploadWidget(
-          {
-            cloud_name: 'dzjsdgqegf',
-            upload_preset: 'ndaje-products',
-            cropping: true,
-            folder: 'ndaje-products',
-            sources: ['local', 'camera', 'url', 'facebook', 'instagram'],
-            cropping_aspect_ratio: 1,
-            show_skip_crop_button: false
-          },
-          (error, result) => {
-            if (!error && result && result.event === 'success') {
-              setForm(f => ({ ...f, image: result.info.secure_url }));
-            }
-          }
-        );
+      onClick={() => widgetRef.current?.open()}  // ← THIS OPENS IT ON CLICK
+      className="w-full h-80 border-4 border-dashed border-blue-400 rounded-2xl flex flex-col items-center justify-center text-blue-900 font-bold text-2xl hover:border-blue-600 hover:bg-blue-50 transition bg-gradient-to-br from-blue-50 to-white cursor-pointer"
+      onDrop={(e) => {
+        e.preventDefault();
+        e.dataTransfer.files[0] && widgetRef.current?.open();  // ← FIXES DRAG/DROP
       }}
-      className="w-full h-80 border-4 border-dashed border-blue-400 rounded-2xl flex flex-col items-center justify-center text-blue-900 font-bold text-2xl hover:border-blue-600 hover:bg-blue-50 transition bg-gradient-to-br from-blue-50 to-white"
+      onDragOver={(e) => e.preventDefault()}
     >
-      Click to upload photo
-      <span className="text-lg mt-3 text-blue-700">or drag & drop • phone camera works</span>
+      📸 Click to upload photo
+      <span className="text-lg mt-3 text-blue-700">or drag & drop • camera ready</span>
     </button>
   )}
 </div>
