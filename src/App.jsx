@@ -228,23 +228,47 @@ function ProductsPanel() {
     }
   }
 
-  const handleSubmit = async () => {
+   const handleSubmit = async () => {
     try {
+      // THIS IS THE FIXED PAYLOAD — THIS IS ALL YOU NEED TO CHANGE
+      const payload = {
+        name: form.name.trim(),
+        sku: form.sku.trim(),
+        price: Number(form.price) || 0,     // converts string → number
+        icon: form.icon.trim() || "box",    // fallback if empty or emoji
+        image: form.image.trim() || null,
+        reference: form.reference.trim() || null,
+        description: form.description.trim() || null,
+        category: form.category.trim() || null,
+        active: true
+      }
+
+      // Basic validation (optional but nice)
+      if (!payload.name || !payload.sku || !payload.price) {
+        alert("Name, SKU and Price are required!")
+        return
+      }
+
       if (editing) {
-        await axios.put(`${API_BASE}/products/${editing.id}`, form, {
+        await axios.put(`${API_BASE}/products/${editing.id}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         })
       } else {
-        await axios.post(`${API_BASE}/products`, form, {
+        await axios.post(`${API_BASE}/products`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         })
       }
+
+      // Success → close modal and refresh
       setShowAdd(false)
       setEditing(null)
       setForm({ name: '', sku: '', price: '', icon: '', image: '', reference: '', description: '', category: '', active: true })
       fetchProducts()
+      
+      alert(editing ? "Product updated!" : "Product created successfully!")
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed')
+      console.error(err.response?.data)
+      alert(err.response?.data?.message || "Failed to save product")
     }
   }
 
