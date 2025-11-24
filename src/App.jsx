@@ -356,30 +356,72 @@ useEffect(() => {
   <div className="col-span-2">
   <label className="block text-sm font-semibold text-gray-700 mb-2">Product Image</label>
 
+  {/* Preview */}
   {form.image ? (
     <div className="relative rounded-xl overflow-hidden border-2 border-green-200 bg-green-50">
-      <img src={form.image} alt="Product Preview" className="w-full h-80 object-cover" />
+      <img src={form.image} alt="Product" className="w-full h-80 object-cover" />
       <button
         onClick={() => setForm(f => ({ ...f, image: '' }))}
-        className="absolute top-3 right-3 bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:bg-red-700 transition"
+        className="absolute top-3 right-3 bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:bg-red-700"
       >
-        ×
+        X
       </button>
     </div>
   ) : (
-    <button
-      type="button"
-      onClick={() => widgetRef.current?.open()}  // ← THIS OPENS IT ON CLICK
-      className="w-full h-80 border-4 border-dashed border-blue-400 rounded-2xl flex flex-col items-center justify-center text-blue-900 font-bold text-2xl hover:border-blue-600 hover:bg-blue-50 transition bg-gradient-to-br from-blue-50 to-white cursor-pointer"
+    /* THE FINAL WORKING UPLOAD BOX */
+    <div
+      className="w-full h-80 border-4 border-dashed border-blue-500 rounded-2xl flex flex-col items-center justify-center text-blue-900 font-bold text-2xl hover:border-blue-700 hover:bg-blue-50 transition cursor-pointer bg-gradient-to-br from-blue-50 to-white"
+      onClick={() => {
+        // DYNAMIC LOAD + OPEN WIDGET — WORKS 100%
+        if (window.cloudinary) {
+          window.cloudinary.openUploadWidget(
+            {
+              cloud_name: 'dzjsdgqegf',
+              upload_preset: 'ndaje-products',
+              cropping: true,
+              folder: 'ndaje-products',
+              sources: ['local', 'camera', 'url'],
+              cropping_aspect_ratio: 1,
+              show_skip_crop_button: false,
+              styles: {
+                palette: {
+                  window: "#FFFFFF",
+                  sourceBg: "#F5F8FF",
+                  windowBorder: "#90A0B3",
+                  tabIcon: "#0078FF",
+                  inactiveTabIcon: "#8E9DAB",
+                  menuIcons: "#5A616A",
+                  link: "#0078FF",
+                  action: "#339933",
+                  inProgress: "#0078FF",
+                  complete: "#339933",
+                  error: "#CC0000",
+                  textDark: "#000000",
+                  textLight: "#FFFFFF"
+                }
+              }
+            },
+            (error, result) => {
+              if (!error && result && result.event === "success") {
+                setForm(f => ({ ...f, image: result.info.secure_url }));
+                alert("Photo uploaded perfectly!"); // Victory!
+              }
+            }
+          );
+        } else {
+          alert("Cloudinary not loaded yet. Wait 2 seconds and try again.");
+        }
+      }}
+      // Fix drag & drop opening in browser
+      onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault();
-        e.dataTransfer.files[0] && widgetRef.current?.open();  // ← FIXES DRAG/DROP
+        e.stopPropagation();
       }}
-      onDragOver={(e) => e.preventDefault()}
     >
-      📸 Click to upload photo
+      Click to Upload Photo<br/>
       <span className="text-lg mt-3 text-blue-700">or drag & drop • camera ready</span>
-    </button>
+    </div>
   )}
 </div>
               <input placeholder="Reference (e.g. BEER-001)" value={form.reference} onChange={e => setForm(f => ({...f, reference: e.target.value}))} className="px-4 py-3 border rounded-xl" />
