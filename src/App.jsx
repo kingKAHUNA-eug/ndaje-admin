@@ -200,39 +200,47 @@ function DashboardLayout({ children }) {
   )
 }
 
-// PRODUCTS PANEL — FULLY ADDED
 function ProductsPanel() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState(null)
   const token = localStorage.getItem('token')
-  const widgetRef = useRef();
+  const [cloudinaryLoaded, setCloudinaryLoaded] = useState(false)
   const [form, setForm] = useState({
     name: '', sku: '', price: '', icon: '', image: '', reference: '', description: '', category: '', active: true
   })
-useEffect(() => {
-  if (window.cloudinary) {
-    widgetRef.current = window.cloudinary.createUploadWidget(
-      {
-        cloud_name: 'dzjsdgqegf',
-        upload_preset: 'ndaje-products',
-        cropping: true,
-        folder: 'ndaje-products',
-        sources: ['local', 'camera', 'url', 'facebook', 'instagram'],
-        cropping_aspect_ratio: 1,
-        show_skip_crop_button: false
-      },
-      (error, result) => {
-        if (!error && result && result.event === 'success') {
-          setForm(f => ({ ...f, image: result.info.secure_url }));
-        }
+
+  // Load Cloudinary script dynamically
+  useEffect(() => {
+    // Check if Cloudinary is already loaded
+    if (window.cloudinary) {
+      setCloudinaryLoaded(true)
+      return
+    }
+
+    // Load Cloudinary script
+    const script = document.createElement('script')
+    script.src = 'https://upload-widget.cloudinary.com/global/all.js'
+    script.async = true
+    script.onload = () => {
+      setCloudinaryLoaded(true)
+      console.log('Cloudinary loaded successfully')
+    }
+    script.onerror = () => {
+      console.error('Failed to load Cloudinary script')
+      alert('Failed to load image uploader. Please refresh the page.')
+    }
+    document.head.appendChild(script)
+
+    return () => {
+      // Cleanup if needed
+      if (document.head.contains(script)) {
+        document.head.removeChild(script)
       }
-    );
-  } else {
-    console.error('Cloudinary not loaded — check script tag');
-  }
-}, []);
+    }
+  }, [])
+
   useEffect(() => {
     fetchProducts()
   }, [])
@@ -250,14 +258,13 @@ useEffect(() => {
     }
   }
 
-   const handleSubmit = async () => {
+  const handleSubmit = async () => {
     try {
-      // THIS IS THE FIXED PAYLOAD — THIS IS ALL YOU NEED TO CHANGE
       const payload = {
         name: form.name.trim(),
         sku: form.sku.trim(),
-        price: Number(form.price) || 0,     // converts string → number
-        icon: form.icon.trim() || "box",    // fallback if empty or emoji
+        price: Number(form.price) || 0,
+        icon: form.icon.trim() || "box",
         image: form.image.trim() || null,
         reference: form.reference.trim() || null,
         description: form.description.trim() || null,
@@ -265,7 +272,6 @@ useEffect(() => {
         active: true
       }
 
-      // Basic validation (optional but nice)
       if (!payload.name || !payload.sku || !payload.price) {
         alert("Name, SKU and Price are required!")
         return
@@ -281,7 +287,6 @@ useEffect(() => {
         })
       }
 
-      // Success → close modal and refresh
       setShowAdd(false)
       setEditing(null)
       setForm({ name: '', sku: '', price: '', icon: '', image: '', reference: '', description: '', category: '', active: true })
@@ -304,6 +309,55 @@ useEffect(() => {
     } catch (err) {
       alert('Failed to delete')
     }
+  }
+
+  const openCloudinaryWidget = () => {
+    if (!cloudinaryLoaded) {
+      alert('Image uploader is still loading. Please wait a moment and try again.')
+      return
+    }
+
+    if (!window.cloudinary) {
+      alert('Cloudinary not available. Please refresh the page.')
+      return
+    }
+
+    window.cloudinary.openUploadWidget(
+      {
+        cloud_name: 'dzjsdgqegf',
+        upload_preset: 'ndaje-products',
+        cropping: true,
+        folder: 'ndaje-products',
+        sources: ['local', 'camera', 'url'],
+        cropping_aspect_ratio: 1,
+        show_skip_crop_button: false,
+        styles: {
+          palette: {
+            window: "#FFFFFF",
+            sourceBg: "#F5F8FF",
+            windowBorder: "#90A0B3",
+            tabIcon: "#0078FF",
+            inactiveTabIcon: "#8E9DAB",
+            menuIcons: "#5A616A",
+            link: "#0078FF",
+            action: "#339933",
+            inProgress: "#0078FF",
+            complete: "#339933",
+            error: "#CC0000",
+            textDark: "#000000",
+            textLight: "#FFFFFF"
+          }
+        }
+      },
+      (error, result) => {
+        if (!error && result && result.event === "success") {
+          setForm(f => ({ ...f, image: result.info.secure_url }))
+          console.log("Image uploaded:", result.info.secure_url)
+        } else if (error) {
+          console.error("Cloudinary error:", error)
+        }
+      }
+    )
   }
 
   if (loading) return <div className="text-center py-20 text-3xl font-black text-blue-900">Loading Products...</div>
@@ -353,77 +407,46 @@ useEffect(() => {
               <input placeholder="SKU (unique)" value={form.sku} onChange={e => setForm(f => ({...f, sku: e.target.value}))} className="px-4 py-3 border rounded-xl" />
               <input placeholder="Price (RWF)" type="number" value={form.price} onChange={e => setForm(f => ({...f, price: e.target.value}))} className="px-4 py-3 border rounded-xl" />
               <input placeholder="Icon (e.g. beer, water)" value={form.icon} onChange={e => setForm(f => ({...f, icon: e.target.value}))} className="px-4 py-3 border rounded-xl" />
-  <div className="col-span-2">
-  <label className="block text-sm font-semibold text-gray-700 mb-2">Product Image</label>
+              
+              <div className="col-span-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Product Image</label>
 
-  {/* Preview */}
-  {form.image ? (
-    <div className="relative rounded-xl overflow-hidden border-2 border-green-200 bg-green-50">
-      <img src={form.image} alt="Product" className="w-full h-80 object-cover" />
-      <button
-        onClick={() => setForm(f => ({ ...f, image: '' }))}
-        className="absolute top-3 right-3 bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:bg-red-700"
-      >
-        X
-      </button>
-    </div>
-  ) : (
-    /* THE FINAL WORKING UPLOAD BOX */
-    <div
-      className="w-full h-80 border-4 border-dashed border-blue-500 rounded-2xl flex flex-col items-center justify-center text-blue-900 font-bold text-2xl hover:border-blue-700 hover:bg-blue-50 transition cursor-pointer bg-gradient-to-br from-blue-50 to-white"
-      onClick={() => {
-        // DYNAMIC LOAD + OPEN WIDGET — WORKS 100%
-        if (window.cloudinary) {
-          window.cloudinary.openUploadWidget(
-            {
-              cloud_name: 'dzjsdgqegf',
-              upload_preset: 'ndaje-products',
-              cropping: true,
-              folder: 'ndaje-products',
-              sources: ['local', 'camera', 'url'],
-              cropping_aspect_ratio: 1,
-              show_skip_crop_button: false,
-              styles: {
-                palette: {
-                  window: "#FFFFFF",
-                  sourceBg: "#F5F8FF",
-                  windowBorder: "#90A0B3",
-                  tabIcon: "#0078FF",
-                  inactiveTabIcon: "#8E9DAB",
-                  menuIcons: "#5A616A",
-                  link: "#0078FF",
-                  action: "#339933",
-                  inProgress: "#0078FF",
-                  complete: "#339933",
-                  error: "#CC0000",
-                  textDark: "#000000",
-                  textLight: "#FFFFFF"
-                }
-              }
-            },
-            (error, result) => {
-              if (!error && result && result.event === "success") {
-                setForm(f => ({ ...f, image: result.info.secure_url }));
-                alert("Photo uploaded perfectly!"); // Victory!
-              }
-            }
-          );
-        } else {
-          alert("Cloudinary not loaded yet. Wait 2 seconds and try again.");
-        }
-      }}
-      // Fix drag & drop opening in browser
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-    >
-      Click to Upload Photo<br/>
-      <span className="text-lg mt-3 text-blue-700">or drag & drop • camera ready</span>
-    </div>
-  )}
-</div>
+                {form.image ? (
+                  <div className="relative rounded-xl overflow-hidden border-2 border-green-200 bg-green-50">
+                    <img src={form.image} alt="Product" className="w-full h-80 object-cover" />
+                    <button
+                      onClick={() => setForm(f => ({ ...f, image: '' }))}
+                      className="absolute top-3 right-3 bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:bg-red-700"
+                    >
+                      X
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className="w-full h-80 border-4 border-dashed border-blue-500 rounded-2xl flex flex-col items-center justify-center text-blue-900 font-bold text-2xl hover:border-blue-700 hover:bg-blue-50 transition cursor-pointer bg-gradient-to-br from-blue-50 to-white"
+                    onClick={openCloudinaryWidget}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      // You could add file drop handling here if needed
+                    }}
+                  >
+                    {cloudinaryLoaded ? (
+                      <>
+                        Click to Upload Photo<br/>
+                        <span className="text-lg mt-3 text-blue-700">or drag & drop • camera ready</span>
+                      </>
+                    ) : (
+                      <>
+                        Loading Uploader...<br/>
+                        <span className="text-lg mt-3 text-blue-700">Please wait</span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <input placeholder="Reference (e.g. BEER-001)" value={form.reference} onChange={e => setForm(f => ({...f, reference: e.target.value}))} className="px-4 py-3 border rounded-xl" />
               <input placeholder="Category" value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))} className="px-4 py-3 border rounded-xl" />
             </div>
@@ -437,7 +460,6 @@ useEffect(() => {
     </div>
   )
 }
-
 // YOUR ORIGINAL ADMIN DASHBOARD — 100% UNTOUCHED
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview')
