@@ -206,38 +206,70 @@ function ProductsPanel() {
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState(null)
   const token = localStorage.getItem('token')
-  const [cloudinaryLoaded, setCloudinaryLoaded] = useState(false)
+  const [cloudinaryState, setCloudinaryState] = useState('loading') // loading, loaded, error
   const [form, setForm] = useState({
     name: '', sku: '', price: '', icon: '', image: '', reference: '', description: '', category: '', active: true
   })
 
-  // Load Cloudinary script dynamically
+  // Enhanced Cloudinary loader with comprehensive logging
   useEffect(() => {
-    // Check if Cloudinary is already loaded
-    if (window.cloudinary) {
-      setCloudinaryLoaded(true)
+    console.log('🔧 Cloudinary loader starting...')
+    
+    // Check if already loaded
+    if (window.cloudinary && window.cloudinary.openUploadWidget) {
+      console.log('✅ Cloudinary already loaded globally')
+      setCloudinaryState('loaded')
       return
     }
 
-    // Load Cloudinary script
+    // Check if script already exists
+    const existingScript = document.querySelector('script[src*="cloudinary"]')
+    if (existingScript) {
+      console.log('📜 Cloudinary script already exists in DOM, waiting for load...')
+      existingScript.onload = () => {
+        console.log('✅ Cloudinary loaded from existing script')
+        setCloudinaryState('loaded')
+      }
+      existingScript.onerror = () => {
+        console.error('❌ Existing Cloudinary script failed to load')
+        setCloudinaryState('error')
+      }
+      return
+    }
+
+    // Load fresh script
+    console.log('⬇️ Loading Cloudinary script...')
     const script = document.createElement('script')
     script.src = 'https://upload-widget.cloudinary.com/global/all.js'
     script.async = true
+    script.id = 'cloudinary-upload-widget'
+    
     script.onload = () => {
-      setCloudinaryLoaded(true)
-      console.log('Cloudinary loaded successfully')
-    }
-    script.onerror = () => {
-      console.error('Failed to load Cloudinary script')
-      alert('Failed to load image uploader. Please refresh the page.')
-    }
-    document.head.appendChild(script)
-
-    return () => {
-      // Cleanup if needed
-      if (document.head.contains(script)) {
-        document.head.removeChild(script)
+      console.log('✅ Cloudinary script loaded successfully')
+      console.log('🔍 Checking window.cloudinary:', window.cloudinary)
+      console.log('🔍 Checking openUploadWidget:', window.cloudinary?.openUploadWidget)
+      
+      if (window.cloudinary && window.cloudinary.openUploadWidget) {
+        console.log('🎉 Cloudinary fully initialized and ready!')
+        setCloudinaryState('loaded')
+      } else {
+        console.error('❌ Cloudinary loaded but openUploadWidget is missing')
+        setCloudinaryState('error')
       }
+    }
+    
+    script.onerror = (error) => {
+      console.error('❌ Failed to load Cloudinary script:', error)
+      console.log('💡 Script src was:', script.src)
+      setCloudinaryState('error')
+    }
+    
+    document.head.appendChild(script)
+    console.log('📜 Script appended to head')
+
+    // Cleanup
+    return () => {
+      console.log('🧹 Cleanup: removing Cloudinary script listeners')
     }
   }, [])
 
@@ -246,19 +278,24 @@ function ProductsPanel() {
   }, [])
 
   const fetchProducts = async () => {
+    console.log('📦 Fetching products...')
     try {
       const res = await axios.get(`${API_BASE}/products`, {
         headers: { Authorization: `Bearer ${token}` }
       })
+      console.log('✅ Products fetched:', res.data.data?.length || 0)
       setProducts(res.data.data || [])
     } catch (err) {
-      console.error(err)
+      console.error('❌ Failed to fetch products:', err)
     } finally {
       setLoading(false)
     }
   }
 
   const handleSubmit = async () => {
+    console.log('🚀 Submitting product form...')
+    console.log('📝 Form data:', form)
+    
     try {
       const payload = {
         name: form.name.trim(),
@@ -272,19 +309,26 @@ function ProductsPanel() {
         active: true
       }
 
+      console.log('📤 Payload to send:', payload)
+
       if (!payload.name || !payload.sku || !payload.price) {
         alert("Name, SKU and Price are required!")
         return
       }
 
+      let response;
       if (editing) {
-        await axios.put(`${API_BASE}/products/${editing.id}`, payload, {
+        console.log('✏️ Updating product:', editing.id)
+        response = await axios.put(`${API_BASE}/products/${editing.id}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         })
+        console.log('✅ Product updated:', response.data)
       } else {
-        await axios.post(`${API_BASE}/products`, payload, {
+        console.log('🆕 Creating new product')
+        response = await axios.post(`${API_BASE}/products`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         })
+        console.log('✅ Product created:', response.data)
       }
 
       setShowAdd(false)
@@ -294,76 +338,169 @@ function ProductsPanel() {
       
       alert(editing ? "Product updated!" : "Product created successfully!")
     } catch (err) {
-      console.error(err.response?.data)
+      console.error('❌ Product submission failed:', err)
+      console.error('🔍 Error response:', err.response?.data)
       alert(err.response?.data?.message || "Failed to save product")
     }
   }
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this product?')) return
+    console.log('🗑️ Deleting product:', id)
     try {
       await axios.delete(`${API_BASE}/products/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
+      console.log('✅ Product deleted')
       fetchProducts()
     } catch (err) {
+      console.error('❌ Delete failed:', err)
       alert('Failed to delete')
     }
   }
 
   const openCloudinaryWidget = () => {
-    if (!cloudinaryLoaded) {
+    console.log('🖼️ Opening Cloudinary widget...')
+    console.log('🔍 Cloudinary state:', cloudinaryState)
+    console.log('🔍 window.cloudinary:', window.cloudinary)
+    console.log('🔍 openUploadWidget exists:', window.cloudinary?.openUploadWidget)
+
+    if (cloudinaryState === 'loading') {
+      console.log('⏳ Cloudinary still loading, please wait...')
       alert('Image uploader is still loading. Please wait a moment and try again.')
       return
     }
 
+    if (cloudinaryState === 'error') {
+      console.error('❌ Cloudinary in error state')
+      alert('Image uploader failed to load. Please refresh the page and try again.')
+      return
+    }
+
     if (!window.cloudinary) {
+      console.error('❌ window.cloudinary is undefined')
       alert('Cloudinary not available. Please refresh the page.')
       return
     }
 
-    window.cloudinary.openUploadWidget(
-      {
-        cloud_name: 'dzjsdgqegf',
-        upload_preset: 'ndaje-products',
-        cropping: true,
-        folder: 'ndaje-products',
-        sources: ['local', 'camera', 'url'],
-        cropping_aspect_ratio: 1,
-        show_skip_crop_button: false,
-        styles: {
-          palette: {
-            window: "#FFFFFF",
-            sourceBg: "#F5F8FF",
-            windowBorder: "#90A0B3",
-            tabIcon: "#0078FF",
-            inactiveTabIcon: "#8E9DAB",
-            menuIcons: "#5A616A",
-            link: "#0078FF",
-            action: "#339933",
-            inProgress: "#0078FF",
-            complete: "#339933",
-            error: "#CC0000",
-            textDark: "#000000",
-            textLight: "#FFFFFF"
+    if (typeof window.cloudinary.openUploadWidget !== 'function') {
+      console.error('❌ openUploadWidget is not a function:', typeof window.cloudinary.openUploadWidget)
+      alert('Cloudinary upload function is missing. Please refresh the page.')
+      return
+    }
+
+    console.log('🎯 Calling openUploadWidget...')
+    
+    try {
+      window.cloudinary.openUploadWidget(
+        {
+          cloud_name: 'dzjsdgqegf',
+          upload_preset: 'ndaje-products',
+          cropping: true,
+          folder: 'ndaje-products',
+          sources: ['local', 'camera', 'url'],
+          cropping_aspect_ratio: 1,
+          show_skip_crop_button: false,
+          styles: {
+            palette: {
+              window: "#FFFFFF",
+              sourceBg: "#F5F8FF",
+              windowBorder: "#90A0B3",
+              tabIcon: "#0078FF",
+              inactiveTabIcon: "#8E9DAB",
+              menuIcons: "#5A616A",
+              link: "#0078FF",
+              action: "#339933",
+              inProgress: "#0078FF",
+              complete: "#339933",
+              error: "#CC0000",
+              textDark: "#000000",
+              textLight: "#FFFFFF"
+            }
+          }
+        },
+        (error, result) => {
+          console.log('📨 Cloudinary callback received:')
+          console.log('🔍 Error:', error)
+          console.log('🔍 Result:', result)
+          
+          if (error) {
+            console.error('❌ Cloudinary upload error:', error)
+            alert('Upload failed: ' + (error.message || 'Unknown error'))
+            return
+          }
+          
+          if (result && result.event === "success") {
+            console.log('✅ Upload successful:', result.info.secure_url)
+            setForm(f => ({ ...f, image: result.info.secure_url }))
+            alert('Photo uploaded successfully!')
+          } else if (result && result.event === "close") {
+            console.log('🔒 Upload widget closed by user')
+          } else if (result && result.event === "cancelled") {
+            console.log('🚫 Upload cancelled by user')
+          } else {
+            console.log('ℹ️ Other Cloudinary event:', result?.event)
           }
         }
-      },
-      (error, result) => {
-        if (!error && result && result.event === "success") {
-          setForm(f => ({ ...f, image: result.info.secure_url }))
-          console.log("Image uploaded:", result.info.secure_url)
-        } else if (error) {
-          console.error("Cloudinary error:", error)
-        }
-      }
-    )
+      )
+      console.log('✅ openUploadWidget called successfully')
+    } catch (widgetError) {
+      console.error('❌ Exception calling openUploadWidget:', widgetError)
+      alert('Failed to open image uploader. Please check console for details.')
+    }
+  }
+
+  const getUploadButtonText = () => {
+    switch (cloudinaryState) {
+      case 'loading':
+        return '🔄 Loading Uploader...';
+      case 'loaded':
+        return '📷 Click to Upload Photo';
+      case 'error':
+        return '❌ Upload Failed - Click to Retry';
+      default:
+        return '📷 Click to Upload Photo';
+    }
+  }
+
+  const getUploadSubtext = () => {
+    switch (cloudinaryState) {
+      case 'loading':
+        return 'Please wait while we load the image uploader';
+      case 'loaded':
+        return 'or drag & drop • camera ready';
+      case 'error':
+        return 'Refresh page or check console for errors';
+      default:
+        return 'or drag & drop • camera ready';
+    }
   }
 
   if (loading) return <div className="text-center py-20 text-3xl font-black text-blue-900">Loading Products...</div>
 
   return (
     <div className="space-y-8">
+      {/* Debug info - remove in production */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
+        <div className="font-bold mb-2">🔧 Debug Info (Cloudinary State):</div>
+        <div>Status: <span className={`font-bold ${
+          cloudinaryState === 'loaded' ? 'text-green-600' : 
+          cloudinaryState === 'error' ? 'text-red-600' : 'text-yellow-600'
+        }`}>{cloudinaryState.toUpperCase()}</span></div>
+        <div>Window.cloudinary: {window.cloudinary ? '✅ Present' : '❌ Missing'}</div>
+        <div>openUploadWidget: {window.cloudinary?.openUploadWidget ? '✅ Function' : '❌ Missing'}</div>
+        <button 
+          onClick={() => {
+            console.log('🔄 Manual Cloudinary check:')
+            console.log('window.cloudinary:', window.cloudinary)
+            console.log('openUploadWidget:', window.cloudinary?.openUploadWidget)
+          }}
+          className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-xs"
+        >
+          Check Console
+        </button>
+      </div>
+
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-blue-900">Product Catalog</h1>
         <button onClick={() => setShowAdd(true)} className="inline-flex items-center gap-2 px-6 py-3 bg-blue-900 text-white rounded-xl hover:bg-blue-800 font-bold">
@@ -423,26 +560,25 @@ function ProductsPanel() {
                   </div>
                 ) : (
                   <div
-                    className="w-full h-80 border-4 border-dashed border-blue-500 rounded-2xl flex flex-col items-center justify-center text-blue-900 font-bold text-2xl hover:border-blue-700 hover:bg-blue-50 transition cursor-pointer bg-gradient-to-br from-blue-50 to-white"
+                    className={`w-full h-80 border-4 border-dashed rounded-2xl flex flex-col items-center justify-center font-bold text-2xl transition cursor-pointer bg-gradient-to-br from-blue-50 to-white ${
+                      cloudinaryState === 'loaded' 
+                        ? 'border-blue-500 text-blue-900 hover:border-blue-700 hover:bg-blue-50' 
+                        : cloudinaryState === 'loading'
+                        ? 'border-yellow-500 text-yellow-700 hover:border-yellow-600'
+                        : 'border-red-500 text-red-700 hover:border-red-600'
+                    }`}
                     onClick={openCloudinaryWidget}
                     onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      // You could add file drop handling here if needed
-                    }}
+                    onDrop={(e) => e.preventDefault()}
                   >
-                    {cloudinaryLoaded ? (
-                      <>
-                        Click to Upload Photo<br/>
-                        <span className="text-lg mt-3 text-blue-700">or drag & drop • camera ready</span>
-                      </>
-                    ) : (
-                      <>
-                        Loading Uploader...<br/>
-                        <span className="text-lg mt-3 text-blue-700">Please wait</span>
-                      </>
-                    )}
+                    {getUploadButtonText()}
+                    <span className={`text-lg mt-3 ${
+                      cloudinaryState === 'loaded' ? 'text-blue-700' :
+                      cloudinaryState === 'loading' ? 'text-yellow-600' :
+                      'text-red-600'
+                    }`}>
+                      {getUploadSubtext()}
+                    </span>
                   </div>
                 )}
               </div>
