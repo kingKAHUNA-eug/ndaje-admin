@@ -331,7 +331,49 @@ function ProductsPanel() {
               <input placeholder="SKU (unique)" value={form.sku} onChange={e => setForm(f => ({...f, sku: e.target.value}))} className="px-4 py-3 border rounded-xl" />
               <input placeholder="Price (RWF)" type="number" value={form.price} onChange={e => setForm(f => ({...f, price: e.target.value}))} className="px-4 py-3 border rounded-xl" />
               <input placeholder="Icon (e.g. beer, water)" value={form.icon} onChange={e => setForm(f => ({...f, icon: e.target.value}))} className="px-4 py-3 border rounded-xl" />
-              <input placeholder="Image URL" value={form.image} onChange={e => setForm(f => ({...f, image: e.target.value}))} className="px-4 py-3 border rounded-xl col-span-2" />
+              <div className="col-span-2">
+  <label className="block text-sm font-semibold text-gray-700 mb-2">Product Image</label>
+
+  {/* Preview if image exists */}
+  {form.image ? (
+    <div className="relative rounded-xl overflow-hidden border-2 border-blue-200">
+      <img src={form.image} alt="Product" className="w-full h-80 object-cover" />
+      <button
+        onClick={() => setForm(f => ({ ...f, image: '' }))}
+        className="absolute top-3 right-3 bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:bg-red-700 transition"
+      >
+        X
+      </button>
+    </div>
+  ) : (
+    /* Upload button */
+    <button
+      type="button"
+      onClick={() => {
+        window.cloudinary.openUploadWidget(
+          {
+            cloud_name: 'dzjsdgqegf',
+            upload_preset: 'ndaje-products',
+            cropping: true,
+            folder: 'ndaje-products',
+            sources: ['local', 'camera', 'url', 'facebook', 'instagram'],
+            cropping_aspect_ratio: 1,
+            show_skip_crop_button: false
+          },
+          (error, result) => {
+            if (!error && result && result.event === 'success') {
+              setForm(f => ({ ...f, image: result.info.secure_url }));
+            }
+          }
+        );
+      }}
+      className="w-full h-80 border-4 border-dashed border-blue-400 rounded-2xl flex flex-col items-center justify-center text-blue-900 font-bold text-2xl hover:border-blue-600 hover:bg-blue-50 transition bg-gradient-to-br from-blue-50 to-white"
+    >
+      Click to upload photo
+      <span className="text-lg mt-3 text-blue-700">or drag & drop • phone camera works</span>
+    </button>
+  )}
+</div>
               <input placeholder="Reference (e.g. BEER-001)" value={form.reference} onChange={e => setForm(f => ({...f, reference: e.target.value}))} className="px-4 py-3 border rounded-xl" />
               <input placeholder="Category" value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))} className="px-4 py-3 border rounded-xl" />
             </div>
