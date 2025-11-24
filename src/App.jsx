@@ -6,7 +6,6 @@ const API_BASE = import.meta.env.VITE_API_URL
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom"
 import axios from 'axios'
-import { useRef, useEffect } from 'react';
 import {
   ChartBarIcon, UsersIcon, TruckIcon, Cog6ToothIcon, PlusIcon,
   MagnifyingGlassIcon, EyeIcon, PencilSquareIcon, TrashIcon,
@@ -206,72 +205,11 @@ function ProductsPanel() {
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState(null)
   const token = localStorage.getItem('token')
-  const [cloudinaryState, setCloudinaryState] = useState('loading') // loading, loaded, error
   const [form, setForm] = useState({
     name: '', sku: '', price: '', icon: '', image: '', reference: '', description: '', category: '', active: true
   })
 
-  // Enhanced Cloudinary loader with comprehensive logging
-  useEffect(() => {
-    console.log('🔧 Cloudinary loader starting...')
-    
-    // Check if already loaded
-    if (window.cloudinary && window.cloudinary.openUploadWidget) {
-      console.log('✅ Cloudinary already loaded globally')
-      setCloudinaryState('loaded')
-      return
-    }
-
-    // Check if script already exists
-    const existingScript = document.querySelector('script[src*="cloudinary"]')
-    if (existingScript) {
-      console.log('📜 Cloudinary script already exists in DOM, waiting for load...')
-      existingScript.onload = () => {
-        console.log('✅ Cloudinary loaded from existing script')
-        setCloudinaryState('loaded')
-      }
-      existingScript.onerror = () => {
-        console.error('❌ Existing Cloudinary script failed to load')
-        setCloudinaryState('error')
-      }
-      return
-    }
-
-    // Load fresh script
-    console.log('⬇️ Loading Cloudinary script...')
-    const script = document.createElement('script')
-    script.src = 'https://upload-widget.cloudinary.com/global/all.js'
-    script.async = true
-    script.id = 'cloudinary-upload-widget'
-    
-    script.onload = () => {
-      console.log('✅ Cloudinary script loaded successfully')
-      console.log('🔍 Checking window.cloudinary:', window.cloudinary)
-      console.log('🔍 Checking openUploadWidget:', window.cloudinary?.openUploadWidget)
-      
-      if (window.cloudinary && window.cloudinary.openUploadWidget) {
-        console.log('🎉 Cloudinary fully initialized and ready!')
-        setCloudinaryState('loaded')
-      } else {
-        console.error('❌ Cloudinary loaded but openUploadWidget is missing')
-        setCloudinaryState('error')
-      }
-    }
-    
-    script.onerror = (error) => {
-      console.error('❌ Failed to load Cloudinary script:', error)
-      console.log('💡 Script src was:', script.src)
-      setCloudinaryState('error')
-    }
-    
-    document.head.appendChild(script)
-    console.log('📜 Script appended to head')
-
-    // Cleanup
-    return () => {
-      console.log('🧹 Cleanup: removing Cloudinary script listeners')
-    }
-  }, [])
+  
 
   useEffect(() => {
     fetchProducts()
@@ -480,27 +418,6 @@ function ProductsPanel() {
 
   return (
     <div className="space-y-8">
-      {/* Debug info - remove in production */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
-        <div className="font-bold mb-2">🔧 Debug Info (Cloudinary State):</div>
-        <div>Status: <span className={`font-bold ${
-          cloudinaryState === 'loaded' ? 'text-green-600' : 
-          cloudinaryState === 'error' ? 'text-red-600' : 'text-yellow-600'
-        }`}>{cloudinaryState.toUpperCase()}</span></div>
-        <div>Window.cloudinary: {window.cloudinary ? '✅ Present' : '❌ Missing'}</div>
-        <div>openUploadWidget: {window.cloudinary?.openUploadWidget ? '✅ Function' : '❌ Missing'}</div>
-        <button 
-          onClick={() => {
-            console.log('🔄 Manual Cloudinary check:')
-            console.log('window.cloudinary:', window.cloudinary)
-            console.log('openUploadWidget:', window.cloudinary?.openUploadWidget)
-          }}
-          className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-xs"
-        >
-          Check Console
-        </button>
-      </div>
-
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-blue-900">Product Catalog</h1>
         <button onClick={() => setShowAdd(true)} className="inline-flex items-center gap-2 px-6 py-3 bg-blue-900 text-white rounded-xl hover:bg-blue-800 font-bold">
@@ -546,42 +463,62 @@ function ProductsPanel() {
               <input placeholder="Icon (e.g. beer, water)" value={form.icon} onChange={e => setForm(f => ({...f, icon: e.target.value}))} className="px-4 py-3 border rounded-xl" />
               
               <div className="col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Product Image</label>
+  <label className="block text-sm font-semibold text-gray-700 mb-2">Product Image</label>
 
-                {form.image ? (
-                  <div className="relative rounded-xl overflow-hidden border-2 border-green-200 bg-green-50">
-                    <img src={form.image} alt="Product" className="w-full h-80 object-cover" />
-                    <button
-                      onClick={() => setForm(f => ({ ...f, image: '' }))}
-                      className="absolute top-3 right-3 bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover:bg-red-700"
-                    >
-                      X
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    className={`w-full h-80 border-4 border-dashed rounded-2xl flex flex-col items-center justify-center font-bold text-2xl transition cursor-pointer bg-gradient-to-br from-blue-50 to-white ${
-                      cloudinaryState === 'loaded' 
-                        ? 'border-blue-500 text-blue-900 hover:border-blue-700 hover:bg-blue-50' 
-                        : cloudinaryState === 'loading'
-                        ? 'border-yellow-500 text-yellow-700 hover:border-yellow-600'
-                        : 'border-red-500 text-red-700 hover:border-red-600'
-                    }`}
-                    onClick={openCloudinaryWidget}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => e.preventDefault()}
-                  >
-                    {getUploadButtonText()}
-                    <span className={`text-lg mt-3 ${
-                      cloudinaryState === 'loaded' ? 'text-blue-700' :
-                      cloudinaryState === 'loading' ? 'text-yellow-600' :
-                      'text-red-600'
-                    }`}>
-                      {getUploadSubtext()}
-                    </span>
-                  </div>
-                )}
-              </div>
+  {form.image ? (
+    <div className="relative rounded-xl overflow-hidden border-4 border-green-500 bg-green-50">
+      <img src={form.image} alt="Preview" className="w-full h-80 object-cover" />
+      <button
+        onClick={() => setForm(f => ({ ...f, image: '' }))}
+        className="absolute top-4 right-4 bg-red-600 text-white w-12 h-12 rounded-full text-2xl font-bold shadow-lg hover:bg-red-700"
+      >
+        X
+      </button>
+    </div>
+  ) : (
+    <button
+      type="button"
+      onClick={() => {
+        // THIS IS THE CORRECT 2025 URL — THE OLD ONE WAS WRONG
+        if (!window.cloudinary) {
+          const script = document.createElement('script')
+          script.src = 'https://upload-widget.cloudinary.com/latest/global/all.js'
+          script.async = true
+          script.onload = () => openWidget()
+          document.body.appendChild(script)
+        } else {
+          openWidget()
+        }
+
+        function openWidget() {
+          window.cloudinary.openUploadWidget(
+            {
+              cloud_name: 'dzjsdgqegf',
+              upload_preset: 'ndaje-products',
+              sources: ['local', 'camera', 'url', 'facebook', 'instagram'],
+              cropping: true,
+              multiple: false,
+              folder: 'ndaje-products',
+              client_allowed_formats: ['png', 'jpg', 'jpeg', 'webp']
+            },
+            (error, result) => {
+              if (!error && result?.event === 'success') {
+                setForm(f => ({ ...f, image: result.info.secure_url }))
+              }
+            }
+          )
+        }
+      }}
+      className="w-full h-80 border-4 border-dashed border-blue-600 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white hover:from-blue-100 transition-all cursor-pointer text-blue-900 font-bold text-2xl shadow-xl"
+    >
+      <div className="text-center">
+        <div className="text-6xl mb-4">Upload Photo</div>
+        <div className="text-xl text-blue-700 font-bold">Click • Drag & Drop • Camera Works</div>
+        <div className="text-sm text-blue-600 mt-4">Real photos for real hotels</div>
+      </div>
+    </button>
+  )}
+</div>
 
               <input placeholder="Reference (e.g. BEER-001)" value={form.reference} onChange={e => setForm(f => ({...f, reference: e.target.value}))} className="px-4 py-3 border rounded-xl" />
               <input placeholder="Category" value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))} className="px-4 py-3 border rounded-xl" />
