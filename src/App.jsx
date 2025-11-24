@@ -31,7 +31,7 @@ function Login() {
     setError('')
 
     try {
-      const res = await axios.post(`${API_URL}/auth/login`, { email, password })
+      const res = await axios.post(`${API_BASE}/auth/login`, { email, password })
       const user = res.data.data?.user || res.data.user
       const token = res.data.data?.token || res.data.token
 
@@ -217,7 +217,7 @@ function ProductsPanel() {
 
   const fetchProducts = async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/products`, {
+      const res = await axios.get(`${API_BASE}/api/products`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setProducts(res.data.data || [])
@@ -231,11 +231,11 @@ function ProductsPanel() {
   const handleSubmit = async () => {
     try {
       if (editing) {
-        await axios.put(`${API_URL}/api/products/${editing.id}`, form, {
+        await axios.put(`${API_BASE}/api/products/${editing.id}`, form, {
           headers: { Authorization: `Bearer ${token}` }
         })
       } else {
-        await axios.post(`${API_URL}/api/products`, form, {
+        await axios.post(`${API_BASE}/api/products`, form, {
           headers: { Authorization: `Bearer ${token}` }
         })
       }
@@ -251,7 +251,7 @@ function ProductsPanel() {
   const handleDelete = async (id) => {
     if (!confirm('Delete this product?')) return
     try {
-      await axios.delete(`${API_URL}/api/products/${id}`, {
+      await axios.delete(`${API_BASE}/api/products/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       fetchProducts()
@@ -345,9 +345,9 @@ function AdminDashboard() {
         const headers = { Authorization: `Bearer ${token}` }
 
         const [manRes, driRes, ordRes] = await Promise.all([
-          axios.get(`${API_URL}/admin/managers`, { headers }),
-          axios.get(`${API_URL}/admin/drivers`, { headers }),
-          axios.get(`${API_URL}/admin/orders`, { headers })
+          axios.get(`${API_BASE}/admin/managers`, { headers }),
+          axios.get(`${API_BASE}/admin/drivers`, { headers }),
+          axios.get(`${API_BASE}/admin/orders`, { headers })
         ])
 
         setManagers(manRes.data.data || [])
@@ -374,7 +374,7 @@ function AdminDashboard() {
 
   const createManager = async () => {
     try {
-      const res = await axios.post(`${API_URL}/admin/create-manager`, newManager, {
+      const res = await axios.post(`${API_BASE}/admin/create-manager`, newManager, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setManagers(prev => [...prev, res.data.data.user])
@@ -387,7 +387,7 @@ function AdminDashboard() {
 
   const createDriver = async () => {
     try {
-      const res = await axios.post(`${API_URL}/admin/create-driver`, newDriver, {
+      const res = await axios.post(`${API_BASE}/admin/create-driver`, newDriver, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setDrivers(prev => [...prev, res.data.data.user])
@@ -707,7 +707,7 @@ function ManagerQuotes() {
     const fetchQuotes = async () => {
       try {
         const token = localStorage.getItem('token')
-        const res = await axios.get(`${API_URL}/api/manager/quotes/pending`, {
+        const res = await axios.get(`${API_BASE}/api/manager/quotes/pending`, {
           headers: { Authorization: `Bearer ${token}` }
         })
         setQuotes(res.data.data || [])
@@ -720,7 +720,7 @@ function ManagerQuotes() {
   const approveQuote = async (quoteId, prices) => {
     try {
       const token = localStorage.getItem('token')
-      await axios.post(`${API_URL}/api/manager/quotes/${quoteId}/price`, { prices }, {
+      await axios.post(`${API_BASE}/api/manager/quotes/${quoteId}/price`, { prices }, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setQuotes(prev => prev.filter(q => q.id !== quoteId))
