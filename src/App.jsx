@@ -297,123 +297,6 @@ function ProductsPanel() {
     }
   }
 
-  const openCloudinaryWidget = () => {
-    console.log('🖼️ Opening Cloudinary widget...')
-    console.log('🔍 Cloudinary state:', cloudinaryState)
-    console.log('🔍 window.cloudinary:', window.cloudinary)
-    console.log('🔍 openUploadWidget exists:', window.cloudinary?.openUploadWidget)
-
-    if (cloudinaryState === 'loading') {
-      console.log('⏳ Cloudinary still loading, please wait...')
-      alert('Image uploader is still loading. Please wait a moment and try again.')
-      return
-    }
-
-    if (cloudinaryState === 'error') {
-      console.error('❌ Cloudinary in error state')
-      alert('Image uploader failed to load. Please refresh the page and try again.')
-      return
-    }
-
-    if (!window.cloudinary) {
-      console.error('❌ window.cloudinary is undefined')
-      alert('Cloudinary not available. Please refresh the page.')
-      return
-    }
-
-    if (typeof window.cloudinary.openUploadWidget !== 'function') {
-      console.error('❌ openUploadWidget is not a function:', typeof window.cloudinary.openUploadWidget)
-      alert('Cloudinary upload function is missing. Please refresh the page.')
-      return
-    }
-
-    console.log('🎯 Calling openUploadWidget...')
-    
-    try {
-      window.cloudinary.openUploadWidget(
-        {
-          cloud_name: 'dzjsdgqegf',
-          upload_preset: 'ndaje-products',
-          cropping: true,
-          folder: 'ndaje-products',
-          sources: ['local', 'camera', 'url'],
-          cropping_aspect_ratio: 1,
-          show_skip_crop_button: false,
-          styles: {
-            palette: {
-              window: "#FFFFFF",
-              sourceBg: "#F5F8FF",
-              windowBorder: "#90A0B3",
-              tabIcon: "#0078FF",
-              inactiveTabIcon: "#8E9DAB",
-              menuIcons: "#5A616A",
-              link: "#0078FF",
-              action: "#339933",
-              inProgress: "#0078FF",
-              complete: "#339933",
-              error: "#CC0000",
-              textDark: "#000000",
-              textLight: "#FFFFFF"
-            }
-          }
-        },
-        (error, result) => {
-          console.log('📨 Cloudinary callback received:')
-          console.log('🔍 Error:', error)
-          console.log('🔍 Result:', result)
-          
-          if (error) {
-            console.error('❌ Cloudinary upload error:', error)
-            alert('Upload failed: ' + (error.message || 'Unknown error'))
-            return
-          }
-          
-          if (result && result.event === "success") {
-            console.log('✅ Upload successful:', result.info.secure_url)
-            setForm(f => ({ ...f, image: result.info.secure_url }))
-            alert('Photo uploaded successfully!')
-          } else if (result && result.event === "close") {
-            console.log('🔒 Upload widget closed by user')
-          } else if (result && result.event === "cancelled") {
-            console.log('🚫 Upload cancelled by user')
-          } else {
-            console.log('ℹ️ Other Cloudinary event:', result?.event)
-          }
-        }
-      )
-      console.log('✅ openUploadWidget called successfully')
-    } catch (widgetError) {
-      console.error('❌ Exception calling openUploadWidget:', widgetError)
-      alert('Failed to open image uploader. Please check console for details.')
-    }
-  }
-
-  const getUploadButtonText = () => {
-    switch (cloudinaryState) {
-      case 'loading':
-        return '🔄 Loading Uploader...';
-      case 'loaded':
-        return '📷 Click to Upload Photo';
-      case 'error':
-        return '❌ Upload Failed - Click to Retry';
-      default:
-        return '📷 Click to Upload Photo';
-    }
-  }
-
-  const getUploadSubtext = () => {
-    switch (cloudinaryState) {
-      case 'loading':
-        return 'Please wait while we load the image uploader';
-      case 'loaded':
-        return 'or drag & drop • camera ready';
-      case 'error':
-        return 'Refresh page or check console for errors';
-      default:
-        return 'or drag & drop • camera ready';
-    }
-  }
-
   if (loading) return <div className="text-center py-20 text-3xl font-black text-blue-900">Loading Products...</div>
 
   return (
@@ -463,12 +346,15 @@ function ProductsPanel() {
               <input placeholder="Icon (e.g. beer, water)" value={form.icon} onChange={e => setForm(f => ({...f, icon: e.target.value}))} className="px-4 py-3 border rounded-xl" />
               
               <div className="col-span-2">
-  <label className="block text-sm font-semibold text-gray-700 mb-2">Product Image</label>
+  <label className="block text-sm font-semibold text-gray-700 mb-2">
+    Product Image
+  </label>
 
   {form.image ? (
     <div className="relative rounded-xl overflow-hidden border-4 border-green-500 bg-green-50">
       <img src={form.image} alt="Preview" className="w-full h-80 object-cover" />
       <button
+        type="button"
         onClick={() => setForm(f => ({ ...f, image: '' }))}
         className="absolute top-4 right-4 bg-red-600 text-white w-12 h-12 rounded-full text-2xl font-bold shadow-lg hover:bg-red-700"
       >
@@ -479,47 +365,33 @@ function ProductsPanel() {
     <button
       type="button"
       onClick={() => {
-        // THIS IS THE CORRECT 2025 URL — THE OLD ONE WAS WRONG
-        if (!window.cloudinary) {
-          const script = document.createElement('script')
-          script.src = 'https://upload-widget.cloudinary.com/latest/global/all.js'
-          script.async = true
-          script.onload = () => openWidget()
-          document.body.appendChild(script)
-        } else {
-          openWidget()
-        }
-
-        function openWidget() {
-          window.cloudinary.openUploadWidget(
-            {
-              cloud_name: 'dzjsdgqegf',
-              upload_preset: 'ndaje-products',
-              sources: ['local', 'camera', 'url', 'facebook', 'instagram'],
-              cropping: true,
-              multiple: false,
-              folder: 'ndaje-products',
-              client_allowed_formats: ['png', 'jpg', 'jpeg', 'webp']
-            },
-            (error, result) => {
-              if (!error && result?.event === 'success') {
-                setForm(f => ({ ...f, image: result.info.secure_url }))
-              }
+        window.cloudinary.openUploadWidget(
+          {
+            cloudName: "dzjsdgqegf",
+            uploadPreset: "ndaje-products",
+            sources: ["local", "camera", "url"],
+            cropping: true,
+            multiple: false,
+            folder: "ndaje-products",
+            clientAllowedFormats: ["png", "jpg", "jpeg", "webp"]
+          },
+          (error, result) => {
+            if (!error && result?.event === "success") {
+              setForm(f => ({ ...f, image: result.info.secure_url }))
             }
-          )
-        }
+          }
+        )
       }}
       className="w-full h-80 border-4 border-dashed border-blue-600 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white hover:from-blue-100 transition-all cursor-pointer text-blue-900 font-bold text-2xl shadow-xl"
     >
       <div className="text-center">
         <div className="text-6xl mb-4">Upload Photo</div>
-        <div className="text-xl text-blue-700 font-bold">Click • Drag & Drop • Camera Works</div>
-        <div className="text-sm text-blue-600 mt-4">Real photos for real hotels</div>
+        <div className="text-xl text-blue-700 font-bold">Click • Drag & Drop • Camera</div>
+        <div className="text-sm text-blue-600 mt-4">Real photos for Rwanda's finest hotels</div>
       </div>
     </button>
   )}
 </div>
-
               <input placeholder="Reference (e.g. BEER-001)" value={form.reference} onChange={e => setForm(f => ({...f, reference: e.target.value}))} className="px-4 py-3 border rounded-xl" />
               <input placeholder="Category" value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))} className="px-4 py-3 border rounded-xl" />
             </div>
