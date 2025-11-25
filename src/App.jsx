@@ -405,7 +405,7 @@ function ProductsPanel() {
           const formData = new FormData()
           formData.append('file', file)
           formData.append('upload_preset', 'ndaje-direct-2025')
-          formData.append('folder', 'ndaje-products')
+         
 
           try {
             const res = await fetch('https://api.cloudinary.com/v1_1/dzjsdgqegf/image/upload', {
