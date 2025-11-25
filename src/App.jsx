@@ -372,7 +372,7 @@ function ProductsPanel() {
 
           const formData = new FormData()
           formData.append('file', file)
-          formData.append('upload_preset', 'ndaje-products')
+          formData.append('upload_preset', 't48ffzc')
           formData.append('folder', 'ndaje-products')
 
           try {
