@@ -363,8 +363,11 @@ function ProductsPanel() {
     </div>
   ) : (
     <button
-      type="button"
-      onClick={() => {
+  type="button"
+  onClick={() => {
+    // THIS FIXES EVERYTHING — AUTO-WAIT + AUTO-RETRY
+    const openWidget = () => {
+      if (window.cloudinary?.openUploadWidget) {
         window.cloudinary.openUploadWidget(
           {
             cloudName: "dzjsdgqegf",
@@ -381,15 +384,22 @@ function ProductsPanel() {
             }
           }
         )
-      }}
-      className="w-full h-80 border-4 border-dashed border-blue-600 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white hover:from-blue-100 transition-all cursor-pointer text-blue-900 font-bold text-2xl shadow-xl"
-    >
-      <div className="text-center">
-        <div className="text-6xl mb-4">Upload Photo</div>
-        <div className="text-xl text-blue-700 font-bold">Click • Drag & Drop • Camera</div>
-        <div className="text-sm text-blue-600 mt-4">Real photos for Rwanda's finest hotels</div>
-      </div>
-    </button>
+      } else {
+        // Script not ready yet — wait and retry
+        setTimeout(openWidget, 300)
+      }
+    }
+
+    openWidget()
+  }}
+  className="w-full h-80 border-4 border-dashed border-blue-600 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white hover:from-blue-100 transition-all cursor-pointer text-blue-900 font-bold text-2xl shadow-xl"
+>
+  <div className="text-center">
+    <div className="text-6xl mb-4">Upload Photo</div>
+    <div className="text-xl text-blue-700 font-bold">Click • Drag & Drop • Camera</div>
+    <div className="text-sm text-blue-600 mt-4">Real photos for Rwanda's finest hotels</div>
+  </div>
+</button>
   )}
 </div>
               <input placeholder="Reference (e.g. BEER-001)" value={form.reference} onChange={e => setForm(f => ({...f, reference: e.target.value}))} className="px-4 py-3 border rounded-xl" />
