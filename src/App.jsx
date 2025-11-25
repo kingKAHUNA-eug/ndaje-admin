@@ -350,18 +350,20 @@ function ProductsPanel() {
   </label>
 
   {form.image ? (
+    /* PREVIEW WITH REMOVE BUTTON */
     <div className="relative rounded-xl overflow-hidden border-4 border-green-500 bg-green-50">
       <img src={form.image} alt="Preview" className="w-full h-80 object-cover" />
       <button
         type="button"
         onClick={() => setForm(f => ({ ...f, image: '' }))}
-        className="absolute top-4 right-4 bg-red-600 text-white w-12 h-12 rounded-full text-2xl font-bold shadow-lg hover:bg-red-700"
+        className="absolute top-4 right-4 bg-red-600 text-white w-12 h-12 rounded-full text-2xl font-bold shadow-lg hover:bg-red-700 transition"
       >
         X
       </button>
     </div>
   ) : (
-    <label className="w-full h-80 border-4 border-dashed border-blue-600 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white hover:from-blue-100 transition-all cursor-pointer text-blue-900 font-bold text-2xl shadow-xl">
+    /* UPLOAD ZONE */
+    <label className="w-full h-80 border-4 border-dashed border-blue-600 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white hover:from-blue-100 transition-all cursor-pointer text-blue-900 font-bold text-2xl shadow-xl relative">
       <input
         type="file"
         accept="image/*"
@@ -369,6 +371,9 @@ function ProductsPanel() {
         onChange={async (e) => {
           const file = e.target.files?.[0]
           if (!file) return
+
+          // SHOW UPLOADING STATE IMMEDIATELY
+          setForm(f => ({ ...f, image: 'uploading' }))
 
           const formData = new FormData()
           formData.append('file', file)
@@ -381,17 +386,40 @@ function ProductsPanel() {
               body: formData
             })
             const data = await res.json()
-            setForm(f => ({ ...f, image: data.secure_url }))
+
+            if (data.secure_url) {
+              setForm(f => ({ ...f, image: data.secure_url }))
+            } else {
+              alert('Upload failed: ' + (data.error?.message || 'Unknown error'))
+              setForm(f => ({ ...f, image: '' }))
+            }
           } catch (err) {
-            alert('Upload failed')
+            alert('Upload failed — check your connection')
+            setForm(f => ({ ...f, image: '' }))
           }
         }}
       />
-      <div className="text-center">
-        <div className="text-6xl mb-4">Upload Photo</div>
-        <div className="text-xl text-blue-700 font-bold">Click • Drag & Drop • Camera</div>
-        <div className="text-sm text-blue-600 mt-4">Real photos for Rwanda's finest hotels</div>
-      </div>
+
+      {/* UPLOADING STATE */}
+      {form.image === 'uploading' ? (
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-100 rounded-full animate-pulse">
+            <svg className="w-10 h-10 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+          <p className="mt-6 text-3xl font-black text-blue-900">Uploading…</p>
+          <p className="text-lg text-blue-700">Real photo incoming</p>
+        </div>
+      ) : (
+        /* DEFAULT STATE */
+        <div className="text-center">
+          <div className="text-6xl mb-4">Upload Photo</div>
+          <div className="text-xl text-blue-700 font-bold">Click • Drag & Drop • Camera</div>
+          <div className="text-sm text-blue-600 mt-4">Real photos for Rwanda's finest hotels</div>
+        </div>
+      )}
     </label>
   )}
 </div>
