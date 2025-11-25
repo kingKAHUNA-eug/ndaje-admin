@@ -344,26 +344,53 @@ function ProductsPanel() {
               <input placeholder="Price (RWF)" type="number" value={form.price} onChange={e => setForm(f => ({...f, price: e.target.value}))} className="px-4 py-3 border rounded-xl" />
               <input placeholder="Icon (e.g. beer, water)" value={form.icon} onChange={e => setForm(f => ({...f, icon: e.target.value}))} className="px-4 py-3 border rounded-xl" />
               
-             <div className="col-span-2">
+     <div className="col-span-2">
   <label className="block text-sm font-semibold text-gray-700 mb-2">
     Product Image
   </label>
 
-  {form.image ? (
-    /* PREVIEW WITH REMOVE BUTTON */
-    <div className="relative rounded-xl overflow-hidden border-4 border-green-500 bg-green-50">
-      <img src={form.image} alt="Preview" className="w-full h-80 object-cover" />
+  {/* SUCCESS: IMAGE UPLOADED */}
+  {form.image && form.image !== 'uploading' && form.image !== '' ? (
+    <div className="relative rounded-xl overflow-hidden border-4 border-green-500 bg-green-50 shadow-2xl">
+      <img
+        src={form.image}
+        alt="Product preview"
+        className="w-full h-80 object-cover bg-gray-100"
+        onError={(e) => {
+          e.target.src = 'https://res.cloudinary.com/dzjsdgqegf/image/upload/v9999999999/ndaje-products/fallback.jpg';
+        }}
+      />
       <button
         type="button"
         onClick={() => setForm(f => ({ ...f, image: '' }))}
-        className="absolute top-4 right-4 bg-red-600 text-white w-12 h-12 rounded-full text-2xl font-bold shadow-lg hover:bg-red-700 transition"
+        className="absolute top-4 right-4 bg-red-600 hover:bg-red-700 text-white w-12 h-12 rounded-full text-3xl font-black shadow-2xl transition transform hover:scale-110"
       >
         X
       </button>
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6">
+        <div className="flex items-center gap-3 text-white">
+          <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+          </svg>
+          <span className="text-xl font-bold">REAL PHOTO UPLOADED — NDAJE IS ALIVE</span>
+        </div>
+      </div>
+    </div>
+  ) : form.image === 'uploading' ? (
+    /* UPLOADING STATE */
+    <div className="w-full h-80 border-4 border-dashed border-blue-600 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white">
+      <div className="inline-flex items-center justify-center w-24 h-24 bg-blue-100 rounded-full animate-pulse mb-6">
+        <svg className="w-12 h-12 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+        </svg>
+      </div>
+      <p className="text-4xl font-black text-blue-900">Uploading…</p>
+      <p className="text-xl text-blue-700 mt-2">Real photo for Rwanda's finest</p>
     </div>
   ) : (
-    /* UPLOAD ZONE */
-    <label className="w-full h-80 border-4 border-dashed border-blue-600 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white hover:from-blue-100 transition-all cursor-pointer text-blue-900 font-bold text-2xl shadow-xl relative">
+    /* DEFAULT UPLOAD ZONE */
+    <label className="w-full h-80 border-4 border-dashed border-blue-600 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white hover:from-blue-100 transition-all cursor-pointer text-blue-900 font-bold text-2xl shadow-2xl group">
       <input
         type="file"
         accept="image/*"
@@ -372,7 +399,7 @@ function ProductsPanel() {
           const file = e.target.files?.[0]
           if (!file) return
 
-          // SHOW UPLOADING STATE IMMEDIATELY
+          // Trigger uploading state
           setForm(f => ({ ...f, image: 'uploading' }))
 
           const formData = new FormData()
@@ -390,36 +417,22 @@ function ProductsPanel() {
             if (data.secure_url) {
               setForm(f => ({ ...f, image: data.secure_url }))
             } else {
-              alert('Upload failed: ' + (data.error?.message || 'Unknown error'))
+              alert('Upload failed: ' + (data.error?.message || 'Try again'))
               setForm(f => ({ ...f, image: '' }))
             }
           } catch (err) {
-            alert('Upload failed — check your connection')
+            alert('No internet or upload blocked')
             setForm(f => ({ ...f, image: '' }))
           }
         }}
       />
-
-      {/* UPLOADING STATE */}
-      {form.image === 'uploading' ? (
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-100 rounded-full animate-pulse">
-            <svg className="w-10 h-10 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
-          <p className="mt-6 text-3xl font-black text-blue-900">Uploading…</p>
-          <p className="text-lg text-blue-700">Real photo incoming</p>
+      <div className="text-center">
+        <div className="text-7xl mb-4 group-hover:scale-110 transition-transform">Upload Photo</div>
+        <div className="text-2xl text-blue-700 font-bold">Click • Drag & Drop • Camera</div>
+        <div className="text-lg text-blue-600 mt-4 font-medium">
+          Real photos for Rwanda's finest hotels
         </div>
-      ) : (
-        /* DEFAULT STATE */
-        <div className="text-center">
-          <div className="text-6xl mb-4">Upload Photo</div>
-          <div className="text-xl text-blue-700 font-bold">Click • Drag & Drop • Camera</div>
-          <div className="text-sm text-blue-600 mt-4">Real photos for Rwanda's finest hotels</div>
-        </div>
-      )}
+      </div>
     </label>
   )}
 </div>
