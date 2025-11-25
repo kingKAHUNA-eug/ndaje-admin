@@ -357,8 +357,8 @@ function ProductsPanel() {
         alt="Product preview"
         className="w-full h-80 object-cover bg-gray-100"
         onError={(e) => {
-          e.target.src = 'https://res.cloudinary.com/dzjsdgqegf/image/upload/v9999999999/ndaje-products/fallback.jpg';
-        }}
+          e.target.src = `${API_BASE}/admin/upload/product-image`;
+        }}https
       />
       <button
         type="button"
@@ -392,40 +392,41 @@ function ProductsPanel() {
     /* DEFAULT UPLOAD ZONE */
     <label className="w-full h-80 border-4 border-dashed border-blue-600 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white hover:from-blue-100 transition-all cursor-pointer text-blue-900 font-bold text-2xl shadow-2xl group">
       <input
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={async (e) => {
-          const file = e.target.files?.[0]
-          if (!file) return
+  type="file"
+  accept="image/*"
+  className="hidden"
+  onChange={async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
 
-          // Trigger uploading state
-          setForm(f => ({ ...f, image: 'uploading' }))
+    setForm(f => ({ ...f, image: 'uploading' }))
 
-          const formData = new FormData()
-          formData.append('file', file)
-          formData.append('upload_preset', 'ndaje-direct-2025')
-         
+    const formData = new FormData()
+    formData.append('image', file)  // ← CHANGED FROM 'file' TO 'image'
 
-          try {
-            const res = await fetch('https://api.cloudinary.com/v1_1/dzjsdgqegf/image/upload', {
-              method: 'POST',
-              body: formData
-            })
-            const data = await res.json()
-
-            if (data.secure_url) {
-              setForm(f => ({ ...f, image: data.secure_url }))
-            } else {
-              alert('Upload failed: ' + (data.error?.message || 'Try again'))
-              setForm(f => ({ ...f, image: '' }))
-            }
-          } catch (err) {
-            alert('No internet or upload blocked')
-            setForm(f => ({ ...f, image: '' }))
+    try {
+      const token = localStorage.getItem('token')
+      const res = await axios.post(
+        `${API_BASE}/admin/upload/product-image`,  // ← Your REAL backend route
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
           }
-        }}
-      />
+        }
+      )
+
+      setForm(f => ({ ...f, image: res.data.data.url }))
+      console.log('IMAGE UPLOADED:', res.data.data.url)
+
+    } catch (err) {
+      console.error('Upload failed:', err.response?.data || err)
+      alert('Upload failed: ' + (err.response?.data?.message || 'Try again'))
+      setForm(f => ({ ...f, image: '' }))
+    }
+  }}
+/>
       <div className="text-center">
         <div className="text-7xl mb-4 group-hover:scale-110 transition-transform">Upload Photo</div>
         <div className="text-2xl text-blue-700 font-bold">Click • Drag & Drop • Camera</div>
