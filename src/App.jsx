@@ -363,7 +363,7 @@ function ProductsPanel() {
     </div>
   ) : (
     <button
-  type="button"
+ 
   onClick={() => {
     // THIS FIXES EVERYTHING — AUTO-WAIT + AUTO-RETRY
     const openWidget = () => {
