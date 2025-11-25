@@ -3,14 +3,24 @@
   <head>
     <meta charset="utf-8" />
     <title>NDAJE Admin</title>
-   <script src="https://widget.cloudinary.com/v2.0/global/all.js" type="text/javascript"></script>
-   <script type="text/javascript">
-  // Force Cloudinary to be ready
-  window.cloudinaryOptions = {
+   <!-- NDAJE CLOUDINARY — FINAL WORKING 2025 -->
+<script src="https://widget.cloudinary.com/v2.0/global/all.js"></script>
+<script>
+  window.cl = cloudinary.createUploadWidget({
     cloudName: "dzjsdgqegf",
-    uploadPreset: "ndaje-products"
-  };
-   </script>
+    uploadPreset: "ndaje-products",
+    sources: ["local","camera","url"],
+    cropping: true,
+    folder: "ndaje-products",
+    multiple: false,
+    clientAllowedFormats: ["png","jpg","jpeg","webp"]
+  }, (error, result) => {
+    if (!error && result?.event === "success") {
+      const url = result.info.secure_url;
+      document.dispatchEvent(new CustomEvent("ndaje-photo-uploaded", { detail: url }));
+    }
+  });
+</script>
     <!-- ↑ THIS LINE MAKES THE MAGIC HAPPEN -->
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="/favicon.ico" />
