@@ -209,12 +209,7 @@ function ProductsPanel() {
     name: '', sku: '', price: '', icon: '', image: '', reference: '', description: '', category: '', active: true
   })
 
-  useEffect(() => {
-  const handler = (e) => setForm(f => ({ ...f, image: e.detail }));
-  document.addEventListener("ndaje-photo-uploaded", handler);
-  return () => document.removeEventListener("ndaje-photo-uploaded", handler);
-}, []);
-
+ 
   useEffect(() => {
     fetchProducts()
   }, [])
@@ -349,7 +344,7 @@ function ProductsPanel() {
               <input placeholder="Price (RWF)" type="number" value={form.price} onChange={e => setForm(f => ({...f, price: e.target.value}))} className="px-4 py-3 border rounded-xl" />
               <input placeholder="Icon (e.g. beer, water)" value={form.icon} onChange={e => setForm(f => ({...f, icon: e.target.value}))} className="px-4 py-3 border rounded-xl" />
               
-              <div className="col-span-2">
+             <div className="col-span-2">
   <label className="block text-sm font-semibold text-gray-700 mb-2">
     Product Image
   </label>
@@ -366,17 +361,38 @@ function ProductsPanel() {
       </button>
     </div>
   ) : (
-  <button
-  type="button"
-  onClick={() => window.cl && window.cl.open()}
-  className="w-full h-80 border-4 border-dashed border-blue-600 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white hover:from-blue-100 transition-all cursor-pointer text-blue-900 font-bold text-2xl shadow-xl"
->
-  <div className="text-center">
-    <div className="text-6xl mb-4">Upload Photo</div>
-    <div className="text-xl text-blue-700 font-bold">Click • Drag & Drop • Camera</div>
-    <div className="text-sm text-blue-600 mt-4">Real photos for Rwanda's finest hotels</div>
-  </div>
-</button>
+    <label className="w-full h-80 border-4 border-dashed border-blue-600 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white hover:from-blue-100 transition-all cursor-pointer text-blue-900 font-bold text-2xl shadow-xl">
+      <input
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0]
+          if (!file) return
+
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('upload_preset', 'ndaje-products')
+          formData.append('folder', 'ndaje-products')
+
+          try {
+            const res = await fetch('https://api.cloudinary.com/v1_1/dzjsdgqegf/image/upload', {
+              method: 'POST',
+              body: formData
+            })
+            const data = await res.json()
+            setForm(f => ({ ...f, image: data.secure_url }))
+          } catch (err) {
+            alert('Upload failed')
+          }
+        }}
+      />
+      <div className="text-center">
+        <div className="text-6xl mb-4">Upload Photo</div>
+        <div className="text-xl text-blue-700 font-bold">Click • Drag & Drop • Camera</div>
+        <div className="text-sm text-blue-600 mt-4">Real photos for Rwanda's finest hotels</div>
+      </div>
+    </label>
   )}
 </div>
               <input placeholder="Reference (e.g. BEER-001)" value={form.reference} onChange={e => setForm(f => ({...f, reference: e.target.value}))} className="px-4 py-3 border rounded-xl" />
