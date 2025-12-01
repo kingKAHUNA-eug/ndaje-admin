@@ -125,11 +125,11 @@ function DashboardLayout({ children }) {
     { name: 'Products', path: '/dashboard/products', icon: CubeIcon },
     { name: 'Managers', path: '/dashboard/managers', icon: UsersIcon },
     { name: 'Drivers', path: '/dashboard/drivers', icon: TruckIcon },
-    { name: 'Pending Quotes', path: '/dashboard/quotes', icon: ClockIcon },
+    { name: 'Pending Quotes', path: '/dashboard/manager', icon: ClockIcon },
     { name: 'Orders', path: '/dashboard/orders', icon: ClipboardDocumentListIcon },
     { name: 'Settings', path: '/dashboard/settings', icon: Cog6ToothIcon }
   ] : [
-    { name: 'Pending Quotes', path: '/dashboard/quotes', icon: ClockIcon },
+    { name: 'Pricing Dashboard', path: '/dashboard/manager', icon: CurrencyDollarIcon },
     { name: 'My Orders', path: '/dashboard/my-orders', icon: CheckCircleIcon }
   ]
 
@@ -690,26 +690,43 @@ function AdminDashboard() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredManagers.map((manager) => (
-                <div key={manager._id} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                      <UsersIcon className="w-6 h-6 text-blue-600" />
-                    </div>
-                  </div>
-                  <h3 className="font-semibold text-gray-900 text-lg">{manager.name}</h3>
-                  <div className="space-y-2 mt-3 text-sm text-gray-600">
-                    <div className="flex items-center gap-2"><EnvelopeIcon className="w-4 h-4" /> {manager.email}</div>
-                    <div className="flex items-center gap-2"><PhoneIcon className="w-4 h-4" /> {manager.phone}</div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      manager.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {manager.status || 'active'}
-                    </span>
-                  </div>
-                </div>
-              ))}
+  <div key={manager.id} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 relative group">
+    <div className="flex items-center justify-between mb-4">
+      <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+        <UsersIcon className="w-6 h-6 text-blue-600" />
+      </div>
+      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition">
+        <button
+          onClick={() => resetUserPassword(manager.id, manager.name, 'manager')}
+          className="p-2 bg-yellow-100 hover:bg-yellow-200 rounded-lg transition"
+          title="Reset Password"
+        >
+          <LockOpenIcon className="w-5 h-5 text-yellow-700" />
+        </button>
+        <button
+          onClick={() => deleteUser(manager.id, manager.name, 'manager')}
+          className="p-2 bg-red-100 hover:bg-red-200 rounded-lg transition"
+          title="Delete Manager"
+        >
+          <TrashIcon className="w-5 h-5 text-red-700" />
+        </button>
+      </div>
+    </div>
+    <h3 className="font-semibold text-gray-900 text-lg">{manager.name}</h3>
+    <div className="space-y-2 mt-3 text-sm text-gray-600">
+      <div className="flex items-center gap-2"><EnvelopeIcon className="w-4 h-4" /> {manager.email}</div>
+      <div className="flex items-center gap-2"><PhoneIcon className="w-4 h-4" /> {manager.phone}</div>
+    </div>
+    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+        manager.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+      }`}>
+        {manager.status || 'active'}
+      </span>
+      <span className="text-xs text-gray-500">Manager</span>
+    </div>
+  </div>
+))}
             </div>
           </div>
         )}
@@ -724,25 +741,44 @@ function AdminDashboard() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredDrivers.map((driver) => (
-                <div key={driver._id} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                  <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mb-4">
-                    <TruckIcon className="w-6 h-6 text-orange-600" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900 text-lg">{driver.name}</h3>
-                  <div className="space-y-2 mt-3 text-sm text-gray-600">
-                    <div className="flex items-center gap-2"><EnvelopeIcon className="w-4 h-4" /> {driver.email}</div>
-                    <div className="flex items-center gap-2"><PhoneIcon className="w-4 h-4" /> {driver.phone}</div>
-                    <div className="flex items-center gap-2"><TruckIcon className="w-4 h-4" /> {driver.vehicle || 'No vehicle'}</div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      driver.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {driver.status || 'active'}
-                    </span>
-                  </div>
-                </div>
-              ))}
+  <div key={driver.id} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 relative group">
+    <div className="flex items-center justify-between mb-4">
+      <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+        <TruckIcon className="w-6 h-6 text-orange-600" />
+      </div>
+      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition">
+        <button
+          onClick={() => resetUserPassword(driver.id, driver.name, 'driver')}
+          className="p-2 bg-yellow-100 hover:bg-yellow-200 rounded-lg transition"
+          title="Reset Password"
+        >
+          <LockOpenIcon className="w-5 h-5 text-yellow-700" />
+        </button>
+        <button
+          onClick={() => deleteUser(driver.id, driver.name, 'driver')}
+          className="p-2 bg-red-100 hover:bg-red-200 rounded-lg transition"
+          title="Delete Driver"
+        >
+          <TrashIcon className="w-5 h-5 text-red-700" />
+        </button>
+      </div>
+    </div>
+    <h3 className="font-semibold text-gray-900 text-lg">{driver.name}</h3>
+    <div className="space-y-2 mt-3 text-sm text-gray-600">
+      <div className="flex items-center gap-2"><EnvelopeIcon className="w-4 h-4" /> {driver.email}</div>
+      <div className="flex items-center gap-2"><PhoneIcon className="w-4 h-4" /> {driver.phone}</div>
+      <div className="flex items-center gap-2"><TruckIcon className="w-4 h-4" /> {driver.vehicle || 'No vehicle'}</div>
+    </div>
+    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+        driver.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+      }`}>
+        {driver.status || 'active'}
+      </span>
+      <span className="text-xs text-gray-500">Driver</span>
+    </div>
+  </div>
+))}
             </div>
           </div>
         )}
@@ -826,115 +862,247 @@ function AdminDashboard() {
     </div>
   )
 }
+// ADD THESE TWO FUNCTIONS INSIDE AdminDashboard() — right after createDriver
 
-function ManagerQuotes() {
+const resetUserPassword = async (userId, userName, type) => {
+  if (!confirm(`Reset password for ${userName}? They will get a new one.`)) return
+
+  const newPassword = `ndaje${Math.floor(1000 + Math.random() * 9000)}`
+
+  try {
+    await axios.post(`${API_BASE}/admin/reset-password/${userId}`, 
+      { newPassword },
+      { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+    )
+
+    alert(
+      `${type.toUpperCase()} PASSWORD RESET!\n\n` +
+      `Name: ${userName}\n` +
+      `NEW PASSWORD: ${newPassword}\n\n` +
+      `Tell them immediately!`
+    )
+  } catch (err) {
+    alert('Failed to reset password')
+  }
+}
+
+const deleteUser = async (userId, userName, type) => {
+  if (!confirm(`PERMANENTLY DELETE ${type} "${userName}"? This cannot be undone.`)) return
+
+  try {
+    await axios.delete(`${API_BASE}/admin/${type}s/${userId}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+
+    if (type === 'manager') {
+      setManagers(prev => prev.filter(m => m.id !== userId))
+    } else {
+      setDrivers(prev => prev.filter(d => d.id !== userId))
+    }
+
+    alert(`${type.charAt(0).toUpperCase() + type.slice(1)} deleted successfully.`)
+  } catch (err) {
+    alert('Delete failed: ' + (err.response?.data?.message || 'Unknown error'))
+  }
+}
+function ManagerDashboard() {
   const [quotes, setQuotes] = useState([])
   const [loading, setLoading] = useState(true)
+  const [selectedQuote, setSelectedQuote] = useState(null)
+  const [pricing, setPricing] = useState({})
+  const [sourcingNotes, setSourcingNotes] = useState('')
+  const token = localStorage.getItem('token')
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
 
   useEffect(() => {
-    const fetchQuotes = async () => {
-      try {
-        const token = localStorage.getItem('token')
-        const res = await axios.get(`${API_BASE}/manager/quotes/pending`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-        setQuotes(res.data.data || [])
-      } catch (err) { console.error(err) }
-      setLoading(false)
-    }
-    fetchQuotes()
+    fetchPendingQuotes()
   }, [])
 
-  const approveQuote = async (quoteId, prices) => {
+  const fetchPendingQuotes = async () => {
     try {
-      const token = localStorage.getItem('token')
-      await axios.post(`${API_BASE}/manager/quotes/${quoteId}/price`, { prices }, {
+      const res = await axios.get(`${API_BASE}/quotes/manager/pending`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      setQuotes(prev => prev.filter(q => q.id !== quoteId))
-      alert('Quote approved successfully!')
+      setQuotes(res.data.data || [])
     } catch (err) {
-      alert('Failed to approve quote')
+      alert('Failed to load quotes')
+    } finally {
+      setLoading(false)
     }
   }
 
-  if (loading) return <div className="text-center py-20 text-3xl font-black text-blue-900">Loading Quotes...</div>
+  const submitPricing = async () => {
+    if (!selectedQuote) return
+
+    const items = selectedQuote.items.map(item => ({
+      productId: item.productId || item.product?.id,
+      quantity: item.quantity,
+      unitPrice: Number(pricing[item.productId || item.product?.id]) || 0
+    }))
+
+    if (items.some(i => i.unitPrice <= 0)) {
+      alert('Please set valid price for all items!')
+      return
+    }
+
+    try {
+      await axios.put(`${API_BASE}/quotes/${selectedQuote.id}/price`, {
+        items,
+        sourcingNotes,
+        status: 'PRICED'
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      alert(`Quote #${selectedQuote.id.slice(-6)} priced and sent to client!`)
+      setSelectedQuote(null)
+      setPricing({})
+      setSourcingNotes('')
+      fetchPendingQuotes()
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to submit')
+    }
+  }
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 to-black">
+      <div className="text-6xl font-black text-white animate-pulse">NDAJE IS RISING</div>
+    </div>
+  )
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-blue-900 mb-8">Pending Quotes to Price</h1>
-      {quotes.length === 0 ? (
-        <div className="text-center py-20 text-gray-500 text-2xl">No pending quotes</div>
-      ) : (
-        <div className="space-y-10">
-          {quotes.map(quote => (
-            <div key={quote.id} className="bg-white rounded-2xl shadow-xl p-8 border">
-              <div className="flex justify-between items-start mb-8">
-                <div>
-                  <h3 className="text-2xl font-bold text-blue-900">{quote.client?.hotelName || quote.client?.name}</h3>
-                  <p className="text-gray-600 mt-2 flex items-center gap-2">
-                    <PhoneIcon className="w-5 h-5" /> {quote.client?.phone}
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-black text-white">
+      {/* HERO HEADER */}
+      <div className="text-center py-16 px-8">
+        <h1 className="text-7xl font-black mb-4">
+          MANAGER COMMAND CENTER
+        </h1>
+        <p className="text-3xl opacity-90">
+          Welcome back, <span className="text-yellow-400 font-bold">{user.name}</span>
+        </p>
+        <div className="mt-8 inline-flex items-center gap-4 bg-white/10 backdrop-blur rounded-full px-8 py-4">
+          <div className="text-6xl font-black text-yellow-400">{quotes.length}</div>
+          <div>
+            <div className="text-2xl">PENDING QUOTES</div>
+            <div className="text-yellow-300">Awaiting Your Pricing</div>
+          </div>
+        </div>
+      </div>
+
+      {/* QUOTES GRID */}
+      <div className="max-w-7xl mx-auto px-8 pb-20">
+        {quotes.length === 0 ? (
+          <div className="text-center py-32">
+            <div className="text-9xl mb-8">All Clear</div>
+            <div className="text-5xl font-black text-green-400">NO PENDING QUOTES</div>
+            <p className="text-2xl mt-8 opacity-80">You're crushing it. Rwanda is supplied.</p>
+          </div>
+        ) : (
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {quotes.map(quote => (
+              <div key={quote.id} className="bg-white/10 backdrop-blur-lg rounded-3xl overflow-hidden border-4 border-yellow-500 shadow-2xl transform hover:scale-105 transition">
+                <div className="bg-gradient-to-r from-yellow-600 to-orange-600 p-6">
+                  <h3 className="text-2xl font-black">
+                    {quote.client?.hotelName || quote.client?.name || 'Hotel'}
+                  </h3>
+                  <p className="text-lg opacity-90">
+                    Quote #{quote.id.slice(-8).toUpperCase()}
                   </p>
                 </div>
-                <span className="px-6 py-3 bg-yellow-100 text-yellow-800 rounded-full font-bold">PENDING</span>
+                <div className="p-6 space-y-4">
+                  <div className="text-5xl font-black text-center text-yellow-400">
+                    {quote.items.length}
+                  </div>
+                  <p className="text-center text-xl">Items to Price</p>
+                  <button
+                    onClick={() => {
+                      setSelectedQuote(quote)
+                      setSourcingNotes(quote.sourcingNotes || '')
+                    }}
+                    className="w-full py-6 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-2xl font-black rounded-2xl shadow-xl hover:from-green-600 hover:to-emerald-700 transition transform hover:scale-110"
+                  >
+                    PRICE NOW
+                  </button>
+                </div>
               </div>
-              <QuotePricingForm quote={quote} onApprove={approveQuote} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* PRICING MODAL */}
+      {selectedQuote && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-screen overflow-y-auto shadow-3xl">
+            <div className="bg-gradient-to-r from-blue-900 to-purple-900 p-10 text-white text-center">
+              <h2 className="text-5xl font-black">SET FINAL PRICES</h2>
+              <p className="text-2xl mt-4">
+                {selectedQuote.client?.hotelName || 'Client'} is waiting
+              </p>
             </div>
-          ))}
+
+            <div className="p-10 space-y-8">
+              <div>
+                <label className="text-2xl font-bold block mb-4">Sourcing Notes (optional)</label>
+                <textarea
+                  value={sourcingNotes}
+                  onChange={e => setSourcingNotes(e.target.value)}
+                  rows={4}
+                  className="w-full px-6 py-4 border-4 border-gray-300 rounded-2xl text-xl"
+                  placeholder="e.g. Limited stock on Heineken, offering Turbo King instead..."
+                />
+              </div>
+
+              {selectedQuote.items.map((item, i) => {
+                const id = item.productId || item.product?.id
+                const name = item.product?.name || 'Unknown'
+                return (
+                  <div key={i} className="bg-gradient-to-r from-gray-100 to-gray-200 rounded-3xl p-8 border-4 border-gray-400">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-3xl font-black text-gray-900">{name}</h3>
+                        <p className="text-xl text-gray-700">Qty: {item.quantity}</p>
+                      </div>
+                      <div className="text-right">
+                        <input
+                          type="number"
+                          placeholder="0"
+                          value={pricing[id] || ''}
+                          onChange={e => setPricing(p => ({ ...p, [id]: e.target.value }))}
+                          className="w-80 px-8 py-8 text-5xl font-black text-right border-8 border-blue-600 rounded-3xl focus:outline-none focus:ring-8 focus:ring-blue-300"
+                        />
+                        <p className="text-4xl font-black text-blue-900 mt-4">RWF</p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+
+              <div className="flex gap-8 pt-10">
+                <button
+                  onClick={() => {
+                    setSelectedQuote(null)
+                    setPricing({})
+                    setSourcingNotes('')
+                  }}
+                  className="flex-1 py-8 border-8 border-red-600 text-red-600 text-3xl font-black rounded-3xl hover:bg-red-50 transition"
+                >
+                  CANCEL
+                </button>
+                <button
+                  onClick={submitPricing}
+                  className="flex-1 py-8 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-3xl font-black rounded-3xl shadow-3xl hover:from-green-700 hover:to-emerald-700 transition transform hover:scale-105"
+                >
+                  SEND TO CLIENT
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
   )
 }
-
-function QuotePricingForm({ quote, onApprove }) {
-  const [prices, setPrices] = useState({})
-
-  const handleSubmit = () => {
-    const pricedItems = Object.entries(prices).map(([productId, price]) => ({
-      productId,
-      finalPrice: Number(price)
-    }))
-    if (pricedItems.length !== quote.items.length) {
-      alert('Please price all items!')
-      return
-    }
-    onApprove(quote.id, pricedItems)
-  }
-
-  return (
-    <>
-      <div className="space-y-6">
-        {quote.items.map(item => (
-          <div key={item.productId} className="flex items-center justify-between p-6 bg-gray-50 rounded-xl">
-            <div>
-              <p className="text-xl font-bold">{item.product?.name}</p>
-              <p className="text-gray-600">Quantity: {item.quantity} {item.product?.unit}</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <input
-                type="number"
-                placeholder="0"
-                className="w-48 px-6 py-4 border-2 border-blue-300 rounded-xl text-right text-2xl font-bold"
-                onChange={e => setPrices(p => ({ ...p, [item.productId]: e.target.value }))}
-              />
-              <span className="text-2xl font-bold text-gray-700">RWF</span>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="mt-10 text-right">
-        <button
-          onClick={handleSubmit}
-          className="px-16 py-5 bg-blue-900 text-white text-xl font-bold rounded-xl hover:bg-blue-800 shadow-xl"
-        >
-          APPROVE & CREATE ORDER
-        </button>
-      </div>
-    </>
-  )
-}
-
 function ProtectedDashboard() {
   const user = JSON.parse(localStorage.getItem('user') || 'null')
   const navigate = useNavigate()
@@ -945,7 +1113,7 @@ function ProtectedDashboard() {
     } else if (user.role === 'ADMIN') {
       navigate('/dashboard/overview', { replace: true })
     } else if (user.role === 'MANAGER') {
-      navigate('/dashboard/quotes', { replace: true })
+      navigate('/dashboard/manager', { replace: true })
     }
   }, [user, navigate])
 
@@ -954,11 +1122,11 @@ function ProtectedDashboard() {
   return (
     <DashboardLayout>
       <Routes>
-        <Route path="/overview" element={user.role === 'ADMIN' ? <AdminDashboard /> : <Navigate to="/dashboard/quotes" />} />
-        <Route path="/products" element={user.role === 'ADMIN' ? <ProductsPanel /> : <Navigate to="/dashboard/quotes" />} />
-        <Route path="/quotes" element={<ManagerQuotes />} />
-        <Route path="/my-orders" element={<div className="text-center py-32"><h1 className="text-4xl font-bold text-blue-900">My Orders</h1><p className="text-xl text-gray-600 mt-4">Coming soon</p></div>} />
-        <Route path="*" element={<Navigate to={user.role === 'ADMIN' ? '/dashboard/overview' : '/dashboard/quotes'} />} />
+        <Route path="/overview" element={user.role === 'ADMIN' ? <AdminDashboard /> : <Navigate to="/dashboard/manager" />} />
+        <Route path="/products" element={user.role === 'ADMIN' ? <ProductsPanel /> : <Navigate to="/dashboard/manager" />} />
+        <Route path="/manager" element={<ManagerDashboard />} />  {/* ← NEW DASHBOARD */}
+        <Route path="/my-orders" element={<div className="text-6xl text-center py-32 font-black text-blue-900">My Orders - Coming Soon</div>} />
+        <Route path="*" element={<Navigate to={user.role === 'ADMIN' ? '/dashboard/overview' : '/dashboard/manager'} />} />
       </Routes>
     </DashboardLayout>
   )
