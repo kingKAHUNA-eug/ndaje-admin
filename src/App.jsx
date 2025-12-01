@@ -865,26 +865,30 @@ function AdminDashboard() {
 // ADD THESE TWO FUNCTIONS INSIDE AdminDashboard() — right after createDriver
 
 const resetUserPassword = async (userId, userName, type) => {
-  if (!confirm(`Reset password for ${userName}? They will get a new one.`)) return
+  if (!confirm(`Reset password for ${userName}?`)) return;
 
-  const newPassword = `ndaje${Math.floor(1000 + Math.random() * 9000)}`
+  const newPass = `ndaje${Math.floor(1000 + Math.random() * 9000)}`;
 
   try {
-    await axios.post(`${API_BASE}/admin/reset-password/${userId}`, 
-      { newPassword },
-      { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-    )
+    const res = await axios.post(
+      `${API_BASE}/admin/reset-password/${userId}`,
+      { newPassword: newPass },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
-    alert(
-      `${type.toUpperCase()} PASSWORD RESET!\n\n` +
-      `Name: ${userName}\n` +
-      `NEW PASSWORD: ${newPassword}\n\n` +
-      `Tell them immediately!`
-    )
+    if (res.data.success) {
+      alert(
+        `PASSWORD RESET SUCCESSFUL!\n\n` +
+        `User: ${userName}\n` +
+        `New Password: ${res.data.newPassword || newPass}\n\n` +
+        `Tell them to log in with this password now.\n` +
+        `They can change it later in settings.`
+      );
+    }
   } catch (err) {
-    alert('Failed to reset password')
+    alert('Reset failed: ' + (err.response?.data?.message || 'Unknown error'));
   }
-}
+};
 
 const deleteUser = async (userId, userName, type) => {
   if (!confirm(`PERMANENTLY DELETE ${type} "${userName}"? This cannot be undone.`)) return
