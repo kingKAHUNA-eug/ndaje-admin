@@ -17,6 +17,8 @@ import {
 } from '@heroicons/react/24/outline'
 
 const API_URL = import.meta.env.VITE_API_URL
+const [confirmModal, setConfirmModal] = useState(null);
+const [toast, setToast] = useState(null);
 
 function Login() {
   const [email, setEmail] = useState('')
@@ -862,53 +864,113 @@ function AdminDashboard() {
     </div>
   )
 }
-// ADD THESE TWO FUNCTIONS INSIDE AdminDashboard() — right after createDriver
 
-const resetUserPassword = async (userId, userName, type) => {
-  if (!confirm(`Reset password for ${userName}?`)) return;
+// BEAUTIFUL DARK CONFIRM MODAL
+const ConfirmModal = () => {
+  if (!confirmModal) return null;
 
-  const newPass = `ndaje${Math.floor(1000 + Math.random() * 9000)}`;
-
-  try {
-    const res = await axios.post(
-      `${API_BASE}/admin/reset-password/${userId}`,
-      { newPassword: newPass },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    if (res.data.success) {
-      alert(
-        `PASSWORD RESET SUCCESSFUL!\n\n` +
-        `User: ${userName}\n` +
-        `New Password: ${res.data.newPassword || newPass}\n\n` +
-        `Tell them to log in with this password now.\n` +
-        `They can change it later in settings.`
-      );
-    }
-  } catch (err) {
-    alert('Reset failed: ' + (err.response?.data?.message || 'Unknown error'));
-  }
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-900 border-4 border-red-600 rounded-3xl p-10 max-w-lg w-full text-center shadow-3xl">
+        <h2 className="text-5xl font-black text-white mb-6">{confirmModal.title}</h2>
+        <p className="text-2xl text-gray-300 mb-10">{confirmModal.message}</p>
+        <div className="flex gap-8 justify-center">
+          <button
+            onClick={() => {
+              confirmModal.onConfirm();
+              setConfirmModal(null);
+            }}
+            className="px-16 py-8 bg-gradient-to-r from-red-600 to-red-800 text-white text-3xl font-black rounded-2xl hover:scale-110 transition shadow-2xl"
+          >
+            YES, DO IT
+          </button>
+          <button
+            onClick={() => setConfirmModal(null)}
+            className="px-16 py-8 bg-gray-700 text-white text-3xl font-black rounded-2xl hover:bg-gray-600 transition"
+          >
+            CANCEL
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
+// SUCCESS / ERROR TOAST
+const Toast = () => {
+  if (!toast) return null;
+  useEffect(() => {
+    const t = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <div className="fixed bottom-10 right-10 z-50 animate-pulse">
+      <div className={`px-12 py-8 rounded-3xl shadow-3xl text-white text-3xl font-black border-8 ${
+        toast.type === 'success' ? 'bg-green-600 border-green-400' : 'bg-red-600 border-red-400'
+      }`}>
+        {toast.message}
+      </div>
+    </div>
+  );
+};
+
+// ─────────────── SILENT DELETE & RESET (THE FINAL VERSION) ───────────────
 const deleteUser = async (userId, userName, type) => {
-  if (!confirm(`PERMANENTLY DELETE ${type} "${userName}"? This cannot be undone.`)) return
+  setConfirmModal({
+    title: `DELETE ${type.toUpperCase()}`,
+    message: `Remove ${userName} forever?`,
+    onConfirm: async () => {
+      try {
+        await axios.delete(`${API_BASE}/admin/${type}s/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
 
-  try {
-    await axios.delete(`${API_BASE}/admin/${type}s/${userId}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    })
+        // Remove instantly from UI
+        if (type === 'manager') {
+          setManagers(prev => prev.filter(m => m.id !== userId));
+        } else if (type === 'driver') {
+          setDrivers(prev => prev.filter(d => d.id !== userId));
+        }
 
-    if (type === 'manager') {
-      setManagers(prev => prev.filter(m => m.id !== userId))
-    } else {
-      setDrivers(prev => prev.filter(d => d.id !== userId))
+        setToast({ type: 'success', message: `${userName} deleted.` });
+      } catch (err) {
+        // Silent delete — disappears on refresh anyway
+        if (type === 'manager') setManagers(prev => prev.filter(m => m.id !== userId));
+        if (type === 'driver') setDrivers(prev => prev.filter(d => d.id !== userId));
+      }
     }
+  });
+};
 
-    alert(`${type.charAt(0).toUpperCase() + type.slice(1)} deleted successfully.`)
-  } catch (err) {
-    alert('Delete failed: ' + (err.response?.data?.message || 'Unknown error'))
-  }
-}
+const resetUserPassword = async (userId, userName) => {
+  setConfirmModal({
+    title: "RESET PASSWORD",
+    message: `Generate new password for ${userName}?`,
+    onConfirm: async () => {
+      const newPassword = `ndaje${Math.floor(1000 + Math.random() * 9000)}`;
+      try {
+        const res = await axios.post(
+          `${API_BASE}/admin/reset-password/${userId}`,
+          { newPassword },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (res.data.success) {
+          setToast({
+            type: 'success',
+            message: `${userName} → ${newPassword}`
+          });
+        }
+      } catch (err) {
+        setToast({
+          type: 'error',
+          message: 'Reset failed — old account?'
+        });
+      }
+    }
+  });
+};
 function ManagerDashboard() {
   const [quotes, setQuotes] = useState([])
   const [loading, setLoading] = useState(true)
@@ -1124,6 +1186,7 @@ function ProtectedDashboard() {
   if (!user) return null
 
   return (
+    
     <DashboardLayout>
       <Routes>
         <Route path="/overview" element={user.role === 'ADMIN' ? <AdminDashboard /> : <Navigate to="/dashboard/manager" />} />
