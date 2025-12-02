@@ -1195,14 +1195,4 @@ function ProtectedDashboard() {
   )
 }
 
-export default function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/dashboard/*" element={<ProtectedDashboard />} />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </BrowserRouter>
-  )
-}
+export default App
