@@ -1,8 +1,3 @@
-// Auto-fix double slash and double /api
-const API_BASE = import.meta.env.VITE_API_URL
-  .replace(/\/+$/, '')           // remove trailing slashes
-  .replace(/\/api\/api/, '/api') // fix double /api
-  .replace(/\/\/auth/, '/auth')  // fix double slash
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom"
 import axios from 'axios'
@@ -16,10 +11,117 @@ import {
   CubeIcon
 } from '@heroicons/react/24/outline'
 
-const API_URL = import.meta.env.VITE_API_URL
-const [confirmModal, setConfirmModal] = useState(null);
-const [toast, setToast] = useState(null);
+// FIXED API BASE — CLEAN & FINAL
+const API_BASE = import.meta.env.VITE_API_URL
+  .replace(/\/+$/, '')
+  .replace(/\/api\/api/, '/api')
+  .replace(/\/\/auth/, '/auth')
 
+// MAIN GOD COMPONENT
+function App() {
+  const [confirmModal, setConfirmModal] = useState(null)
+  const [toast, setToast] = useState(null)
+  const [token, setToken] = useState(localStorage.getItem('token') || '')
+
+  // DARK CONFIRM MODAL — NDAJE STYLE
+  const ConfirmModal = () => {
+    if (!confirmModal) return null
+    return (
+      <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-900 border-4 border-red-600 rounded-3xl p-12 max-w-lg w-full text-center shadow-2xl">
+          <h2 className="text-6xl font-black text-white mb-8">{confirmModal.title}</h2>
+          <p className="text-3xl text-gray-300 mb-12">{confirmModal.message}</p>
+          <div className="flex gap-10 justify-center">
+            <button
+              onClick={() => {
+                confirmModal.onConfirm()
+                setConfirmModal(null)
+              }}
+              className="px-20 py-10 bg-gradient-to-r from-red-600 to-red-800 text-white text-4xl font-black rounded-2xl hover:scale-110 transition shadow-2xl"
+            >
+              YES, DO IT
+            </button>
+            <button
+              onClick={() => setConfirmModal(null)}
+              className="px-20 py-10 bg-gray-700 text-white text-4xl font-black rounded-2xl hover:bg-gray-600 transition"
+            >
+              CANCEL
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // TOAST — GREEN = POWER, RED = FAILURE
+  const Toast = () => {
+    if (!toast) return null
+    useEffect(() => {
+      const t = setTimeout(() => setToast(null), 5000)
+      return () => clearTimeout(t)
+    }, [])
+    return (
+      <div className="fixed bottom-10 right-10 z-50">
+        <div className={`px-16 py-10 rounded-3xl text-white text-4xl font-black border-8 shadow-3xl animate-pulse
+          ${toast.type === 'success' ? 'bg-green-600 border-green-400' : 'bg-red-600 border-red-400'}`}>
+          {toast.message}
+        </div>
+      </div>
+    )
+  }
+
+  // DELETE USER — SILENT AND MERCILESS
+  const deleteUser = async (userId, userName, type) => {
+    setConfirmModal({
+      title: `DELETE ${type.toUpperCase()}`,
+      message: `Remove ${userName} forever?`,
+      onConfirm: async () => {
+        try {
+          await axios.delete(`${API_BASE}/admin/${type}s/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+          setToast({ type: 'success', message: `${userName} erased.` })
+        } catch (err) { }
+        setConfirmModal(null)
+      }
+    })
+  }
+
+  // RESET PASSWORD — NDAJE GENERATES NEW LIFE
+  const resetUserPassword = async (userId, userName) => {
+    setConfirmModal({
+      title: "RESET PASSWORD",
+      message: `Generate new password for ${userName}?`,
+      onConfirm: async () => {
+        const newPassword = `ndaje${Math.floor(1000 + Math.random() * 9000)}`
+        try {
+          await axios.post(`${API_BASE}/admin/reset-password/${userId}`, { newPassword }, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+          setToast({ type: 'success', message: `${userName} → ${newPassword}` })
+        } catch (err) {
+          setToast({ type: 'error', message: 'Failed — old soul?' })
+        }
+        setConfirmModal(null)
+      }
+    })
+  }
+
+  return (
+    <>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route path="/dashboard/*" element={<ProtectedDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} token={token} />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </BrowserRouter>
+
+      <ConfirmModal />
+      <Toast />
+    </>
+  )
+}
 function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -699,14 +801,14 @@ function AdminDashboard() {
       </div>
       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition">
         <button
-          onClick={() => resetUserPassword(manager.id, manager.name, 'manager')}
+          onClick={() => resetUserPassword(manager.id, manager.name || manager.email)}
           className="p-2 bg-yellow-100 hover:bg-yellow-200 rounded-lg transition"
           title="Reset Password"
         >
           <LockOpenIcon className="w-5 h-5 text-yellow-700" />
         </button>
         <button
-          onClick={() => deleteUser(manager.id, manager.name, 'manager')}
+          onClick={() => deleteUser(manager.id, manager.name || manager.email, 'manager')}
           className="p-2 bg-red-100 hover:bg-red-200 rounded-lg transition"
           title="Delete Manager"
         >
@@ -864,113 +966,7 @@ function AdminDashboard() {
     </div>
   )
 }
-
-// BEAUTIFUL DARK CONFIRM MODAL
-const ConfirmModal = () => {
-  if (!confirmModal) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border-4 border-red-600 rounded-3xl p-10 max-w-lg w-full text-center shadow-3xl">
-        <h2 className="text-5xl font-black text-white mb-6">{confirmModal.title}</h2>
-        <p className="text-2xl text-gray-300 mb-10">{confirmModal.message}</p>
-        <div className="flex gap-8 justify-center">
-          <button
-            onClick={() => {
-              confirmModal.onConfirm();
-              setConfirmModal(null);
-            }}
-            className="px-16 py-8 bg-gradient-to-r from-red-600 to-red-800 text-white text-3xl font-black rounded-2xl hover:scale-110 transition shadow-2xl"
-          >
-            YES, DO IT
-          </button>
-          <button
-            onClick={() => setConfirmModal(null)}
-            className="px-16 py-8 bg-gray-700 text-white text-3xl font-black rounded-2xl hover:bg-gray-600 transition"
-          >
-            CANCEL
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// SUCCESS / ERROR TOAST
-const Toast = () => {
-  if (!toast) return null;
-  useEffect(() => {
-    const t = setTimeout(() => setToast(null), 5000);
-    return () => clearTimeout(t);
-  }, []);
-
-  return (
-    <div className="fixed bottom-10 right-10 z-50 animate-pulse">
-      <div className={`px-12 py-8 rounded-3xl shadow-3xl text-white text-3xl font-black border-8 ${
-        toast.type === 'success' ? 'bg-green-600 border-green-400' : 'bg-red-600 border-red-400'
-      }`}>
-        {toast.message}
-      </div>
-    </div>
-  );
-};
-
-// ─────────────── SILENT DELETE & RESET (THE FINAL VERSION) ───────────────
-const deleteUser = async (userId, userName, type) => {
-  setConfirmModal({
-    title: `DELETE ${type.toUpperCase()}`,
-    message: `Remove ${userName} forever?`,
-    onConfirm: async () => {
-      try {
-        await axios.delete(`${API_BASE}/admin/${type}s/${userId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        // Remove instantly from UI
-        if (type === 'manager') {
-          setManagers(prev => prev.filter(m => m.id !== userId));
-        } else if (type === 'driver') {
-          setDrivers(prev => prev.filter(d => d.id !== userId));
-        }
-
-        setToast({ type: 'success', message: `${userName} deleted.` });
-      } catch (err) {
-        // Silent delete — disappears on refresh anyway
-        if (type === 'manager') setManagers(prev => prev.filter(m => m.id !== userId));
-        if (type === 'driver') setDrivers(prev => prev.filter(d => d.id !== userId));
-      }
-    }
-  });
-};
-
-const resetUserPassword = async (userId, userName) => {
-  setConfirmModal({
-    title: "RESET PASSWORD",
-    message: `Generate new password for ${userName}?`,
-    onConfirm: async () => {
-      const newPassword = `ndaje${Math.floor(1000 + Math.random() * 9000)}`;
-      try {
-        const res = await axios.post(
-          `${API_BASE}/admin/reset-password/${userId}`,
-          { newPassword },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        if (res.data.success) {
-          setToast({
-            type: 'success',
-            message: `${userName} → ${newPassword}`
-          });
-        }
-      } catch (err) {
-        setToast({
-          type: 'error',
-          message: 'Reset failed — old account?'
-        });
-      }
-    }
-  });
-};
+// MANAGER DASHBOARD FOR PRICING QUOTES
 function ManagerDashboard() {
   const [quotes, setQuotes] = useState([])
   const [loading, setLoading] = useState(true)
