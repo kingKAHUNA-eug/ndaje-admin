@@ -1175,29 +1175,33 @@ function ManagerDashboard() {
     </div>
   )
 }
-function ProtectedDashboard() {
+function ProtectedDashboard({ deleteUser, resetUserPassword, token }) {
   const user = JSON.parse(localStorage.getItem('user') || 'null')
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (!user) {
-      navigate('/')
-    } else if (user.role === 'ADMIN') {
-      navigate('/dashboard/overview', { replace: true })
-    } else if (user.role === 'MANAGER') {
-      navigate('/dashboard/manager', { replace: true })
-    }
+    if (!user) navigate('/')
+    else if (user.role === 'ADMIN') navigate('/dashboard/overview', { replace: true })
+    else if (user.role === 'MANAGER') navigate('/dashboard/manager', { replace: true })
   }, [user, navigate])
 
   if (!user) return null
 
   return (
-    
     <DashboardLayout>
       <Routes>
-        <Route path="/products" element={user.role === 'ADMIN' ? <ProductsPanel /> : <Navigate to="/dashboard/manager" />} />
-        <Route path="/manager" element={<ManagerDashboard />} />  {/* ← NEW DASHBOARD */}
+        {/* ALL ADMIN ROUTES — FIXED */}
+        <Route path="/overview" element={<AdminDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} />} />
+        <Route path="/products" element={<ProductsPanel />} />
+        <Route path="/managers" element={<AdminDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} />} />
+        <Route path="/drivers" element={<AdminDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} />} />
+        <Route path="/orders" element={<AdminDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} />} />
+        
+        {/* MANAGER ROUTES */}
+        <Route path="/manager" element={<ManagerDashboard />} />
         <Route path="/my-orders" element={<div className="text-6xl text-center py-32 font-black text-blue-900">My Orders - Coming Soon</div>} />
+        
+        {/* DEFAULT */}
         <Route path="*" element={<Navigate to={user.role === 'ADMIN' ? '/dashboard/overview' : '/dashboard/manager'} />} />
       </Routes>
     </DashboardLayout>
