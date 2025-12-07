@@ -740,28 +740,30 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
 
         {activeTab === 'products' && <ProductsPanel />}
 
-        {activeTab === 'overview' && (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[
-                { title: 'Total Revenue', value: `RWF ${stats.totalRevenue.toLocaleString()}`, icon: CurrencyDollarIcon, color: 'green' },
-                { title: 'Total Orders', value: stats.totalOrders, icon: ShoppingCartIcon, color: 'blue' },
-                { title: 'Active Managers', value: stats.activeManagers, icon: UserGroupIcon, color: 'purple' },
-                { title: 'Active Drivers', value: stats.activeDrivers, icon: TruckIcon, color: 'orange' }
-              ].map((stat) => (
-                <div key={stat.title} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">{stat.title}</p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-                    </div>
-                    <div className={`p-3 rounded-xl bg-${stat.color}-50`}>
-                      <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+       {activeTab === 'overview' && (
+  <div className="p-10 text-center">
+    <h1 className="text-8xl font-black text-blue-900 mb-8">OVERVIEW</h1>
+    <p className="text-4xl text-gray-700">NDAJE IS ALIVE AND BREATHING</p>
+    <div className="mt-20 grid grid-cols-4 gap-8">
+      <div className="bg-white p-10 rounded-3xl shadow-2xl">
+        <p className="text-6xl font-black text-green-600">11</p>
+        <p className="text-2xl mt-4">Products</p>
+      </div>
+      <div className="bg-white p-10 rounded-3xl shadow-2xl">
+        <p className="text-6xl font-black text-blue-600">7</p>
+        <p className="text-2xl mt-4">Managers</p>
+      </div>
+      <div className="bg-white p-10 rounded-3xl shadow-2xl">
+        <p className="text-6xl font-black text-orange-600">12</p>
+        <p className="text-2xl mt-4">Drivers</p>
+      </div>
+      <div className="bg-white p-10 rounded-3xl shadow-2xl">
+        <p className="text-6xl font-black text-purple-600">48</p>
+        <p className="text-2xl mt-4">Orders</p>
+      </div>
+    </div>
+  </div>
+)}
 
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">Recent Orders</h3>
@@ -792,7 +794,7 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
               </div>
             </div>
           </div>
-        )}
+        
 
         {activeTab === 'managers' && (
           <div className="space-y-6">
@@ -973,7 +975,7 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
           </div>
         )}
       </div>
-    </div>
+    
   )
 }
 // MANAGER DASHBOARD FOR PRICING QUOTES
