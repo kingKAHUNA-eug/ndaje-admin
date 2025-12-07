@@ -112,7 +112,14 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Login />} />
-          <Route path="/dashboard/*" element={<ProtectedDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} token={token} />} />
+<Route 
+  path="/overview" 
+  element={
+    user.role === 'ADMIN' 
+      ? <AdminDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} />
+      : <Navigate to="/dashboard/manager" />
+  } 
+/>
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>
@@ -555,7 +562,7 @@ function ProductsPanel() {
   )
 }
 // YOUR ORIGINAL ADMIN DASHBOARD — 100% UNTOUCHED
-function AdminDashboard() {
+function AdminDashboard({ deleteUser, resetUserPassword }) {
   const [activeTab, setActiveTab] = useState('overview')
   const [managers, setManagers] = useState([])
   const [drivers, setDrivers] = useState([])
@@ -1185,7 +1192,14 @@ function ProtectedDashboard() {
     
     <DashboardLayout>
       <Routes>
-        <Route path="/overview" element={user.role === 'ADMIN' ? <AdminDashboard /> : <Navigate to="/dashboard/manager" />} />
+        <Route 
+  path="/overview" 
+  element={
+    user.role === 'ADMIN' 
+      ? <AdminDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} /> 
+      : <Navigate to="/dashboard/manager" />
+  } 
+/>
         <Route path="/products" element={user.role === 'ADMIN' ? <ProductsPanel /> : <Navigate to="/dashboard/manager" />} />
         <Route path="/manager" element={<ManagerDashboard />} />  {/* ← NEW DASHBOARD */}
         <Route path="/my-orders" element={<div className="text-6xl text-center py-32 font-black text-blue-900">My Orders - Coming Soon</div>} />
