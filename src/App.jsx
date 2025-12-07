@@ -107,19 +107,21 @@ function App() {
     })
   }
 
-  return (
+   return (
     <>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Login />} />
-<Route 
-  path="/overview" 
-  element={
-    user.role === 'ADMIN' 
-      ? <AdminDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} />
-      : <Navigate to="/dashboard/manager" />
-  } 
-/>
+          <Route 
+            path="/dashboard/*" 
+            element={
+              <ProtectedDashboard 
+                deleteUser={deleteUser} 
+                resetUserPassword={resetUserPassword} 
+                token={token} 
+              />
+            } 
+          />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>
@@ -129,6 +131,7 @@ function App() {
     </>
   )
 }
+
 function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -1192,14 +1195,6 @@ function ProtectedDashboard() {
     
     <DashboardLayout>
       <Routes>
-        <Route 
-  path="/overview" 
-  element={
-    user.role === 'ADMIN' 
-      ? <AdminDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} /> 
-      : <Navigate to="/dashboard/manager" />
-  } 
-/>
         <Route path="/products" element={user.role === 'ADMIN' ? <ProductsPanel /> : <Navigate to="/dashboard/manager" />} />
         <Route path="/manager" element={<ManagerDashboard />} />  {/* ← NEW DASHBOARD */}
         <Route path="/my-orders" element={<div className="text-6xl text-center py-32 font-black text-blue-900">My Orders - Coming Soon</div>} />
