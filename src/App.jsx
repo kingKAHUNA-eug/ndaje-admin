@@ -16,7 +16,6 @@ const API_BASE = import.meta.env.VITE_API_URL
   .replace(/\/+$/, '')
   .replace(/\/api\/api/, '/api')
   .replace(/\/\/auth/, '/auth')
-
 // MAIN GOD COMPONENT
 function App() {
   const [confirmModal, setConfirmModal] = useState(null)
@@ -24,52 +23,64 @@ function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '')
 
   // DARK CONFIRM MODAL — NDAJE STYLE
-  const ConfirmModal = () => {
-    if (!confirmModal) return null
-    return (
-      <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4">
-        <div className="bg-gray-900 border-4 border-red-600 rounded-3xl p-12 max-w-lg w-full text-center shadow-2xl">
-          <h2 className="text-6xl font-black text-white mb-8">{confirmModal.title}</h2>
-          <p className="text-3xl text-gray-300 mb-12">{confirmModal.message}</p>
-          <div className="flex gap-10 justify-center">
-            <button
-              onClick={() => {
-                confirmModal.onConfirm()
-                setConfirmModal(null)
-              }}
-              className="px-20 py-10 bg-gradient-to-r from-red-600 to-red-800 text-white text-4xl font-black rounded-2xl hover:scale-110 transition shadow-2xl"
-            >
-              YES, DO IT
-            </button>
-            <button
-              onClick={() => setConfirmModal(null)}
-              className="px-20 py-10 bg-gray-700 text-white text-4xl font-black rounded-2xl hover:bg-gray-600 transition"
-            >
-              CANCEL
-            </button>
-          </div>
+ function ConfirmModal({ title, message, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl p-8 max-w-md w-full">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">{title}</h2>
+        <p className="text-gray-600 mb-8">{message}</p>
+        <div className="flex gap-4">
+          <button
+            onClick={onCancel}
+            className="flex-1 px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 font-medium"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium"
+          >
+            Confirm
+          </button>
         </div>
       </div>
-    )
-  }
+    </div>
+  )
+}
 
   // TOAST — GREEN = POWER, RED = FAILURE
-  const Toast = () => {
-    if (!toast) return null
-    useEffect(() => {
-      const t = setTimeout(() => setToast(null), 5000)
-      return () => clearTimeout(t)
-    }, [])
-    return (
-      <div className="fixed bottom-10 right-10 z-50">
-        <div className={`px-16 py-10 rounded-3xl text-white text-4xl font-black border-8 shadow-3xl animate-pulse
-          ${toast.type === 'success' ? 'bg-green-600 border-green-400' : 'bg-red-600 border-red-400'}`}>
-          {toast.message}
-        </div>
-      </div>
-    )
+ function Toast({ message, type, onClose }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 5000)
+    return () => clearTimeout(timer)
+  }, [onClose])
+
+  const styles = {
+    success: 'bg-green-50 border-green-500 text-green-800',
+    error: 'bg-red-50 border-red-500 text-red-800',
+    info: 'bg-blue-50 border-blue-500 text-blue-800'
   }
 
+  const icons = {
+    success: <CheckCircleIcon className="w-6 h-6 text-green-600" />,
+    error: <ExclamationCircleIcon className="w-6 h-6 text-red-600" />,
+    info: <ExclamationCircleIcon className="w-6 h-6 text-blue-600" />
+  }
+
+  return (
+    <div className="fixed top-24 right-6 z-50 max-w-md w-full animate-slide-in">
+      <div className={`${styles[type]} border-l-4 rounded-lg shadow-xl p-4 flex items-start gap-3`}>
+        {icons[type]}
+        <div className="flex-1">
+          <p className="font-medium whitespace-pre-line">{message}</p>
+        </div>
+        <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <XMarkIcon className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+  )
+}
   // DELETE USER — SILENT AND MERCILESS
   const deleteUser = async (userId, userName, type) => {
     setConfirmModal({
@@ -565,79 +576,198 @@ function ProductsPanel() {
   )
 }
 // YOUR ORIGINAL ADMIN DASHBOARD — 100% UNTOUCHED
-function AdminDashboard({ deleteUser, resetUserPassword }) {
-  const [activeTab, setActiveTab] = useState('overview')
+function AdminDashboard() {
   const [managers, setManagers] = useState([])
   const [drivers, setDrivers] = useState([])
   const [orders, setOrders] = useState([])
-  const [stats, setStats] = useState({ totalRevenue: 0, totalOrders: 0, activeManagers: 0, activeDrivers: 0 })
+  const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [showAddManager, setShowAddManager] = useState(false)
   const [showAddDriver, setShowAddDriver] = useState(false)
-  const [newManager, setNewManager] = useState({ name: '', email: '', phone: '', password: '' })
-  const [newDriver, setNewDriver] = useState({ name: '', email: '', phone: '', password: '', vehicle: '' })
+  const [toast, setToast] = useState(null)
+  const [confirmModal, setConfirmModal] = useState(null)
+  
+  const [newManager, setNewManager] = useState({ 
+    name: '', 
+    email: '', 
+    phone: '', 
+    password: '' 
+  })
+  
+  const [newDriver, setNewDriver] = useState({ 
+    name: '', 
+    email: '', 
+    phone: '', 
+    password: '', 
+    vehicle: '' 
+  })
 
   const token = localStorage.getItem('token')
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  // Get active tab from URL path
+  const activeTab = location.pathname.split('/').pop() || 'overview'
+
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type })
+  }
 
   useEffect(() => {
-    const fetchAllData = async () => {
-      if (!token) return
-      try {
-        const headers = { Authorization: `Bearer ${token}` }
+    fetchAllData()
+  }, [])
 
-        const [manRes, driRes, ordRes] = await Promise.all([
-          axios.get(`${API_BASE}/admin/managers`, { headers }),
-          axios.get(`${API_BASE}/admin/drivers`, { headers }),
-          axios.get(`${API_BASE}/admin/orders`, { headers })
-        ])
-
-        setManagers(manRes.data.data || [])
-        setDrivers(driRes.data.data || [])
-        setOrders(ordRes.data.data || [])
-
-        const revenue = ordRes.data.data?.reduce((sum, o) => sum + (o.total || 0), 0) || 0
-        setStats({
-          totalRevenue: revenue,
-          totalOrders: ordRes.data.data?.length || 0,
-          activeManagers: manRes.data.data?.filter(m => m.status === 'active').length || 0,
-          activeDrivers: driRes.data.data?.filter(d => d.status === 'active').length || 0
-        })
-      } catch (err) {
-        console.error('Failed to load data', err)
-        if (err.response?.status === 401) localStorage.clear()
-      } finally {
-        setLoading(false)
-      }
+  const fetchAllData = async () => {
+    if (!token) {
+      navigate('/')
+      return
     }
 
-    fetchAllData()
-  }, [token])
+    try {
+      const headers = { Authorization: `Bearer ${token}` }
+
+      const [manRes, driRes, ordRes, prodRes] = await Promise.all([
+        axios.get(`${API_BASE}/admin/managers`, { headers }),
+        axios.get(`${API_BASE}/admin/drivers`, { headers }),
+        axios.get(`${API_BASE}/admin/orders`, { headers }),
+        axios.get(`${API_BASE}/products`, { headers })
+      ])
+
+      setManagers(manRes.data.data || [])
+      setDrivers(driRes.data.data || [])
+      setOrders(ordRes.data.data || [])
+      setProducts(prodRes.data.data || [])
+
+      console.log('✅ Data loaded:', {
+        managers: manRes.data.data?.length,
+        drivers: driRes.data.data?.length,
+        orders: ordRes.data.data?.length,
+        products: prodRes.data.data?.length
+      })
+
+    } catch (err) {
+      console.error('Failed to load data', err)
+      if (err.response?.status === 401) {
+        showToast('Session expired. Please log in again.', 'error')
+        localStorage.clear()
+        navigate('/')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const createManager = async () => {
+    if (!newManager.name || !newManager.email) {
+      showToast('Name and email are required', 'error')
+      return
+    }
+
     try {
-      const res = await axios.post(`${API_BASE}/admin/create-manager`, newManager, {
+      const password = newManager.password || `ndaje${Math.floor(1000 + Math.random() * 9000)}`
+      
+      const res = await axios.post(`${API_BASE}/admin/create-manager`, {
+        ...newManager,
+        password
+      }, {
         headers: { Authorization: `Bearer ${token}` }
       })
+
       setManagers(prev => [...prev, res.data.data.user])
       setShowAddManager(false)
       setNewManager({ name: '', email: '', phone: '', password: '' })
+      
+      showToast(
+        `Manager created!\n\nEmail: ${newManager.email}\nPassword: ${password}\n\nSend these credentials to the manager.`,
+        'success'
+      )
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to create manager')
+      showToast(err.response?.data?.message || 'Failed to create manager', 'error')
     }
   }
 
   const createDriver = async () => {
+    if (!newDriver.name || !newDriver.email) {
+      showToast('Name and email are required', 'error')
+      return
+    }
+
     try {
-      const res = await axios.post(`${API_BASE}/admin/create-driver`, newDriver, {
+      const password = newDriver.password || `ndaje${Math.floor(1000 + Math.random() * 9000)}`
+      
+      const res = await axios.post(`${API_BASE}/admin/create-driver`, {
+        ...newDriver,
+        password
+      }, {
         headers: { Authorization: `Bearer ${token}` }
       })
+
       setDrivers(prev => [...prev, res.data.data.user])
       setShowAddDriver(false)
       setNewDriver({ name: '', email: '', phone: '', password: '', vehicle: '' })
+      
+      showToast(
+        `Driver created!\n\nEmail: ${newDriver.email}\nPassword: ${password}\n\nSend these credentials to the driver.`,
+        'success'
+      )
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to create driver')
+      showToast(err.response?.data?.message || 'Failed to create driver', 'error')
     }
+  }
+
+  const resetPassword = (userId, userName) => {
+    setConfirmModal({
+      title: 'Reset Password',
+      message: `Generate a new password for ${userName}?`,
+      onConfirm: async () => {
+        const newPassword = `ndaje${Math.floor(1000 + Math.random() * 9000)}`
+        
+        try {
+          await axios.post(
+            `${API_BASE}/admin/reset-password/${userId}`,
+            { newPassword },
+            { headers: { Authorization: `Bearer ${token}` } }
+          )
+
+          showToast(
+            `Password reset for ${userName}\n\nNew Password: ${newPassword}\n\nSend this to the user.`,
+            'success'
+          )
+        } catch (err) {
+          showToast('Failed to reset password', 'error')
+        }
+        setConfirmModal(null)
+      },
+      onCancel: () => setConfirmModal(null)
+    })
+  }
+
+  const deleteUser = (userId, userName, userType) => {
+    setConfirmModal({
+      title: `Delete ${userType}`,
+      message: `Permanently delete ${userName}? This cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          await axios.delete(
+            `${API_BASE}/admin/${userType}s/${userId}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          )
+
+          if (userType === 'manager') {
+            setManagers(prev => prev.filter(m => m.id !== userId))
+          } else {
+            setDrivers(prev => prev.filter(d => d.id !== userId))
+          }
+
+          showToast(`${userName} has been deleted`, 'success')
+        } catch (err) {
+          showToast(`Failed to delete ${userType}`, 'error')
+        }
+        setConfirmModal(null)
+      },
+      onCancel: () => setConfirmModal(null)
+    })
   }
 
   const filteredManagers = managers.filter(m => 
@@ -650,311 +780,259 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
     d.email?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const filteredOrders = orders.filter(o => 
-    o.orderCode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    o.clientName?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center">
-        <div className="text-3xl font-black text-blue-900">NDAJE IS RISING...</div>
+      <div className="flex items-center justify-center py-20">
+        <div className="text-3xl font-black text-blue-900">Loading...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
-      <div className="fixed inset-y-0 left-0 w-64 bg-white shadow-lg">
-        <div className="p-6 border-b border-blue-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-900 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">N</span>
+    <div className="space-y-8">
+      {/* Toast Component */}
+      {toast && (
+        <div className="fixed top-24 right-6 z-50 max-w-md w-full animate-slide-in">
+          <div className={`border-l-4 rounded-lg shadow-xl p-4 flex items-start gap-3 ${
+            toast.type === 'success' ? 'bg-green-50 border-green-500 text-green-800' :
+            toast.type === 'error' ? 'bg-red-50 border-red-500 text-red-800' :
+            'bg-blue-50 border-blue-500 text-blue-800'
+          }`}>
+            <div className="flex-1">
+              <p className="font-medium whitespace-pre-line">{toast.message}</p>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-blue-900">NDAJE Admin</h1>
-              <p className="text-xs text-gray-500">Command Center</p>
-            </div>
-          </div>
-        </div>
-
-        <nav className="p-4 space-y-2">
-          {[
-            { id: 'overview', name: 'Overview', icon: ChartBarIcon },
-            { id: 'products', name: 'Products', icon: CubeIcon },
-            { id: 'managers', name: 'Managers', icon: UsersIcon },
-            { id: 'drivers', name: 'Drivers', icon: TruckIcon },
-            { id: 'orders', name: 'Orders', icon: ClipboardDocumentListIcon },
-            { id: 'settings', name: 'Settings', icon: Cog6ToothIcon }
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${
-                activeTab === item.id
-                  ? 'bg-blue-900 text-white shadow-lg'
-                  : 'text-gray-700 hover:bg-blue-50 hover:text-blue-900'
-              }`}
-            >
-              <item.icon className="w-5 h-5" />
-              <span className="font-medium">{item.name}</span>
+            <button onClick={() => setToast(null)} className="text-gray-500 hover:text-gray-700">
+              <XMarkIcon className="w-5 h-5" />
             </button>
-          ))}
-        </nav>
+          </div>
+        </div>
+      )}
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-blue-100">
-          <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
-            <div className="w-8 h-8 bg-blue-900 rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-bold">A</span>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-blue-900">Administrator</p>
-              <p className="text-xs text-blue-600">King of Rwanda</p>
+      {/* Confirm Modal */}
+      {confirmModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">{confirmModal.title}</h2>
+            <p className="text-gray-600 mb-8">{confirmModal.message}</p>
+            <div className="flex gap-4">
+              <button
+                onClick={confirmModal.onCancel}
+                className="flex-1 px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmModal.onConfirm}
+                className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium"
+              >
+                Confirm
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="ml-64 p-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-blue-900 capitalize">
-              {activeTab === 'overview' ? 'Dashboard Overview' : 
-               activeTab === 'products' ? 'Product Catalog' :
-               activeTab === 'managers' ? 'Operations Managers' :
-               activeTab === 'drivers' ? 'Delivery Drivers' :
-               activeTab === 'orders' ? 'Order Management' : 'Settings'}
-            </h1>
-          </div>
-          <div className="relative">
-            <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200 focus:border-blue-500 w-64"
-            />
-          </div>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-blue-900">
+          {activeTab === 'overview' ? 'Dashboard Overview' :
+           activeTab === 'products' ? 'Product Catalog' :
+           activeTab === 'managers' ? 'Operations Managers' :
+           activeTab === 'drivers' ? 'Delivery Drivers' :
+           activeTab === 'orders' ? 'Order Management' : 'Settings'}
+        </h1>
+        <div className="relative">
+          <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-300 w-64"
+          />
         </div>
+      </div>
 
-        {activeTab === 'products' && <ProductsPanel />}
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between mb-4">
+                <CubeIcon className="w-10 h-10 text-blue-600" />
+                <span className="text-3xl font-bold text-blue-900">{products.length}</span>
+              </div>
+              <p className="text-gray-600 font-medium">Products</p>
+            </div>
 
-       {activeTab === 'overview' && (
-  <div className="p-10 text-center">
-    <h1 className="text-8xl font-black text-blue-900 mb-8">OVERVIEW</h1>
-    <p className="text-4xl text-gray-700">NDAJE IS ALIVE AND BREATHING</p>
-    <div className="mt-20 grid grid-cols-4 gap-8">
-      <div className="bg-white p-10 rounded-3xl shadow-2xl">
-        <p className="text-6xl font-black text-green-600">11</p>
-        <p className="text-2xl mt-4">Products</p>
-      </div>
-      <div className="bg-white p-10 rounded-3xl shadow-2xl">
-        <p className="text-6xl font-black text-blue-600">7</p>
-        <p className="text-2xl mt-4">Managers</p>
-      </div>
-      <div className="bg-white p-10 rounded-3xl shadow-2xl">
-        <p className="text-6xl font-black text-orange-600">12</p>
-        <p className="text-2xl mt-4">Drivers</p>
-      </div>
-      <div className="bg-white p-10 rounded-3xl shadow-2xl">
-        <p className="text-6xl font-black text-purple-600">48</p>
-        <p className="text-2xl mt-4">Orders</p>
-      </div>
-    </div>
-  </div>
-)}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between mb-4">
+                <UsersIcon className="w-10 h-10 text-green-600" />
+                <span className="text-3xl font-bold text-green-900">{managers.length}</span>
+              </div>
+              <p className="text-gray-600 font-medium">Managers</p>
+            </div>
 
-            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">Recent Orders</h3>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between mb-4">
+                <TruckIcon className="w-10 h-10 text-orange-600" />
+                <span className="text-3xl font-bold text-orange-900">{drivers.length}</span>
+              </div>
+              <p className="text-gray-600 font-medium">Drivers</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between mb-4">
+                <ClipboardDocumentListIcon className="w-10 h-10 text-purple-600" />
+                <span className="text-3xl font-bold text-purple-900">{orders.length}</span>
+              </div>
+              <p className="text-gray-600 font-medium">Orders</p>
+            </div>
+          </div>
+
+          {/* Recent Orders */}
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+            <h3 className="text-lg font-semibold text-gray-900 mb-6">Recent Orders</h3>
+            {orders.length === 0 ? (
+              <p className="text-center text-gray-500 py-8">No orders yet</p>
+            ) : (
               <div className="space-y-4">
                 {orders.slice(0, 5).map((order) => (
-                  <div key={order._id} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50">
+                  <div key={order.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                         <ClipboardDocumentListIcon className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{order.orderCode || 'N/A'}</p>
-                        <p className="text-sm text-gray-500">{order.clientName || 'Unknown Client'}</p>
+                        <p className="font-medium text-gray-900">Order #{order.id?.slice(-6) || 'N/A'}</p>
+                        <p className="text-sm text-gray-500">{order.client?.name || 'Client'}</p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-gray-900">RWF {order.total?.toLocaleString() || 0}</p>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                        order.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>
-                        {order.status || 'pending'}
-                      </span>
+                      <span className="text-xs text-gray-500">{order.status || 'pending'}</span>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+            )}
           </div>
-        
+        </div>
+      )}
 
-        {activeTab === 'managers' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">Operations Managers</h2>
-              <button onClick={() => setShowAddManager(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-900 text-white rounded-xl hover:bg-blue-800">
-                <PlusIcon className="w-4 h-4" /> Add Manager
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredManagers.map((manager) => (
-  <div key={manager.id} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 relative group">
-    <div className="flex items-center justify-between mb-4">
-      <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-        <UsersIcon className="w-6 h-6 text-blue-600" />
-      </div>
-      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition">
-        <button
-          onClick={() => resetUserPassword(manager.id, manager.name || manager.email)}
-          className="p-2 bg-yellow-100 hover:bg-yellow-200 rounded-lg transition"
-          title="Reset Password"
-        >
-          <LockOpenIcon className="w-5 h-5 text-yellow-700" />
-        </button>
-        <button
-          onClick={() => deleteUser(manager.id, manager.name || manager.email, 'manager')}
-          className="p-2 bg-red-100 hover:bg-red-200 rounded-lg transition"
-          title="Delete Manager"
-        >
-          <TrashIcon className="w-5 h-5 text-red-700" />
-        </button>
-      </div>
-    </div>
-    <h3 className="font-semibold text-gray-900 text-lg">{manager.name}</h3>
-    <div className="space-y-2 mt-3 text-sm text-gray-600">
-      <div className="flex items-center gap-2"><EnvelopeIcon className="w-4 h-4" /> {manager.email}</div>
-      <div className="flex items-center gap-2"><PhoneIcon className="w-4 h-4" /> {manager.phone}</div>
-    </div>
-    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
-      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-        manager.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-      }`}>
-        {manager.status || 'active'}
-      </span>
-      <span className="text-xs text-gray-500">Manager</span>
-    </div>
-  </div>
-))}
-            </div>
+      {/* Managers Tab - I'll give you this in the next message */}
+      {activeTab === 'managers' && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <p className="text-gray-600">{filteredManagers.length} managers total</p>
+            <button
+              onClick={() => setShowAddManager(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-900 text-white rounded-xl hover:bg-blue-800"
+            >
+              <PlusIcon className="w-4 h-4" /> Add Manager
+            </button>
           </div>
-        )}
 
-        {activeTab === 'drivers' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">Delivery Drivers</h2>
-              <button onClick={() => setShowAddDriver(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-900 text-white rounded-xl hover:bg-blue-800">
-                <PlusIcon className="w-4 h-4" /> Add Driver
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredDrivers.map((driver) => (
-  <div key={driver.id} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 relative group">
-    <div className="flex items-center justify-between mb-4">
-      <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-        <TruckIcon className="w-6 h-6 text-orange-600" />
-      </div>
-      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition">
-        <button
-          onClick={() => resetUserPassword(driver.id, driver.name, 'driver')}
-          className="p-2 bg-yellow-100 hover:bg-yellow-200 rounded-lg transition"
-          title="Reset Password"
-        >
-          <LockOpenIcon className="w-5 h-5 text-yellow-700" />
-        </button>
-        <button
-          onClick={() => deleteUser(driver.id, driver.name, 'driver')}
-          className="p-2 bg-red-100 hover:bg-red-200 rounded-lg transition"
-          title="Delete Driver"
-        >
-          <TrashIcon className="w-5 h-5 text-red-700" />
-        </button>
-      </div>
-    </div>
-    <h3 className="font-semibold text-gray-900 text-lg">{driver.name}</h3>
-    <div className="space-y-2 mt-3 text-sm text-gray-600">
-      <div className="flex items-center gap-2"><EnvelopeIcon className="w-4 h-4" /> {driver.email}</div>
-      <div className="flex items-center gap-2"><PhoneIcon className="w-4 h-4" /> {driver.phone}</div>
-      <div className="flex items-center gap-2"><TruckIcon className="w-4 h-4" /> {driver.vehicle || 'No vehicle'}</div>
-    </div>
-    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
-      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-        driver.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-      }`}>
-        {driver.status || 'active'}
-      </span>
-      <span className="text-xs text-gray-500">Driver</span>
-    </div>
-  </div>
-))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'orders' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order Code</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredOrders.map((order) => (
-                    <tr key={order._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm font-medium text-blue-900">{order.orderCode || '—'}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{order.clientName || '—'}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">RWF {order.total?.toLocaleString() || 0}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                          order.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
-                          {order.status || 'pending'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <button className="text-blue-600 hover:text-blue-900"><EyeIcon className="w-5 h-5" /></button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {showAddManager && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-              <h3 className="text-xl font-semibold mb-4">Add New Manager</h3>
-              <div className="space-y-4">
-                <input placeholder="Name" value={newManager.name} onChange={e => setNewManager(prev => ({...prev, name: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-                <input placeholder="Email" value={newManager.email} onChange={e => setNewManager(prev => ({...prev, email: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-                <input placeholder="Phone" value={newManager.phone} onChange={e => setNewManager(prev => ({...prev, phone: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-                <input type="password" placeholder="Password" value={newManager.password} onChange={e => setNewManager(prev => ({...prev, password: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredManagers.map((manager) => (
+              <div key={manager.id} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 relative group">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <UsersIcon className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition">
+                    <button
+                      onClick={() => resetPassword(manager.id, manager.name)}
+                      className="p-2 bg-yellow-100 hover:bg-yellow-200 rounded-lg transition"
+                      title="Reset Password"
+                    >
+                      <LockOpenIcon className="w-5 h-5 text-yellow-700" />
+                    </button>
+                    <button
+                      onClick={() => deleteUser(manager.id, manager.name, 'manager')}
+                      className="p-2 bg-red-100 hover:bg-red-200 rounded-lg transition"
+                      title="Delete Manager"
+                    >
+                      <TrashIcon className="w-5 h-5 text-red-700" />
+                    </button>
+                  </div>
+                </div>
+                <h3 className="font-semibold text-gray-900 text-lg">{manager.name}</h3>
+                <div className="space-y-2 mt-3 text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <EnvelopeIcon className="w-4 h-4" /> {manager.email}
+                  </div>
+                  {manager.phone && (
+                    <div className="flex items-center gap-2">
+                      <PhoneIcon className="w-4 h-4" /> {manager.phone}
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
+                    Active
+                  </span>
+                </div>
               </div>
-              <div className="flex gap-3 mt-6">
-                <button onClick={() => setShowAddManager(false)} className="flex-1 px-4 py-2 border rounded-xl">Cancel</button>
-                <button onClick={createManager} className="flex-1 px-4 py-2 bg-blue-900 text-white rounded-xl">Create</button>
+            ))}
+          </div>
+
+          {/* Add Manager Modal */}
+          {showAddManager && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+                <h3 className="text-xl font-semibold mb-4">Add New Manager</h3>
+                <div className="space-y-4">
+                  <input
+                    placeholder="Name *"
+                    value={newManager.name}
+                    onChange={e => setNewManager(prev => ({...prev, name: e.target.value}))}
+                    className="w-full px-4 py-3 border rounded-xl"
+                  />
+                  <input
+                    placeholder="Email *"
+                    type="email"
+                    value={newManager.email}
+                    onChange={e => setNewManager(prev => ({...prev, email: e.target.value}))}
+                    className="w-full px-4 py-3 border rounded-xl"
+                  />
+                  <input
+                    placeholder="Phone"
+                    value={newManager.phone}
+                    onChange={e => setNewManager(prev => ({...prev, phone: e.target.value}))}
+                    className="w-full px-4 py-3 border rounded-xl"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Password (auto-generate if empty)"
+                    value={newManager.password}
+                    onChange={e => setNewManager(prev => ({...prev, password: e.target.value}))}
+                    className="w-full px-4 py-3 border rounded-xl"
+                  />
+                  <p className="text-sm text-gray-500">* Required fields</p>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowAddManager(false)
+                      setNewManager({ name: '', email: '', phone: '', password: '' })
+                    }}
+                    className="flex-1 px-4 py-2 border rounded-xl"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={createManager}
+                    className="flex-1 px-4 py-2 bg-blue-900 text-white rounded-xl"
+                  >
+                    Create Manager
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+      )}
 
         {showAddDriver && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
