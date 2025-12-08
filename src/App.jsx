@@ -1313,7 +1313,9 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
   )
 }
 
-// Enhanced Interactive Manager Dashboard
+// Replace the entire ManagerDashboard function with this fixed version:
+
+// Enhanced Interactive Manager Dashboard - FIXED VERSION
 function ManagerDashboard() {
   const [activeTab, setActiveTab] = useState('pending');
   const [quotes, setQuotes] = useState([]);
@@ -1343,18 +1345,33 @@ function ManagerDashboard() {
       
       // Fetch quotes assigned to this manager
       const quotesRes = await axios.get(`${API_BASE}/quotes/manager/pending`, { headers });
-      setQuotes(quotesRes.data.data || []);
+      console.log('📊 Quotes response:', quotesRes.data);
       
-      // Fetch manager stats
-      const statsRes = await axios.get(`${API_BASE}/manager/stats`, { headers });
-      setStats(statsRes.data.data || stats);
+      // Make sure quotes is an array
+      const quotesData = quotesRes.data.data || [];
+      setQuotes(Array.isArray(quotesData) ? quotesData : []);
+      
+      // Calculate stats from quotes
+      const pendingQuotes = Array.isArray(quotesData) ? quotesData.length : 0;
+      const totalRevenue = Array.isArray(quotesData) ? 
+        quotesData.reduce((sum, quote) => sum + (quote.totalAmount || 0), 0) : 0;
+      
+      setStats({
+        pending: pendingQuotes,
+        active: 0, // You'll need to fetch this from another endpoint
+        completed: 0, // You'll need to fetch this from another endpoint
+        totalRevenue: totalRevenue
+      });
+      
     } catch (err) {
       console.error('Failed to fetch manager data:', err);
       setToast({
         type: 'error',
         title: 'Error',
-        message: 'Failed to load data'
+        message: 'Failed to load quotes data'
       });
+      // Set empty arrays on error
+      setQuotes([]);
     } finally {
       setLoading(false);
     }
@@ -1366,16 +1383,28 @@ function ManagerDashboard() {
     
     // Initialize pricing with current values
     const initialPricing = {};
-    quote.items.forEach(item => {
-      const id = item.productId || item.product?.id;
-      initialPricing[id] = item.unitPrice || 0;
-    });
+    if (quote.items && Array.isArray(quote.items)) {
+      quote.items.forEach(item => {
+        const id = item.productId || item.product?.id;
+        initialPricing[id] = item.unitPrice || 0;
+      });
+    }
     setPricing(initialPricing);
     setSourcingNotes(quote.sourcingNotes || '');
   };
 
   const submitPricing = async () => {
     if (!selectedQuote) return;
+
+    // Check if items exist and is array
+    if (!selectedQuote.items || !Array.isArray(selectedQuote.items)) {
+      setToast({
+        type: 'error',
+        title: 'Error',
+        message: 'No items found in quote'
+      });
+      return;
+    }
 
     const items = selectedQuote.items.map(item => ({
       productId: item.productId || item.product?.id,
@@ -1404,7 +1433,7 @@ function ManagerDashboard() {
       setToast({
         type: 'success',
         title: 'Success',
-        message: `Quote #${selectedQuote.id.slice(-6)} priced and sent to client!`
+        message: `Quote #${selectedQuote.id?.slice(-6) || ''} priced and sent to client!`
       });
 
       // Close modal and refresh data
@@ -1422,7 +1451,7 @@ function ManagerDashboard() {
     }
   };
 
-  if (loading && quotes.length === 0) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
         <div className="text-center">
@@ -1465,7 +1494,7 @@ function ManagerDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Pending Quotes</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{quotes.length}</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{stats.pending}</p>
               </div>
               <div className="p-3 bg-blue-50 rounded-xl">
                 <ClockIcon className="w-6 h-6 text-blue-600" />
@@ -1514,80 +1543,90 @@ function ManagerDashboard() {
 
         {/* Quotes List */}
         <div className="grid gap-6">
-          {quotes.map(quote => (
-            <div key={quote.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {quote.client?.name || 'Hotel Client'}
-                    </h3>
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                      {quote.items.length} items
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Quote #{quote.id?.slice(-8) || 'N/A'} • Created {new Date(quote.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handlePriceQuote(quote)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-                  >
-                    Price Quote
-                  </button>
-                </div>
-              </div>
+          {Array.isArray(quotes) && quotes.length > 0 ? (
+            quotes.map(quote => {
+              // Ensure quote and quote.items exist
+              const quoteItems = quote.items || [];
+              const totalEstimate = quoteItems.reduce((sum, item) => 
+                sum + (item.quantity * (item.unitPrice || 0)), 0
+              );
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                {quote.items.slice(0, 4).map((item, index) => (
-                  <div key={index} className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm text-gray-900 truncate">
-                        {item.product?.name || 'Product'}
-                      </span>
-                      <span className="text-sm font-semibold text-gray-700">
-                        {item.quantity}x
-                      </span>
+              return (
+                <div key={quote.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {quote.client?.name || 'Hotel Client'}
+                        </h3>
+                        <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                          {quoteItems.length} items
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Quote #{quote.id?.slice(-8) || 'N/A'} • Created {new Date(quote.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handlePriceQuote(quote)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                      >
+                        Price Quote
+                      </button>
                     </div>
                   </div>
-                ))}
-                {quote.items.length > 4 && (
-                  <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-center">
-                    <span className="text-sm text-gray-600">
-                      +{quote.items.length - 4} more items
+                  
+                  {quoteItems.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                      {quoteItems.slice(0, 4).map((item, index) => (
+                        <div key={index} className="bg-gray-50 rounded-lg p-3">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-sm text-gray-900 truncate">
+                              {item.product?.name || 'Product'}
+                            </span>
+                            <span className="text-sm font-semibold text-gray-700">
+                              {item.quantity}x
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                      {quoteItems.length > 4 && (
+                        <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-center">
+                          <span className="text-sm text-gray-600">
+                            +{quoteItems.length - 4} more items
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span>Created: {new Date(quote.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                    <span className="text-sm font-medium text-gray-900">
+                      Estimated: RWF {totalEstimate.toLocaleString()}
                     </span>
                   </div>
-                )}
-              </div>
-              
-              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                <div className="flex items-center gap-4 text-sm text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span>Created: {new Date(quote.createdAt).toLocaleDateString()}</span>
-                  </div>
                 </div>
-                <span className="text-sm font-medium text-gray-900">
-                  Estimated: RWF {(quote.items.reduce((sum, item) => sum + (item.quantity * (item.unitPrice || 0)), 0)).toLocaleString()}
-                </span>
+              );
+            })
+          ) : (
+            <div className="text-center py-16">
+              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <DocumentTextIcon className="w-12 h-12 text-gray-400" />
               </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">No pending quotes</h3>
+              <p className="text-gray-600">All caught up! New quotes will appear here automatically.</p>
             </div>
-          ))}
+          )}
         </div>
-
-        {quotes.length === 0 && (
-          <div className="text-center py-16">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <DocumentTextIcon className="w-12 h-12 text-gray-400" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No pending quotes</h3>
-            <p className="text-gray-600">All caught up! New quotes will appear here automatically.</p>
-          </div>
-        )}
       </div>
 
       {/* Pricing Modal */}
@@ -1633,33 +1672,39 @@ function ManagerDashboard() {
               {/* Items List */}
               <div className="space-y-4 mb-8">
                 <h3 className="text-lg font-semibold text-gray-900">Items to Price</h3>
-                {selectedQuote.items.map((item, index) => {
-                  const id = item.productId || item.product?.id;
-                  const name = item.product?.name || 'Unknown Product';
-                  
-                  return (
-                    <div key={index} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <h4 className="font-medium text-gray-900">{name}</h4>
-                          <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
-                        </div>
-                        <div className="w-48">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-700">RWF</span>
-                            <input
-                              type="number"
-                              value={pricing[id] || ''}
-                              onChange={(e) => setPricing(p => ({ ...p, [id]: e.target.value }))}
-                              placeholder="Enter price"
-                              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
+                {selectedQuote.items && Array.isArray(selectedQuote.items) ? (
+                  selectedQuote.items.map((item, index) => {
+                    const id = item.productId || item.product?.id;
+                    const name = item.product?.name || 'Unknown Product';
+                    
+                    return (
+                      <div key={index} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <h4 className="font-medium text-gray-900">{name}</h4>
+                            <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
+                          </div>
+                          <div className="w-48">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-gray-700">RWF</span>
+                              <input
+                                type="number"
+                                value={pricing[id] || ''}
+                                onChange={(e) => setPricing(p => ({ ...p, [id]: e.target.value }))}
+                                placeholder="Enter price"
+                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    No items found in this quote
+                  </div>
+                )}
               </div>
 
               {/* Actions */}
@@ -1684,7 +1729,6 @@ function ManagerDashboard() {
     </div>
   );
 }
-
 function ProtectedDashboard({ deleteUser, resetUserPassword, token }) {
   const user = JSON.parse(localStorage.getItem('user') || 'null')
   const navigate = useNavigate()
