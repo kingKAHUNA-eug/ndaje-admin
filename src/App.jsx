@@ -1313,7 +1313,7 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
   )
 }
 
-// Enhanced Interactive Manager Dashboard - UPDATED VERSION
+// Enhanced Interactive Manager Dashboard - FIXED WITH CORRECT ENDPOINTS
 function ManagerDashboard() {
   const [activeTab, setActiveTab] = useState('pending');
   const [quotes, setQuotes] = useState([]);
@@ -1332,9 +1332,6 @@ function ManagerDashboard() {
   const [newQuoteNotification, setNewQuoteNotification] = useState(null);
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  
-  // Poll for new quotes
-  const [pollInterval, setPollInterval] = useState(null);
 
   useEffect(() => {
     fetchManagerData();
@@ -1344,21 +1341,18 @@ function ManagerDashboard() {
       checkForNewQuotes();
     }, 10000);
     
-    setPollInterval(interval);
-    
     return () => {
-      if (interval) clearInterval(interval);
+      clearInterval(interval);
     };
   }, []);
 
   const checkForNewQuotes = async () => {
     try {
-      const headers = { Authorization: `Bearer ${token}` };
-      const response = await axios.get(`${API_BASE}/quotes/manager/pending`, { headers });
-      const newQuotes = response.data.data || [];
+      const response = await fetchManagerQuotes();
+      const newQuotes = response || [];
       
       if (newQuotes.length > quotes.length) {
-        const newQuote = newQuotes[0]; // Get the most recent quote
+        const newQuote = newQuotes[0];
         setNewQuoteNotification({
           id: newQuote.id,
           clientName: newQuote.client?.name || 'New Client',
@@ -1379,44 +1373,55 @@ function ManagerDashboard() {
     }
   };
 
+  // Try multiple endpoints to find the correct one
+  const fetchManagerQuotes = async () => {
+    const headers = { Authorization: `Bearer ${token}` };
+    const endpoints = [
+      `${API_BASE}/quotes/manager/pending`,
+      `${API_BASE}/quotes/pending`,
+      `${API_BASE}/quotes?status=pending`,
+      `${API_BASE}/quotes?managerId=${user.id}`,
+      `${API_BASE}/quotes`
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Trying endpoint: ${endpoint}`);
+        const res = await axios.get(endpoint, { headers });
+        if (res.data.success && res.data.data) {
+          console.log(`✅ Success from ${endpoint}:`, res.data.data.length, 'quotes');
+          return Array.isArray(res.data.data) ? res.data.data : [];
+        }
+      } catch (err) {
+        console.log(`❌ Failed for ${endpoint}:`, err.response?.status || err.message);
+      }
+    }
+    
+    return [];
+  };
+
   const fetchManagerData = async () => {
     try {
       setLoading(true);
-      const headers = { Authorization: `Bearer ${token}` };
+      const quotesData = await fetchManagerQuotes();
       
-      // Fetch quotes assigned to this manager OR pending assignment
-      const quotesRes = await axios.get(`${API_BASE}/quotes/manager/pending`, { headers });
-      console.log('📊 Manager quotes response:', quotesRes.data);
+      // Filter quotes for this manager or unassigned quotes
+      const filteredQuotes = quotesData.filter(quote => {
+        // Show quotes that are either:
+        // 1. Assigned to this manager
+        // 2. Not assigned to any manager (managerId is null)
+        // 3. Have status 'pending'
+        return (!quote.managerId || quote.managerId === user.id || quote.status === 'pending');
+      });
       
-      // Also try the general quotes endpoint if manager-specific returns empty
-      let quotesData = quotesRes.data.data || [];
-      
-      if (!Array.isArray(quotesData) || quotesData.length === 0) {
-        try {
-          const allQuotesRes = await axios.get(`${API_BASE}/quotes`, { headers });
-          console.log('📊 All quotes response:', allQuotesRes.data);
-          quotesData = allQuotesRes.data.data || [];
-          
-          // Filter for pending quotes (managerId is null or matches current manager)
-          quotesData = quotesData.filter(quote => 
-            !quote.managerId || quote.managerId === user.id
-          );
-        } catch (fallbackError) {
-          console.error('Fallback fetch failed:', fallbackError);
-        }
-      }
-      
-      setQuotes(Array.isArray(quotesData) ? quotesData : []);
+      console.log('📊 Filtered quotes for manager:', filteredQuotes);
+      setQuotes(filteredQuotes);
       
       // Calculate stats
-      const pendingQuotes = Array.isArray(quotesData) ? 
-        quotesData.filter(q => !q.isPriced && !q.isFinalized).length : 0;
-      const activeQuotes = Array.isArray(quotesData) ? 
-        quotesData.filter(q => q.isPriced && !q.isFinalized).length : 0;
-      const completedQuotes = Array.isArray(quotesData) ? 
-        quotesData.filter(q => q.isFinalized).length : 0;
-      const totalRevenue = Array.isArray(quotesData) ? 
-        quotesData.reduce((sum, quote) => sum + (quote.totalAmount || 0), 0) : 0;
+      const pendingQuotes = filteredQuotes.filter(q => !q.isPriced && !q.isFinalized).length;
+      const activeQuotes = filteredQuotes.filter(q => q.isPriced && !q.isFinalized).length;
+      const completedQuotes = filteredQuotes.filter(q => q.isFinalized).length;
+      const totalRevenue = filteredQuotes.reduce((sum, quote) => sum + (quote.totalAmount || 0), 0);
       
       setStats({
         pending: pendingQuotes,
@@ -1507,14 +1512,33 @@ function ManagerDashboard() {
         return;
       }
 
-      // Update pricing
-      await axios.put(`${API_BASE}/quotes/${selectedQuote.id}/update-pricing`, {
-        items,
-        sourcingNotes,
-        managerId: user.id
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      // Try multiple endpoints for updating pricing
+      const updateEndpoints = [
+        `${API_BASE}/quotes/${selectedQuote.id}/update-pricing`,
+        `${API_BASE}/quotes/${selectedQuote.id}/price`,
+        `${API_BASE}/quotes/${selectedQuote.id}`
+      ];
+
+      let updateSuccessful = false;
+      for (const endpoint of updateEndpoints) {
+        try {
+          await axios.put(endpoint, {
+            items,
+            sourcingNotes,
+            managerId: user.id
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          updateSuccessful = true;
+          break;
+        } catch (err) {
+          console.log(`Failed on ${endpoint}:`, err.message);
+        }
+      }
+
+      if (!updateSuccessful) {
+        throw new Error('Could not update pricing on any endpoint');
+      }
 
       setToast({
         type: 'success',
@@ -1550,6 +1574,31 @@ function ManagerDashboard() {
       return <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">Assigned to You</span>;
     }
     return <span className="px-3 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded-full">Pending</span>;
+  };
+
+  const debugFetch = async () => {
+    console.log('🔍 Debug: Fetching quotes data...');
+    const headers = { Authorization: `Bearer ${token}` };
+    
+    // Test all possible endpoints
+    const endpoints = [
+      '/quotes/manager/pending',
+      '/quotes/pending',
+      '/quotes?status=pending',
+      '/quotes?managerId=all',
+      '/quotes'
+    ];
+    
+    for (const endpoint of endpoints) {
+      try {
+        const url = `${API_BASE}${endpoint}`;
+        console.log(`Testing: ${url}`);
+        const res = await axios.get(url, { headers });
+        console.log(`Response from ${endpoint}:`, res.data);
+      } catch (err) {
+        console.log(`Error for ${endpoint}:`, err.response?.status, err.message);
+      }
+    }
   };
 
   if (loading) {
@@ -1609,6 +1658,13 @@ function ManagerDashboard() {
               </p>
             </div>
             <div className="flex items-center gap-4">
+              <button
+                onClick={debugFetch}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
+                title="Debug endpoints"
+              >
+                Debug
+              </button>
               <div className="relative">
                 <button 
                   className="relative p-2 hover:bg-gray-100 rounded-lg"
@@ -1715,25 +1771,27 @@ function ManagerDashboard() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {!quote.managerId || quote.managerId === user.id ? (
+                      {(!quote.managerId || quote.managerId === user.id) && !quote.isFinalized ? (
                         <button
                           onClick={() => handlePriceQuote(quote)}
                           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-                          disabled={quote.isPriced || quote.isFinalized}
+                          disabled={quote.isFinalized}
                         >
                           {quote.isPriced ? 'Update Pricing' : 'Price Quote'}
                         </button>
-                      ) : (
+                      ) : !quote.managerId && !quote.isFinalized ? (
                         <button
                           onClick={() => handleAcceptQuote(quote.id)}
                           className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
                         >
                           Accept Quote
                         </button>
+                      ) : null}
+                      {quote.managerId && quote.managerId !== user.id && (
+                        <span className="px-3 py-1 bg-gray-100 text-gray-600 text-sm rounded-full">
+                          Assigned to another manager
+                        </span>
                       )}
-                      <button className="p-2 hover:bg-gray-100 rounded-lg">
-                        <EyeIcon className="w-5 h-5 text-gray-600" />
-                      </button>
                     </div>
                   </div>
                   
@@ -1795,15 +1853,27 @@ function ManagerDashboard() {
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">No pending quotes</h3>
               <p className="text-gray-600 mb-6">All caught up! New quotes will appear here automatically.</p>
-              <button
-                onClick={fetchManagerData}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium inline-flex items-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Refresh
-              </button>
+              <div className="flex justify-center gap-4">
+                <button
+                  onClick={fetchManagerData}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium inline-flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh
+                </button>
+                <button
+                  onClick={debugFetch}
+                  className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition font-medium inline-flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Debug Endpoints
+                </button>
+              </div>
             </div>
           )}
         </div>
