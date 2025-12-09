@@ -1387,82 +1387,93 @@ function ManagerDashboard() {
    // return () => clearInterval(interval);
   }, []);
 
+
+
   const fetchManagerData = async () => {
+  try {
+    setLoading(true);
+    const headers = { Authorization: `Bearer ${token}` };
+    
+    // Use the working endpoint
+    const response = await axios.get(`${API_BASE}/quotes/manager/pending`, { headers });
+    console.log('📊 Manager pending quotes response:', response.data);
+    
+    // Extract quotes array from response
+    let quotesData = response.data.data || [];
+    
+    // Make sure it's an array
+    if (!Array.isArray(quotesData)) {
+      if (quotesData.quotes && Array.isArray(quotesData.quotes)) {
+        quotesData = quotesData.quotes;
+      } else {
+        quotesData = [];
+      }
+    }
+    
+    console.log(`📊 Processed ${quotesData.length} quotes`);
+    
+    // Now let's also try to get locked quotes specifically
     try {
-      setLoading(true);
-      const headers = { Authorization: `Bearer ${token}` };
-      
-      // Fetch ALL quotes for the manager (both available and assigned)
-      const response = await axios.get(`${API_BASE}/quotes/manager/quotes`, { headers });
-      console.log('📊 All manager quotes response:', response.data);
-      
-      // Extract quotes array from response
-      let quotesData = response.data.data || [];
-      
-      // Make sure it's an array
-      if (!Array.isArray(quotesData)) {
-        if (quotesData.quotes && Array.isArray(quotesData.quotes)) {
-          quotesData = quotesData.quotes;
-        } else {
-          quotesData = [];
+      // Try to fetch locked quotes from manager quotes endpoint if it exists
+      const lockedResponse = await axios.get(`${API_BASE}/quotes/manager/quotes`, { headers });
+      if (lockedResponse.data && lockedResponse.data.data) {
+        const lockedData = lockedResponse.data.data;
+        if (Array.isArray(lockedData)) {
+          // Merge any locked quotes that aren't already in the list
+          lockedData.forEach(quote => {
+            if (!quotesData.some(q => q.id === quote.id)) {
+              quotesData.push(quote);
+            }
+          });
         }
       }
-      
-      console.log(`📊 Processed ${quotesData.length} quotes`);
-      
-      // Also fetch available quotes for stats
-      try {
-        const availableResponse = await axios.get(`${API_BASE}/quotes/manager/pending`, { headers });
-        const availableQuotes = availableResponse.data.data || [];
-        
-        // Merge available quotes that aren't already in the list
-        availableQuotes.forEach(quote => {
-          if (!quotesData.some(q => q.id === quote.id)) {
-            quotesData.push(quote);
-          }
-        });
-      } catch (availableError) {
-        console.log('Available quotes fetch failed:', availableError.message);
-      }
-      
-      setQuotes(quotesData);
-      
-      // Calculate stats
-      const pendingQuotes = quotesData.filter(q => 
-        q.status === 'PENDING_PRICING' && (!q.lockedById || q.lockedById === user.id)
-      ).length;
-      
-      const activeQuotes = quotesData.filter(q => 
-        q.status === 'IN_PRICING' && q.lockedById === user.id
-      ).length;
-      
-      const completedQuotes = quotesData.filter(q => 
-        ['APPROVED', 'CONVERTED_TO_ORDER'].includes(q.status)
-      ).length;
-      
-      const totalRevenue = quotesData.reduce((sum, quote) => sum + (quote.totalAmount || 0), 0);
-      
-      setStats({
-        pending: pendingQuotes,
-        active: activeQuotes,
-        completed: completedQuotes,
-        totalRevenue: totalRevenue
-      });
-      
-      console.log(`📊 Stats: ${pendingQuotes} pending, ${activeQuotes} active, ${completedQuotes} completed`);
-      
-    } catch (err) {
-      console.error('Failed to fetch manager data:', err);
-      setToast({
-        type: 'error',
-        title: 'Error',
-        message: err.response?.data?.message || 'Failed to load quotes data'
-      });
-    } finally {
-      setLoading(false);
+    } catch (lockedError) {
+      console.log('Locked quotes fetch failed, using only pending endpoint:', lockedError.message);
     }
-  };
-
+    
+    setQuotes(quotesData);
+    
+    // Calculate stats - NOW with better logic
+    const pendingQuotes = quotesData.filter(q => 
+      q.status === 'PENDING_PRICING' && (!q.lockedById || q.lockedById === user?.id)
+    ).length;
+    
+    const activeQuotes = quotesData.filter(q => 
+      q.status === 'IN_PRICING' && q.lockedById === user?.id
+    ).length;
+    
+    const completedQuotes = quotesData.filter(q => 
+      ['APPROVED', 'CONVERTED_TO_ORDER', 'AWAITING_CLIENT_APPROVAL'].includes(q.status)
+    ).length;
+    
+    const totalRevenue = quotesData.reduce((sum, quote) => sum + (quote.totalAmount || 0), 0);
+    
+    setStats({
+      pending: pendingQuotes,
+      active: activeQuotes,
+      completed: completedQuotes,
+      totalRevenue: totalRevenue
+    });
+    
+    console.log(`📊 Stats: ${pendingQuotes} pending, ${activeQuotes} active, ${completedQuotes} completed`);
+    
+    // Also log locked quotes for debugging
+    const lockedQuotes = quotesData.filter(q => 
+      q.status === 'IN_PRICING' && q.lockedById === user?.id
+    );
+    console.log(`🔒 Locked quotes: ${lockedQuotes.length}`, lockedQuotes);
+    
+  } catch (err) {
+    console.error('Failed to fetch manager data:', err);
+    setToast({
+      type: 'error',
+      title: 'Error',
+      message: err.response?.data?.message || 'Failed to load quotes data'
+    });
+  } finally {
+    setLoading(false);
+  }
+};
   const handleLockQuote = (quote) => {
     setQuoteToLock(quote);
     setShowLockModal(true);
