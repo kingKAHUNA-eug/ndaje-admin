@@ -1392,9 +1392,17 @@ function ManagerDashboard() {
     setPricing(initialPricing);
     setSourcingNotes(quote.sourcingNotes || '');
   };
+const submitPricing = async () => {
+  if (!selectedQuote) return;
 
-  const submitPricing = async () => {
-    if (!selectedQuote) return;
+  // First, lock the quote
+  try {
+    // Lock the quote first
+    await axios.post(`${API_BASE}/quotes/lock`, {
+      quoteId: selectedQuote.id
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
     // Check if items exist and is array
     if (!selectedQuote.items || !Array.isArray(selectedQuote.items)) {
@@ -1421,35 +1429,36 @@ function ManagerDashboard() {
       return;
     }
 
-    try {
-      await axios.put(`${API_BASE}/quotes/${selectedQuote.id}/price`, {
-        items,
-        sourcingNotes,
-        status: 'PRICED'
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+    // Update pricing
+    await axios.put(`${API_BASE}/quotes/${selectedQuote.id}/update-pricing`, {
+      items,
+      sourcingNotes
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
-      setToast({
-        type: 'success',
-        title: 'Success',
-        message: `Quote #${selectedQuote.id?.slice(-6) || ''} priced and sent to client!`
-      });
+    setToast({
+      type: 'success',
+      title: 'Success',
+      message: `Quote #${selectedQuote.id?.slice(-6) || ''} priced and sent to client!`
+    });
 
-      // Close modal and refresh data
-      setShowPricingModal(false);
-      setSelectedQuote(null);
-      setPricing({});
-      setSourcingNotes('');
-      fetchManagerData();
-    } catch (err) {
-      setToast({
-        type: 'error',
-        title: 'Error',
-        message: err.response?.data?.message || 'Failed to submit pricing'
-      });
-    }
-  };
+    // Close modal and refresh data
+    setShowPricingModal(false);
+    setSelectedQuote(null);
+    setPricing({});
+    setSourcingNotes('');
+    fetchManagerData();
+    
+  } catch (err) {
+    console.error('Pricing error:', err);
+    setToast({
+      type: 'error',
+      title: 'Error',
+      message: err.response?.data?.message || 'Failed to submit pricing'
+    });
+  }
+};
 
   if (loading) {
     return (
