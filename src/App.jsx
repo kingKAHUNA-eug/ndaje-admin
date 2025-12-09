@@ -1313,10 +1313,10 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
   )
 }
 // Enhanced Manager Dashboard with Locking System
+// Enhanced Manager Dashboard - FIXED VERSION
 function ManagerDashboard() {
   const [activeTab, setActiveTab] = useState('all');
   const [quotes, setQuotes] = useState([]);
-  const [lockedQuotes, setLockedQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedQuote, setSelectedQuote] = useState(null);
   const [pricing, setPricing] = useState({});
@@ -1337,7 +1337,7 @@ function ManagerDashboard() {
   useEffect(() => {
     fetchManagerData();
     
-    // Poll for new quotes
+    // Poll for new quotes every 10 seconds
     const interval = setInterval(() => {
       fetchManagerData();
     }, 10000);
@@ -1350,53 +1350,54 @@ function ManagerDashboard() {
       setLoading(true);
       const headers = { Authorization: `Bearer ${token}` };
       
-      // Fetch available quotes (not locked or locked by current manager)
-      const response = await axios.get(`${API_BASE}/quotes/manager/pending`, { headers });
-      console.log('📊 Available quotes:', response.data);
+      // Fetch ALL quotes for the manager (both available and assigned)
+      const response = await axios.get(`${API_BASE}/quotes/manager/quotes`, { headers });
+      console.log('📊 All manager quotes response:', response.data);
       
+      // Extract quotes array from response
       let quotesData = response.data.data || [];
       
-      // Also get quotes that are currently locked by this manager
+      // Make sure it's an array
+      if (!Array.isArray(quotesData)) {
+        if (quotesData.quotes && Array.isArray(quotesData.quotes)) {
+          quotesData = quotesData.quotes;
+        } else {
+          quotesData = [];
+        }
+      }
+      
+      console.log(`📊 Processed ${quotesData.length} quotes`);
+      
+      // Also fetch available quotes for stats
       try {
-        const lockedResponse = await axios.get(`${API_BASE}/quotes/manager/quotes`, { headers });
-        console.log('📊 All manager quotes:', lockedResponse.data);
+        const availableResponse = await axios.get(`${API_BASE}/quotes/manager/pending`, { headers });
+        const availableQuotes = availableResponse.data.data || [];
         
-        // Combine available quotes with quotes locked by this manager
-        const allQuotes = [...quotesData];
-        const lockedQuotesData = lockedResponse.data.data?.filter(q => 
-          q.lockedById === user.id || q.managerId === user.id
-        ) || [];
-        
-        // Merge without duplicates
-        lockedQuotesData.forEach(lockedQuote => {
-          if (!allQuotes.some(q => q.id === lockedQuote.id)) {
-            allQuotes.push(lockedQuote);
+        // Merge available quotes that aren't already in the list
+        availableQuotes.forEach(quote => {
+          if (!quotesData.some(q => q.id === quote.id)) {
+            quotesData.push(quote);
           }
         });
-        
-        quotesData = allQuotes;
-      } catch (lockedError) {
-        console.log('Could not fetch locked quotes:', lockedError.message);
+      } catch (availableError) {
+        console.log('Available quotes fetch failed:', availableError.message);
       }
       
       setQuotes(quotesData);
-      
-      // Separate locked quotes
-      const locked = quotesData.filter(q => 
-        q.lockedById === user.id || (q.managerId === user.id && q.status === 'IN_PRICING')
-      );
-      setLockedQuotes(locked);
       
       // Calculate stats
       const pendingQuotes = quotesData.filter(q => 
         q.status === 'PENDING_PRICING' && (!q.lockedById || q.lockedById === user.id)
       ).length;
+      
       const activeQuotes = quotesData.filter(q => 
         q.status === 'IN_PRICING' && q.lockedById === user.id
       ).length;
+      
       const completedQuotes = quotesData.filter(q => 
         ['APPROVED', 'CONVERTED_TO_ORDER'].includes(q.status)
       ).length;
+      
       const totalRevenue = quotesData.reduce((sum, quote) => sum + (quote.totalAmount || 0), 0);
       
       setStats({
@@ -1405,6 +1406,8 @@ function ManagerDashboard() {
         completed: completedQuotes,
         totalRevenue: totalRevenue
       });
+      
+      console.log(`📊 Stats: ${pendingQuotes} pending, ${activeQuotes} active, ${completedQuotes} completed`);
       
     } catch (err) {
       console.error('Failed to fetch manager data:', err);
@@ -1448,11 +1451,10 @@ function ManagerDashboard() {
       console.error('Lock error:', error);
       
       if (error.response?.status === 409) {
-        const lockedByName = error.response?.data?.message?.match(/by (.+?)\./)?.[1] || 'another manager';
         setToast({
           type: 'error',
           title: 'Already Locked',
-          message: `This quote is being handled by ${lockedByName}. Please try another quote.`
+          message: error.response?.data?.message || 'This quote is already being handled by another manager.'
         });
       } else {
         setToast({
@@ -1467,51 +1469,7 @@ function ManagerDashboard() {
     }
   };
 
-  const checkLockStatus = async (quoteId) => {
-    try {
-      const response = await axios.get(`${API_BASE}/quotes/${quoteId}/lock-status`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Lock status check failed:', error);
-      return null;
-    }
-  };
-
-  const handlePriceQuote = async (quote) => {
-    // Check if we have a lock on this quote
-    if (quote.lockedById !== user.id && quote.status === 'IN_PRICING') {
-      const lockStatus = await checkLockStatus(quote.id);
-      
-      if (lockStatus && lockStatus.isLocked && !lockStatus.isLockedByMe) {
-        if (lockStatus.canTakeOver) {
-          // Try to take over the expired lock
-          try {
-            await axios.post(`${API_BASE}/quotes/lock`, {
-              quoteId: quote.id
-            }, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-          } catch (takeoverError) {
-            setToast({
-              type: 'error',
-              title: 'Cannot Price',
-              message: takeoverError.response?.data?.message || 'Unable to take over this quote'
-            });
-            return;
-          }
-        } else {
-          setToast({
-            type: 'error',
-            title: 'Already Being Priced',
-            message: 'This quote is currently being priced by another manager.'
-          });
-          return;
-        }
-      }
-    }
-    
+  const handlePriceQuote = (quote) => {
     setSelectedQuote(quote);
     setShowPricingModal(true);
     
@@ -1519,10 +1477,8 @@ function ManagerDashboard() {
     const initialPricing = {};
     if (quote.items && Array.isArray(quote.items)) {
       quote.items.forEach(item => {
-        const productId = item.product?.id || item.productId;
-        if (productId) {
-          initialPricing[productId] = item.unitPrice || item.product?.price || 0;
-        }
+        const productId = item.product?.id || item.productId || `product-${Math.random()}`;
+        initialPricing[productId] = item.unitPrice || item.product?.price || 0;
       });
     }
     setPricing(initialPricing);
@@ -1533,26 +1489,22 @@ function ManagerDashboard() {
     if (!selectedQuote) return;
 
     try {
-      // Check lock status before pricing
-      if (selectedQuote.status !== 'IN_PRICING' || selectedQuote.lockedById !== user.id) {
-        const lockStatus = await checkLockStatus(selectedQuote.id);
-        if (!lockStatus?.isLockedByMe) {
-          setToast({
-            type: 'error',
-            title: 'No Active Lock',
-            message: 'You do not have an active lock on this quote. Please lock it first.'
-          });
-          return;
-        }
+      // Check if items exist and is array
+      if (!selectedQuote.items || !Array.isArray(selectedQuote.items)) {
+        setToast({
+          type: 'error',
+          title: 'Error',
+          message: 'No items found in quote'
+        });
+        return;
       }
 
-      // Prepare items for pricing
       const items = selectedQuote.items.map(item => {
-        const productId = item.product?.id || item.productId;
+        const productId = item.product?.id || item.productId || `product-${Math.random()}`;
         return {
           productId: productId,
           quantity: item.quantity,
-          unitPrice: Number(pricing[productId]) || item.unitPrice || item.product?.price || 0
+          unitPrice: Number(pricing[productId]) || item.product?.price || 0
         };
       });
 
@@ -1587,20 +1539,11 @@ function ManagerDashboard() {
       
     } catch (err) {
       console.error('Pricing error:', err);
-      
-      if (err.response?.status === 403) {
-        setToast({
-          type: 'error',
-          title: 'Lock Required',
-          message: 'You do not have an active lock on this quote. Please lock it first.'
-        });
-      } else {
-        setToast({
-          type: 'error',
-          title: 'Error',
-          message: err.response?.data?.message || 'Failed to submit pricing'
-        });
-      }
+      setToast({
+        type: 'error',
+        title: 'Error',
+        message: err.response?.data?.message || 'Failed to submit pricing'
+      });
     }
   };
 
@@ -1625,7 +1568,7 @@ function ManagerDashboard() {
       if (quote.lockedById) {
         if (quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date()) {
           return { 
-            text: 'Lock expired - Available',
+            text: 'Lock expired',
             color: 'bg-green-100 text-green-800',
             icon: '🔄'
           };
@@ -1660,7 +1603,7 @@ function ManagerDashboard() {
     }
     
     return { 
-      text: quote.status || 'Unknown',
+      text: quote.status?.replace(/_/g, ' ') || 'Unknown',
       color: 'bg-gray-100 text-gray-800',
       icon: '❓'
     };
@@ -1881,7 +1824,7 @@ function ManagerDashboard() {
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            My Locked ({lockedQuotes.length})
+            My Locked ({quotes.filter(q => q.lockedById === user.id).length})
           </button>
         </div>
 
@@ -1892,7 +1835,7 @@ function ManagerDashboard() {
             if (activeTab === 'available') {
               filteredQuotes = quotes.filter(q => canLockQuote(q));
             } else if (activeTab === 'locked') {
-              filteredQuotes = lockedQuotes;
+              filteredQuotes = quotes.filter(q => q.lockedById === user.id);
             }
 
             return filteredQuotes.length > 0 ? (
@@ -1926,6 +1869,12 @@ function ManagerDashboard() {
                           <span>Created {new Date(quote.createdAt).toLocaleDateString()}</span>
                           <span>•</span>
                           <span>{quoteItems.length} items</span>
+                          {quote.sourcingNotes && (
+                            <>
+                              <span>•</span>
+                              <span className="text-blue-600">Has notes</span>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1990,7 +1939,7 @@ function ManagerDashboard() {
                         <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                           <div className="text-sm text-gray-600">
                             <span className="font-medium">Client Notes:</span>{' '}
-                            {quote.notes || 'No additional notes'}
+                            {quote.notes || quote.sourcingNotes || 'No additional notes'}
                           </div>
                           <div className="text-right">
                             <div className="text-sm text-gray-500">Estimated Total</div>
@@ -2034,7 +1983,7 @@ function ManagerDashboard() {
         </div>
       </div>
 
-      {/* Pricing Modal - Keep the same as before */}
+      {/* Pricing Modal */}
       {showPricingModal && selectedQuote && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl w-full max-w-4xl my-8 shadow-2xl">
