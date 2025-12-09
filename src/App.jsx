@@ -1393,16 +1393,10 @@ const fetchManagerData = async () => {
     setLoading(true);
     const headers = { Authorization: `Bearer ${token}` };
     
-    // Use the new clear endpoints
-    const [
-      availableRes,
-      lockedRes,
-      approvalRes
-    ] = await Promise.all([
-      axios.get(`${API_BASE}/quotes/manager/available`, { headers }),
-      axios.get(`${API_BASE}/quotes/manager/locked`, { headers }),
-      axios.get(`${API_BASE}/quotes/manager/awaiting-approval`, { headers })
-    ]);
+    // Use the new endpoints
+    const availableRes = await axios.get(`${API_BASE}/quotes/manager/available`, { headers });
+    const lockedRes = await axios.get(`${API_BASE}/quotes/manager/locked`, { headers });
+    const approvalRes = await axios.get(`${API_BASE}/quotes/manager/awaiting-approval`, { headers });
     
     const availableQuotes = availableRes.data.data || [];
     const lockedQuotes = lockedRes.data.data || [];
@@ -1410,13 +1404,12 @@ const fetchManagerData = async () => {
     
     console.log(`📊 Available: ${availableQuotes.length}, Locked: ${lockedQuotes.length}, Awaiting: ${approvalQuotes.length}`);
     
-    // Combine all for total view if needed
+    // Combine all for total view
     const allQuotes = [...availableQuotes, ...lockedQuotes, ...approvalQuotes];
     
     setQuotes(allQuotes);
     setAvailableQuotes(availableQuotes);
     setLockedQuotes(lockedQuotes);
-    setApprovalQuotes(approvalQuotes);
     
     // Calculate stats
     setStats({
@@ -1426,13 +1419,40 @@ const fetchManagerData = async () => {
       totalRevenue: allQuotes.reduce((sum, q) => sum + (q.totalAmount || 0), 0)
     });
     
+    console.log(`📊 Stats: ${availableQuotes.length} pending, ${lockedQuotes.length} active, ${approvalQuotes.length} completed`);
+    console.log(`🔒 Locked quotes:`, lockedQuotes);
+    
   } catch (err) {
     console.error('Failed to fetch manager data:', err);
-    setToast({
-      type: 'error',
-      title: 'Error',
-      message: err.response?.data?.message || 'Failed to load quotes data'
-    });
+    
+    // Fallback to old endpoint if new ones fail
+    try {
+      console.log('Trying fallback to old endpoint...');
+      const fallbackRes = await axios.get(`${API_BASE}/quotes/manager/pending`, { headers });
+      const quotesData = fallbackRes.data.data || [];
+      
+      // Old logic for filtering
+      const lockedQuotes = quotesData.filter(q => 
+        q.status === 'IN_PRICING' && q.lockedById === user?.id
+      );
+      
+      const availableQuotes = quotesData.filter(q => 
+        q.status === 'PENDING_PRICING'
+      );
+      
+      setQuotes(quotesData);
+      setLockedQuotes(lockedQuotes);
+      setAvailableQuotes(availableQuotes);
+      
+      console.log(`Fallback: Found ${lockedQuotes.length} locked, ${availableQuotes.length} available`);
+    } catch (fallbackErr) {
+      console.error('Fallback also failed:', fallbackErr);
+      setToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to load quotes data from all endpoints'
+      });
+    }
   } finally {
     setLoading(false);
   }
