@@ -1388,80 +1388,43 @@ function ManagerDashboard() {
   }, []);
 
 
-
-  const fetchManagerData = async () => {
+const fetchManagerData = async () => {
   try {
     setLoading(true);
     const headers = { Authorization: `Bearer ${token}` };
     
-    // Use the working endpoint
-    const response = await axios.get(`${API_BASE}/quotes/manager/pending`, { headers });
-    console.log('📊 Manager pending quotes response:', response.data);
+    // Use the new clear endpoints
+    const [
+      availableRes,
+      lockedRes,
+      approvalRes
+    ] = await Promise.all([
+      axios.get(`${API_BASE}/quotes/manager/available`, { headers }),
+      axios.get(`${API_BASE}/quotes/manager/locked`, { headers }),
+      axios.get(`${API_BASE}/quotes/manager/awaiting-approval`, { headers })
+    ]);
     
-    // Extract quotes array from response
-    let quotesData = response.data.data || [];
+    const availableQuotes = availableRes.data.data || [];
+    const lockedQuotes = lockedRes.data.data || [];
+    const approvalQuotes = approvalRes.data.data || [];
     
-    // Make sure it's an array
-    if (!Array.isArray(quotesData)) {
-      if (quotesData.quotes && Array.isArray(quotesData.quotes)) {
-        quotesData = quotesData.quotes;
-      } else {
-        quotesData = [];
-      }
-    }
+    console.log(`📊 Available: ${availableQuotes.length}, Locked: ${lockedQuotes.length}, Awaiting: ${approvalQuotes.length}`);
     
-    console.log(`📊 Processed ${quotesData.length} quotes`);
+    // Combine all for total view if needed
+    const allQuotes = [...availableQuotes, ...lockedQuotes, ...approvalQuotes];
     
-    // Now let's also try to get locked quotes specifically
-    try {
-      // Try to fetch locked quotes from manager quotes endpoint if it exists
-      const lockedResponse = await axios.get(`${API_BASE}/quotes/manager/quotes`, { headers });
-      if (lockedResponse.data && lockedResponse.data.data) {
-        const lockedData = lockedResponse.data.data;
-        if (Array.isArray(lockedData)) {
-          // Merge any locked quotes that aren't already in the list
-          lockedData.forEach(quote => {
-            if (!quotesData.some(q => q.id === quote.id)) {
-              quotesData.push(quote);
-            }
-          });
-        }
-      }
-    } catch (lockedError) {
-      console.log('Locked quotes fetch failed, using only pending endpoint:', lockedError.message);
-    }
+    setQuotes(allQuotes);
+    setAvailableQuotes(availableQuotes);
+    setLockedQuotes(lockedQuotes);
+    setApprovalQuotes(approvalQuotes);
     
-    setQuotes(quotesData);
-    
-    // Calculate stats - NOW with better logic
-    const pendingQuotes = quotesData.filter(q => 
-      q.status === 'PENDING_PRICING' && (!q.lockedById || q.lockedById === user?.id)
-    ).length;
-    
-    const activeQuotes = quotesData.filter(q => 
-      q.status === 'IN_PRICING' && q.lockedById === user?.id
-    ).length;
-    
-    const completedQuotes = quotesData.filter(q => 
-      ['APPROVED', 'CONVERTED_TO_ORDER', 'AWAITING_CLIENT_APPROVAL'].includes(q.status)
-    ).length;
-    
-    const totalRevenue = quotesData.reduce((sum, quote) => sum + (quote.totalAmount || 0), 0);
-    
+    // Calculate stats
     setStats({
-      pending: pendingQuotes,
-      active: activeQuotes,
-      completed: completedQuotes,
-      totalRevenue: totalRevenue
+      pending: availableQuotes.length,
+      active: lockedQuotes.length,
+      completed: approvalQuotes.length,
+      totalRevenue: allQuotes.reduce((sum, q) => sum + (q.totalAmount || 0), 0)
     });
-    
-    console.log(`📊 Stats: ${pendingQuotes} pending, ${activeQuotes} active, ${completedQuotes} completed`);
-    
-    // Also log locked quotes for debugging
-    const lockedQuotes = quotesData.filter(q => 
-      q.status === 'IN_PRICING' && q.lockedById === user?.id
-    );
-    console.log(`🔒 Locked quotes: ${lockedQuotes.length}`, lockedQuotes);
     
   } catch (err) {
     console.error('Failed to fetch manager data:', err);
