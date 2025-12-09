@@ -1313,9 +1313,7 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
   )
 }
 
-// Replace the entire ManagerDashboard function with this fixed version:
-
-// Enhanced Interactive Manager Dashboard - FIXED VERSION
+// Enhanced Interactive Manager Dashboard - UPDATED VERSION
 function ManagerDashboard() {
   const [activeTab, setActiveTab] = useState('pending');
   const [quotes, setQuotes] = useState([]);
@@ -1331,35 +1329,99 @@ function ManagerDashboard() {
     totalRevenue: 0
   });
   const [toast, setToast] = useState(null);
+  const [newQuoteNotification, setNewQuoteNotification] = useState(null);
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  // Poll for new quotes
+  const [pollInterval, setPollInterval] = useState(null);
 
   useEffect(() => {
     fetchManagerData();
+    
+    // Set up polling for new quotes every 10 seconds
+    const interval = setInterval(() => {
+      checkForNewQuotes();
+    }, 10000);
+    
+    setPollInterval(interval);
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, []);
+
+  const checkForNewQuotes = async () => {
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const response = await axios.get(`${API_BASE}/quotes/manager/pending`, { headers });
+      const newQuotes = response.data.data || [];
+      
+      if (newQuotes.length > quotes.length) {
+        const newQuote = newQuotes[0]; // Get the most recent quote
+        setNewQuoteNotification({
+          id: newQuote.id,
+          clientName: newQuote.client?.name || 'New Client',
+          itemsCount: newQuote.items?.length || 0,
+          totalAmount: newQuote.totalAmount || 0
+        });
+        
+        // Auto-hide notification after 10 seconds
+        setTimeout(() => {
+          setNewQuoteNotification(null);
+        }, 10000);
+        
+        // Refresh the data
+        fetchManagerData();
+      }
+    } catch (error) {
+      console.error('Polling error:', error);
+    }
+  };
 
   const fetchManagerData = async () => {
     try {
       setLoading(true);
       const headers = { Authorization: `Bearer ${token}` };
       
-      // Fetch quotes assigned to this manager
+      // Fetch quotes assigned to this manager OR pending assignment
       const quotesRes = await axios.get(`${API_BASE}/quotes/manager/pending`, { headers });
-      console.log('📊 Quotes response:', quotesRes.data);
+      console.log('📊 Manager quotes response:', quotesRes.data);
       
-      // Make sure quotes is an array
-      const quotesData = quotesRes.data.data || [];
+      // Also try the general quotes endpoint if manager-specific returns empty
+      let quotesData = quotesRes.data.data || [];
+      
+      if (!Array.isArray(quotesData) || quotesData.length === 0) {
+        try {
+          const allQuotesRes = await axios.get(`${API_BASE}/quotes`, { headers });
+          console.log('📊 All quotes response:', allQuotesRes.data);
+          quotesData = allQuotesRes.data.data || [];
+          
+          // Filter for pending quotes (managerId is null or matches current manager)
+          quotesData = quotesData.filter(quote => 
+            !quote.managerId || quote.managerId === user.id
+          );
+        } catch (fallbackError) {
+          console.error('Fallback fetch failed:', fallbackError);
+        }
+      }
+      
       setQuotes(Array.isArray(quotesData) ? quotesData : []);
       
-      // Calculate stats from quotes
-      const pendingQuotes = Array.isArray(quotesData) ? quotesData.length : 0;
+      // Calculate stats
+      const pendingQuotes = Array.isArray(quotesData) ? 
+        quotesData.filter(q => !q.isPriced && !q.isFinalized).length : 0;
+      const activeQuotes = Array.isArray(quotesData) ? 
+        quotesData.filter(q => q.isPriced && !q.isFinalized).length : 0;
+      const completedQuotes = Array.isArray(quotesData) ? 
+        quotesData.filter(q => q.isFinalized).length : 0;
       const totalRevenue = Array.isArray(quotesData) ? 
         quotesData.reduce((sum, quote) => sum + (quote.totalAmount || 0), 0) : 0;
       
       setStats({
         pending: pendingQuotes,
-        active: 0, // You'll need to fetch this from another endpoint
-        completed: 0, // You'll need to fetch this from another endpoint
+        active: activeQuotes,
+        completed: completedQuotes,
         totalRevenue: totalRevenue
       });
       
@@ -1368,12 +1430,35 @@ function ManagerDashboard() {
       setToast({
         type: 'error',
         title: 'Error',
-        message: 'Failed to load quotes data'
+        message: err.response?.data?.message || 'Failed to load quotes data'
       });
-      // Set empty arrays on error
       setQuotes([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAcceptQuote = async (quoteId) => {
+    try {
+      await axios.post(`${API_BASE}/quotes/${quoteId}/assign`, {
+        managerId: user.id
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setToast({
+        type: 'success',
+        title: 'Success',
+        message: 'Quote assigned to you successfully!'
+      });
+      
+      fetchManagerData();
+    } catch (error) {
+      setToast({
+        type: 'error',
+        title: 'Error',
+        message: error.response?.data?.message || 'Failed to accept quote'
+      });
     }
   };
 
@@ -1386,79 +1471,86 @@ function ManagerDashboard() {
     if (quote.items && Array.isArray(quote.items)) {
       quote.items.forEach(item => {
         const id = item.productId || item.product?.id;
-        initialPricing[id] = item.unitPrice || 0;
+        initialPricing[id] = item.unitPrice || item.product?.price || 0;
       });
     }
     setPricing(initialPricing);
     setSourcingNotes(quote.sourcingNotes || '');
   };
-const submitPricing = async () => {
-  if (!selectedQuote) return;
 
-  // First, lock the quote
-  try {
-    // Lock the quote first
-    await axios.post(`${API_BASE}/quotes/lock`, {
-      quoteId: selectedQuote.id
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+  const submitPricing = async () => {
+    if (!selectedQuote) return;
 
-    // Check if items exist and is array
-    if (!selectedQuote.items || !Array.isArray(selectedQuote.items)) {
+    try {
+      // Check if items exist and is array
+      if (!selectedQuote.items || !Array.isArray(selectedQuote.items)) {
+        setToast({
+          type: 'error',
+          title: 'Error',
+          message: 'No items found in quote'
+        });
+        return;
+      }
+
+      const items = selectedQuote.items.map(item => ({
+        productId: item.productId || item.product?.id,
+        quantity: item.quantity,
+        unitPrice: Number(pricing[item.productId || item.product?.id]) || 0
+      }));
+
+      if (items.some(i => i.unitPrice <= 0)) {
+        setToast({
+          type: 'error',
+          title: 'Invalid Pricing',
+          message: 'Please set valid price for all items!'
+        });
+        return;
+      }
+
+      // Update pricing
+      await axios.put(`${API_BASE}/quotes/${selectedQuote.id}/update-pricing`, {
+        items,
+        sourcingNotes,
+        managerId: user.id
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setToast({
+        type: 'success',
+        title: 'Success',
+        message: `Quote #${selectedQuote.id?.slice(-6) || ''} priced and sent to client!`
+      });
+
+      // Close modal and refresh data
+      setShowPricingModal(false);
+      setSelectedQuote(null);
+      setPricing({});
+      setSourcingNotes('');
+      fetchManagerData();
+      
+    } catch (err) {
+      console.error('Pricing error:', err);
       setToast({
         type: 'error',
         title: 'Error',
-        message: 'No items found in quote'
+        message: err.response?.data?.message || 'Failed to submit pricing'
       });
-      return;
     }
+  };
 
-    const items = selectedQuote.items.map(item => ({
-      productId: item.productId || item.product?.id,
-      quantity: item.quantity,
-      unitPrice: Number(pricing[item.productId || item.product?.id]) || 0
-    }));
-
-    if (items.some(i => i.unitPrice <= 0)) {
-      setToast({
-        type: 'error',
-        title: 'Invalid Pricing',
-        message: 'Please set valid price for all items!'
-      });
-      return;
+  const getStatusBadge = (quote) => {
+    if (quote.isFinalized) {
+      return <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">Completed</span>;
     }
-
-    // Update pricing
-    await axios.put(`${API_BASE}/quotes/${selectedQuote.id}/update-pricing`, {
-      items,
-      sourcingNotes
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-
-    setToast({
-      type: 'success',
-      title: 'Success',
-      message: `Quote #${selectedQuote.id?.slice(-6) || ''} priced and sent to client!`
-    });
-
-    // Close modal and refresh data
-    setShowPricingModal(false);
-    setSelectedQuote(null);
-    setPricing({});
-    setSourcingNotes('');
-    fetchManagerData();
-    
-  } catch (err) {
-    console.error('Pricing error:', err);
-    setToast({
-      type: 'error',
-      title: 'Error',
-      message: err.response?.data?.message || 'Failed to submit pricing'
-    });
-  }
-};
+    if (quote.isPriced) {
+      return <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">Priced</span>;
+    }
+    if (quote.managerId === user.id) {
+      return <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">Assigned to You</span>;
+    }
+    return <span className="px-3 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded-full">Pending</span>;
+  };
 
   if (loading) {
     return (
@@ -1473,6 +1565,39 @@ const submitPricing = async () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+      {/* New Quote Notification */}
+      {newQuoteNotification && (
+        <div className="fixed top-6 right-6 z-50 animate-slide-in">
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl shadow-2xl overflow-hidden min-w-[350px]">
+            <div className="flex items-start p-5">
+              <div className="flex-shrink-0 mr-4">
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-bold text-lg mb-1">New Quote Received! 🎉</h4>
+                <p className="text-sm opacity-90 mb-2">{newQuoteNotification.clientName} needs a quote for {newQuoteNotification.itemsCount} items</p>
+                <p className="text-sm font-medium">Estimate: RWF {newQuoteNotification.totalAmount.toLocaleString()}</p>
+              </div>
+              <button
+                onClick={() => setNewQuoteNotification(null)}
+                className="flex-shrink-0 ml-4 hover:bg-white/20 p-1 rounded-full transition"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="h-1 bg-white/30">
+              <div className="h-full bg-white/50 animate-progress"></div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-8 py-6">
@@ -1484,9 +1609,21 @@ const submitPricing = async () => {
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm text-gray-500">Last updated</p>
-                <p className="font-medium">{new Date().toLocaleTimeString()}</p>
+              <div className="relative">
+                <button 
+                  className="relative p-2 hover:bg-gray-100 rounded-lg"
+                  onClick={fetchManagerData}
+                  title="Refresh quotes"
+                >
+                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  {stats.pending > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                      {stats.pending}
+                    </span>
+                  )}
+                </button>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                 <UsersIcon className="w-6 h-6 text-blue-600" />
@@ -1499,7 +1636,7 @@ const submitPricing = async () => {
       {/* Stats Cards */}
       <div className="max-w-7xl mx-auto px-8 py-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Pending Quotes</p>
@@ -1511,7 +1648,19 @@ const submitPricing = async () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Active Quotes</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{stats.active}</p>
+              </div>
+              <div className="p-3 bg-yellow-50 rounded-xl">
+                <DocumentTextIcon className="w-6 h-6 text-yellow-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Revenue</p>
@@ -1525,23 +1674,11 @@ const submitPricing = async () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Avg. Response Time</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">2.5 hrs</p>
-              </div>
-              <div className="p-3 bg-purple-50 rounded-xl">
-                <ArrowTrendingUpIcon className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Client Satisfaction</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">98%</p>
+                <p className="text-sm text-gray-600">Completed Quotes</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{stats.completed}</p>
               </div>
               <div className="p-3 bg-emerald-50 rounded-xl">
                 <CheckCircleIcon className="w-6 h-6 text-emerald-600" />
@@ -1551,78 +1688,103 @@ const submitPricing = async () => {
         </div>
 
         {/* Quotes List */}
-        <div className="grid gap-6">
+        <div className="space-y-6">
           {Array.isArray(quotes) && quotes.length > 0 ? (
             quotes.map(quote => {
-              // Ensure quote and quote.items exist
               const quoteItems = quote.items || [];
               const totalEstimate = quoteItems.reduce((sum, item) => 
-                sum + (item.quantity * (item.unitPrice || 0)), 0
+                sum + (item.quantity * (item.unitPrice || item.product?.price || 0)), 0
               );
               
               return (
                 <div key={quote.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">
                           {quote.client?.name || 'Hotel Client'}
                         </h3>
-                        <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                          {quoteItems.length} items
-                        </span>
+                        {getStatusBadge(quote)}
                       </div>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Quote #{quote.id?.slice(-8) || 'N/A'} • Created {new Date(quote.createdAt).toLocaleDateString()}
-                      </p>
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <span>Quote #{quote.id?.slice(-8) || 'N/A'}</span>
+                        <span>•</span>
+                        <span>Created {new Date(quote.createdAt).toLocaleDateString()}</span>
+                        <span>•</span>
+                        <span>{quoteItems.length} items</span>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handlePriceQuote(quote)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-                      >
-                        Price Quote
+                      {!quote.managerId || quote.managerId === user.id ? (
+                        <button
+                          onClick={() => handlePriceQuote(quote)}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                          disabled={quote.isPriced || quote.isFinalized}
+                        >
+                          {quote.isPriced ? 'Update Pricing' : 'Price Quote'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleAcceptQuote(quote.id)}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
+                        >
+                          Accept Quote
+                        </button>
+                      )}
+                      <button className="p-2 hover:bg-gray-100 rounded-lg">
+                        <EyeIcon className="w-5 h-5 text-gray-600" />
                       </button>
                     </div>
                   </div>
                   
                   {quoteItems.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                      {quoteItems.slice(0, 4).map((item, index) => (
-                        <div key={index} className="bg-gray-50 rounded-lg p-3">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-sm text-gray-900 truncate">
-                              {item.product?.name || 'Product'}
-                            </span>
-                            <span className="text-sm font-semibold text-gray-700">
-                              {item.quantity}x
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                        {quoteItems.slice(0, 3).map((item, index) => (
+                          <div key={index} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm text-gray-900 truncate">
+                                  {item.product?.name || 'Product'}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  SKU: {item.product?.sku || 'N/A'}
+                                </p>
+                              </div>
+                              <div className="text-right ml-4">
+                                <p className="text-sm font-semibold text-gray-900">
+                                  {item.quantity}x
+                                </p>
+                                <p className="text-xs text-gray-600">
+                                  RWF {item.unitPrice?.toLocaleString() || item.product?.price?.toLocaleString() || '0'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {quoteItems.length > 3 && (
+                          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 flex items-center justify-center">
+                            <span className="text-sm text-blue-700 font-medium">
+                              +{quoteItems.length - 3} more items
                             </span>
                           </div>
-                        </div>
-                      ))}
-                      {quoteItems.length > 4 && (
-                        <div className="bg-gray-50 rounded-lg p-3 flex items-center justify-center">
-                          <span className="text-sm text-gray-600">
-                            +{quoteItems.length - 4} more items
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <div className="flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span>Created: {new Date(quote.createdAt).toLocaleDateString()}</span>
+                        )}
                       </div>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">
-                      Estimated: RWF {totalEstimate.toLocaleString()}
-                    </span>
-                  </div>
+                      
+                      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                        <div className="text-sm text-gray-600">
+                          <span className="font-medium">Client Notes:</span>{' '}
+                          {quote.notes || 'No additional notes'}
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm text-gray-500">Estimated Total</div>
+                          <div className="text-xl font-bold text-blue-900">
+                            RWF {totalEstimate.toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               );
             })
@@ -1632,7 +1794,16 @@ const submitPricing = async () => {
                 <DocumentTextIcon className="w-12 h-12 text-gray-400" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">No pending quotes</h3>
-              <p className="text-gray-600">All caught up! New quotes will appear here automatically.</p>
+              <p className="text-gray-600 mb-6">All caught up! New quotes will appear here automatically.</p>
+              <button
+                onClick={fetchManagerData}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium inline-flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
+              </button>
             </div>
           )}
         </div>
@@ -1685,24 +1856,51 @@ const submitPricing = async () => {
                   selectedQuote.items.map((item, index) => {
                     const id = item.productId || item.product?.id;
                     const name = item.product?.name || 'Unknown Product';
+                    const sku = item.product?.sku || 'N/A';
+                    const currentPrice = item.unitPrice || item.product?.price || 0;
                     
                     return (
-                      <div key={index} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <h4 className="font-medium text-gray-900">{name}</h4>
-                            <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
+                      <div key={index} className="bg-gray-50 rounded-xl p-6 border border-gray-200 hover:bg-gray-100 transition">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                          <div className="md:col-span-5">
+                            <h4 className="font-medium text-gray-900 text-lg">{name}</h4>
+                            <p className="text-sm text-gray-500">SKU: {sku}</p>
+                            <div className="flex items-center gap-4 mt-2">
+                              <span className="text-sm text-gray-600">
+                                Quantity: <span className="font-bold">{item.quantity}</span>
+                              </span>
+                              {currentPrice > 0 && (
+                                <span className="text-sm text-gray-600">
+                                  Current Price: <span className="font-bold">RWF {currentPrice.toLocaleString()}</span>
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className="w-48">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-gray-700">RWF</span>
+                          
+                          <div className="md:col-span-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Your Price (RWF)
+                            </label>
+                            <div className="relative">
+                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span className="text-gray-500">RWF</span>
+                              </div>
                               <input
                                 type="number"
                                 value={pricing[id] || ''}
                                 onChange={(e) => setPricing(p => ({ ...p, [id]: e.target.value }))}
                                 placeholder="Enter price"
-                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="pl-16 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                               />
+                            </div>
+                          </div>
+                          
+                          <div className="md:col-span-3">
+                            <div className="text-right">
+                              <div className="text-sm text-gray-500">Line Total</div>
+                              <div className="text-xl font-bold text-blue-900">
+                                RWF {((pricing[id] || currentPrice) * item.quantity).toLocaleString()}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1734,6 +1932,14 @@ const submitPricing = async () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <EnhancedToast 
+          toast={toast} 
+          onClose={() => setToast(null)} 
+        />
       )}
     </div>
   );
