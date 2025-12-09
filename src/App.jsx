@@ -1338,11 +1338,11 @@ function ManagerDashboard() {
     fetchManagerData();
     
     // Poll for new quotes every 10 seconds
-    const interval = setInterval(() => {
-      fetchManagerData();
-    }, 10000);
+    //const interval = setInterval(() => {
+    //  fetchManagerData();
+   // }, 10000);
     
-    return () => clearInterval(interval);
+   // return () => clearInterval(interval);
   }, []);
 
   const fetchManagerData = async () => {
