@@ -91,6 +91,48 @@ const EnhancedToast = ({ toast, onClose }) => {
   );
 };
 
+
+// Test function to check locked quotes
+const testLockedQuotes = async () => {
+  try {
+    // Test 1: Get all manager quotes
+    const allResponse = await fetch('/api/quotes/manager/quotes');
+    const allData = await allResponse.json();
+    console.log('All manager quotes:', allData.data?.length || 0);
+    
+    // Test 2: Get locked quotes only
+    const lockedResponse = await fetch('/api/quotes/manager/locked');
+    const lockedData = await lockedResponse.json();
+    console.log('Locked quotes only:', lockedData.data?.length || 0);
+    
+    // Test 3: Get available quotes for locking
+    const availableResponse = await fetch('/api/quotes/manager/available');
+    const availableData = await availableResponse.json();
+    console.log('Available quotes for locking:', availableData.data?.length || 0);
+    
+    // Log details of locked quotes
+    if (lockedData.success && lockedData.data.length > 0) {
+      console.log('Locked quotes details:');
+      lockedData.data.forEach(quote => {
+        console.log(`- Quote ${quote.id}: ${quote.client?.name}, Status: ${quote.status}, Locked until: ${new Date(quote.lockExpiresAt).toLocaleString()}`);
+      });
+    } else {
+      console.log('No locked quotes found');
+    }
+    
+    return {
+      all: allData.data?.length || 0,
+      locked: lockedData.data?.length || 0,
+      available: availableData.data?.length || 0
+    };
+  } catch (error) {
+    console.error('Test error:', error);
+  }
+};
+
+// Call this function to test
+testLockedQuotes();
+
 // Password Reset Modal Component
 const PasswordResetModal = ({ isOpen, onClose, userId, userName, userEmail, onReset }) => {
   const [passwordType, setPasswordType] = useState('auto');
