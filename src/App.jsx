@@ -1312,11 +1312,11 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
     </div>
   )
 }
-
-// Enhanced Interactive Manager Dashboard - FIXED WITH CORRECT ENDPOINTS
+// Enhanced Manager Dashboard with Locking System
 function ManagerDashboard() {
-  const [activeTab, setActiveTab] = useState('pending');
+  const [activeTab, setActiveTab] = useState('all');
   const [quotes, setQuotes] = useState([]);
+  const [lockedQuotes, setLockedQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedQuote, setSelectedQuote] = useState(null);
   const [pricing, setPricing] = useState({});
@@ -1329,99 +1329,75 @@ function ManagerDashboard() {
     totalRevenue: 0
   });
   const [toast, setToast] = useState(null);
-  const [newQuoteNotification, setNewQuoteNotification] = useState(null);
+  const [showLockModal, setShowLockModal] = useState(false);
+  const [quoteToLock, setQuoteToLock] = useState(null);
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
     fetchManagerData();
     
-    // Set up polling for new quotes every 10 seconds
+    // Poll for new quotes
     const interval = setInterval(() => {
-      checkForNewQuotes();
+      fetchManagerData();
     }, 10000);
     
-    return () => {
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, []);
-
-  const checkForNewQuotes = async () => {
-    try {
-      const response = await fetchManagerQuotes();
-      const newQuotes = response || [];
-      
-      if (newQuotes.length > quotes.length) {
-        const newQuote = newQuotes[0];
-        setNewQuoteNotification({
-          id: newQuote.id,
-          clientName: newQuote.client?.name || 'New Client',
-          itemsCount: newQuote.items?.length || 0,
-          totalAmount: newQuote.totalAmount || 0
-        });
-        
-        // Auto-hide notification after 10 seconds
-        setTimeout(() => {
-          setNewQuoteNotification(null);
-        }, 10000);
-        
-        // Refresh the data
-        fetchManagerData();
-      }
-    } catch (error) {
-      console.error('Polling error:', error);
-    }
-  };
-
-  // Try multiple endpoints to find the correct one
-  const fetchManagerQuotes = async () => {
-    const headers = { Authorization: `Bearer ${token}` };
-    const endpoints = [
-      `${API_BASE}/quotes/manager/pending`,
-      `${API_BASE}/quotes/pending`,
-      `${API_BASE}/quotes?status=pending`,
-      `${API_BASE}/quotes?managerId=${user.id}`,
-      `${API_BASE}/quotes`
-    ];
-
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`Trying endpoint: ${endpoint}`);
-        const res = await axios.get(endpoint, { headers });
-        if (res.data.success && res.data.data) {
-          console.log(`✅ Success from ${endpoint}:`, res.data.data.length, 'quotes');
-          return Array.isArray(res.data.data) ? res.data.data : [];
-        }
-      } catch (err) {
-        console.log(`❌ Failed for ${endpoint}:`, err.response?.status || err.message);
-      }
-    }
-    
-    return [];
-  };
 
   const fetchManagerData = async () => {
     try {
       setLoading(true);
-      const quotesData = await fetchManagerQuotes();
+      const headers = { Authorization: `Bearer ${token}` };
       
-      // Filter quotes for this manager or unassigned quotes
-      const filteredQuotes = quotesData.filter(quote => {
-        // Show quotes that are either:
-        // 1. Assigned to this manager
-        // 2. Not assigned to any manager (managerId is null)
-        // 3. Have status 'pending'
-        return (!quote.managerId || quote.managerId === user.id || quote.status === 'pending');
-      });
+      // Fetch available quotes (not locked or locked by current manager)
+      const response = await axios.get(`${API_BASE}/quotes/manager/pending`, { headers });
+      console.log('📊 Available quotes:', response.data);
       
-      console.log('📊 Filtered quotes for manager:', filteredQuotes);
-      setQuotes(filteredQuotes);
+      let quotesData = response.data.data || [];
+      
+      // Also get quotes that are currently locked by this manager
+      try {
+        const lockedResponse = await axios.get(`${API_BASE}/quotes/manager/quotes`, { headers });
+        console.log('📊 All manager quotes:', lockedResponse.data);
+        
+        // Combine available quotes with quotes locked by this manager
+        const allQuotes = [...quotesData];
+        const lockedQuotesData = lockedResponse.data.data?.filter(q => 
+          q.lockedById === user.id || q.managerId === user.id
+        ) || [];
+        
+        // Merge without duplicates
+        lockedQuotesData.forEach(lockedQuote => {
+          if (!allQuotes.some(q => q.id === lockedQuote.id)) {
+            allQuotes.push(lockedQuote);
+          }
+        });
+        
+        quotesData = allQuotes;
+      } catch (lockedError) {
+        console.log('Could not fetch locked quotes:', lockedError.message);
+      }
+      
+      setQuotes(quotesData);
+      
+      // Separate locked quotes
+      const locked = quotesData.filter(q => 
+        q.lockedById === user.id || (q.managerId === user.id && q.status === 'IN_PRICING')
+      );
+      setLockedQuotes(locked);
       
       // Calculate stats
-      const pendingQuotes = filteredQuotes.filter(q => !q.isPriced && !q.isFinalized).length;
-      const activeQuotes = filteredQuotes.filter(q => q.isPriced && !q.isFinalized).length;
-      const completedQuotes = filteredQuotes.filter(q => q.isFinalized).length;
-      const totalRevenue = filteredQuotes.reduce((sum, quote) => sum + (quote.totalAmount || 0), 0);
+      const pendingQuotes = quotesData.filter(q => 
+        q.status === 'PENDING_PRICING' && (!q.lockedById || q.lockedById === user.id)
+      ).length;
+      const activeQuotes = quotesData.filter(q => 
+        q.status === 'IN_PRICING' && q.lockedById === user.id
+      ).length;
+      const completedQuotes = quotesData.filter(q => 
+        ['APPROVED', 'CONVERTED_TO_ORDER'].includes(q.status)
+      ).length;
+      const totalRevenue = quotesData.reduce((sum, quote) => sum + (quote.totalAmount || 0), 0);
       
       setStats({
         pending: pendingQuotes,
@@ -1437,37 +1413,105 @@ function ManagerDashboard() {
         title: 'Error',
         message: err.response?.data?.message || 'Failed to load quotes data'
       });
-      setQuotes([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAcceptQuote = async (quoteId) => {
+  const handleLockQuote = (quote) => {
+    setQuoteToLock(quote);
+    setShowLockModal(true);
+  };
+
+  const confirmLockQuote = async () => {
+    if (!quoteToLock) return;
+    
     try {
-      await axios.post(`${API_BASE}/quotes/${quoteId}/assign`, {
-        managerId: user.id
+      // Lock the quote
+      await axios.post(`${API_BASE}/quotes/lock`, {
+        quoteId: quoteToLock.id
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       setToast({
         type: 'success',
-        title: 'Success',
-        message: 'Quote assigned to you successfully!'
+        title: 'Quote Locked',
+        message: `You have locked quote #${quoteToLock.id?.slice(-6) || ''}. You now have 30 minutes to price it.`
       });
       
+      setShowLockModal(false);
+      setQuoteToLock(null);
       fetchManagerData();
+      
     } catch (error) {
-      setToast({
-        type: 'error',
-        title: 'Error',
-        message: error.response?.data?.message || 'Failed to accept quote'
-      });
+      console.error('Lock error:', error);
+      
+      if (error.response?.status === 409) {
+        const lockedByName = error.response?.data?.message?.match(/by (.+?)\./)?.[1] || 'another manager';
+        setToast({
+          type: 'error',
+          title: 'Already Locked',
+          message: `This quote is being handled by ${lockedByName}. Please try another quote.`
+        });
+      } else {
+        setToast({
+          type: 'error',
+          title: 'Lock Failed',
+          message: error.response?.data?.message || 'Failed to lock quote'
+        });
+      }
+      
+      setShowLockModal(false);
+      setQuoteToLock(null);
     }
   };
 
-  const handlePriceQuote = (quote) => {
+  const checkLockStatus = async (quoteId) => {
+    try {
+      const response = await axios.get(`${API_BASE}/quotes/${quoteId}/lock-status`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Lock status check failed:', error);
+      return null;
+    }
+  };
+
+  const handlePriceQuote = async (quote) => {
+    // Check if we have a lock on this quote
+    if (quote.lockedById !== user.id && quote.status === 'IN_PRICING') {
+      const lockStatus = await checkLockStatus(quote.id);
+      
+      if (lockStatus && lockStatus.isLocked && !lockStatus.isLockedByMe) {
+        if (lockStatus.canTakeOver) {
+          // Try to take over the expired lock
+          try {
+            await axios.post(`${API_BASE}/quotes/lock`, {
+              quoteId: quote.id
+            }, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+          } catch (takeoverError) {
+            setToast({
+              type: 'error',
+              title: 'Cannot Price',
+              message: takeoverError.response?.data?.message || 'Unable to take over this quote'
+            });
+            return;
+          }
+        } else {
+          setToast({
+            type: 'error',
+            title: 'Already Being Priced',
+            message: 'This quote is currently being priced by another manager.'
+          });
+          return;
+        }
+      }
+    }
+    
     setSelectedQuote(quote);
     setShowPricingModal(true);
     
@@ -1475,8 +1519,10 @@ function ManagerDashboard() {
     const initialPricing = {};
     if (quote.items && Array.isArray(quote.items)) {
       quote.items.forEach(item => {
-        const id = item.productId || item.product?.id;
-        initialPricing[id] = item.unitPrice || item.product?.price || 0;
+        const productId = item.product?.id || item.productId;
+        if (productId) {
+          initialPricing[productId] = item.unitPrice || item.product?.price || 0;
+        }
       });
     }
     setPricing(initialPricing);
@@ -1487,21 +1533,28 @@ function ManagerDashboard() {
     if (!selectedQuote) return;
 
     try {
-      // Check if items exist and is array
-      if (!selectedQuote.items || !Array.isArray(selectedQuote.items)) {
-        setToast({
-          type: 'error',
-          title: 'Error',
-          message: 'No items found in quote'
-        });
-        return;
+      // Check lock status before pricing
+      if (selectedQuote.status !== 'IN_PRICING' || selectedQuote.lockedById !== user.id) {
+        const lockStatus = await checkLockStatus(selectedQuote.id);
+        if (!lockStatus?.isLockedByMe) {
+          setToast({
+            type: 'error',
+            title: 'No Active Lock',
+            message: 'You do not have an active lock on this quote. Please lock it first.'
+          });
+          return;
+        }
       }
 
-      const items = selectedQuote.items.map(item => ({
-        productId: item.productId || item.product?.id,
-        quantity: item.quantity,
-        unitPrice: Number(pricing[item.productId || item.product?.id]) || 0
-      }));
+      // Prepare items for pricing
+      const items = selectedQuote.items.map(item => {
+        const productId = item.product?.id || item.productId;
+        return {
+          productId: productId,
+          quantity: item.quantity,
+          unitPrice: Number(pricing[productId]) || item.unitPrice || item.product?.price || 0
+        };
+      });
 
       if (items.some(i => i.unitPrice <= 0)) {
         setToast({
@@ -1512,33 +1565,13 @@ function ManagerDashboard() {
         return;
       }
 
-      // Try multiple endpoints for updating pricing
-      const updateEndpoints = [
-        `${API_BASE}/quotes/${selectedQuote.id}/update-pricing`,
-        `${API_BASE}/quotes/${selectedQuote.id}/price`,
-        `${API_BASE}/quotes/${selectedQuote.id}`
-      ];
-
-      let updateSuccessful = false;
-      for (const endpoint of updateEndpoints) {
-        try {
-          await axios.put(endpoint, {
-            items,
-            sourcingNotes,
-            managerId: user.id
-          }, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          updateSuccessful = true;
-          break;
-        } catch (err) {
-          console.log(`Failed on ${endpoint}:`, err.message);
-        }
-      }
-
-      if (!updateSuccessful) {
-        throw new Error('Could not update pricing on any endpoint');
-      }
+      // Update pricing
+      await axios.put(`${API_BASE}/quotes/${selectedQuote.id}/update-pricing`, {
+        items,
+        sourcingNotes
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
       setToast({
         type: 'success',
@@ -1546,7 +1579,6 @@ function ManagerDashboard() {
         message: `Quote #${selectedQuote.id?.slice(-6) || ''} priced and sent to client!`
       });
 
-      // Close modal and refresh data
       setShowPricingModal(false);
       setSelectedQuote(null);
       setPricing({});
@@ -1555,50 +1587,98 @@ function ManagerDashboard() {
       
     } catch (err) {
       console.error('Pricing error:', err);
-      setToast({
-        type: 'error',
-        title: 'Error',
-        message: err.response?.data?.message || 'Failed to submit pricing'
-      });
-    }
-  };
-
-  const getStatusBadge = (quote) => {
-    if (quote.isFinalized) {
-      return <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">Completed</span>;
-    }
-    if (quote.isPriced) {
-      return <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">Priced</span>;
-    }
-    if (quote.managerId === user.id) {
-      return <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">Assigned to You</span>;
-    }
-    return <span className="px-3 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded-full">Pending</span>;
-  };
-
-  const debugFetch = async () => {
-    console.log('🔍 Debug: Fetching quotes data...');
-    const headers = { Authorization: `Bearer ${token}` };
-    
-    // Test all possible endpoints
-    const endpoints = [
-      '/quotes/manager/pending',
-      '/quotes/pending',
-      '/quotes?status=pending',
-      '/quotes?managerId=all',
-      '/quotes'
-    ];
-    
-    for (const endpoint of endpoints) {
-      try {
-        const url = `${API_BASE}${endpoint}`;
-        console.log(`Testing: ${url}`);
-        const res = await axios.get(url, { headers });
-        console.log(`Response from ${endpoint}:`, res.data);
-      } catch (err) {
-        console.log(`Error for ${endpoint}:`, err.response?.status, err.message);
+      
+      if (err.response?.status === 403) {
+        setToast({
+          type: 'error',
+          title: 'Lock Required',
+          message: 'You do not have an active lock on this quote. Please lock it first.'
+        });
+      } else {
+        setToast({
+          type: 'error',
+          title: 'Error',
+          message: err.response?.data?.message || 'Failed to submit pricing'
+        });
       }
     }
+  };
+
+  const getQuoteStatus = (quote) => {
+    if (quote.status === 'IN_PRICING') {
+      if (quote.lockedById === user.id) {
+        return { 
+          text: 'You are pricing this',
+          color: 'bg-yellow-100 text-yellow-800',
+          icon: '🔒'
+        };
+      } else {
+        return { 
+          text: 'Being priced by another',
+          color: 'bg-red-100 text-red-800',
+          icon: '⏳'
+        };
+      }
+    }
+    
+    if (quote.status === 'PENDING_PRICING') {
+      if (quote.lockedById) {
+        if (quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date()) {
+          return { 
+            text: 'Lock expired - Available',
+            color: 'bg-green-100 text-green-800',
+            icon: '🔄'
+          };
+        }
+        return { 
+          text: 'Locked by another',
+          color: 'bg-gray-100 text-gray-800',
+          icon: '🔐'
+        };
+      }
+      return { 
+        text: 'Available',
+        color: 'bg-blue-100 text-blue-800',
+        icon: '📋'
+      };
+    }
+    
+    if (quote.status === 'AWAITING_CLIENT_APPROVAL') {
+      return { 
+        text: 'Waiting client approval',
+        color: 'bg-purple-100 text-purple-800',
+        icon: '⏰'
+      };
+    }
+    
+    if (quote.status === 'APPROVED') {
+      return { 
+        text: 'Approved',
+        color: 'bg-green-100 text-green-800',
+        icon: '✅'
+      };
+    }
+    
+    return { 
+      text: quote.status || 'Unknown',
+      color: 'bg-gray-100 text-gray-800',
+      icon: '❓'
+    };
+  };
+
+  const canLockQuote = (quote) => {
+    return (
+      quote.status === 'PENDING_PRICING' && 
+      (!quote.lockedById || 
+       (quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date()))
+    );
+  };
+
+  const canPriceQuote = (quote) => {
+    return (
+      (quote.status === 'IN_PRICING' && quote.lockedById === user.id) ||
+      (quote.status === 'PENDING_PRICING' && quote.lockedById === user.id)
+    );
   };
 
   if (loading) {
@@ -1614,34 +1694,69 @@ function ManagerDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-      {/* New Quote Notification */}
-      {newQuoteNotification && (
-        <div className="fixed top-6 right-6 z-50 animate-slide-in">
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl shadow-2xl overflow-hidden min-w-[350px]">
-            <div className="flex items-start p-5">
-              <div className="flex-shrink-0 mr-4">
-                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      {/* Lock Confirmation Modal */}
+      {showLockModal && quoteToLock && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl">
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Lock Quote</h2>
+                  <p className="text-gray-600 mt-1">
+                    #{quoteToLock.id?.slice(-8) || 'N/A'} • {quoteToLock.client?.name || 'Client'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowLockModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
+                </button>
+              </div>
+              
+              <div className="mb-6">
+                <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-xl mb-4">
+                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <div>
+                    <h4 className="font-semibold text-blue-900">Lock Duration: 30 minutes</h4>
+                    <p className="text-sm text-blue-700">You'll have exclusive access to price this quote</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Items to price:</span>
+                    <span className="font-semibold">{quoteToLock.items?.length || 0} items</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Client:</span>
+                    <span className="font-semibold">{quoteToLock.client?.name || 'Unknown'}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Created:</span>
+                    <span className="font-semibold">{new Date(quoteToLock.createdAt).toLocaleDateString()}</span>
+                  </div>
                 </div>
               </div>
-              <div className="flex-1">
-                <h4 className="font-bold text-lg mb-1">New Quote Received! 🎉</h4>
-                <p className="text-sm opacity-90 mb-2">{newQuoteNotification.clientName} needs a quote for {newQuoteNotification.itemsCount} items</p>
-                <p className="text-sm font-medium">Estimate: RWF {newQuoteNotification.totalAmount.toLocaleString()}</p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowLockModal(false)}
+                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmLockQuote}
+                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium"
+                >
+                  Lock & Start Pricing
+                </button>
               </div>
-              <button
-                onClick={() => setNewQuoteNotification(null)}
-                className="flex-shrink-0 ml-4 hover:bg-white/20 p-1 rounded-full transition"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="h-1 bg-white/30">
-              <div className="h-full bg-white/50 animate-progress"></div>
             </div>
           </div>
         </div>
@@ -1658,13 +1773,6 @@ function ManagerDashboard() {
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <button
-                onClick={debugFetch}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
-                title="Debug endpoints"
-              >
-                Debug
-              </button>
               <div className="relative">
                 <button 
                   className="relative p-2 hover:bg-gray-100 rounded-lg"
@@ -1695,11 +1803,11 @@ function ManagerDashboard() {
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Pending Quotes</p>
+                <p className="text-sm text-gray-600">Available Quotes</p>
                 <p className="text-3xl font-bold text-gray-900 mt-1">{stats.pending}</p>
               </div>
               <div className="p-3 bg-blue-50 rounded-xl">
-                <ClockIcon className="w-6 h-6 text-blue-600" />
+                <DocumentTextIcon className="w-6 h-6 text-blue-600" />
               </div>
             </div>
           </div>
@@ -1707,11 +1815,11 @@ function ManagerDashboard() {
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Active Quotes</p>
+                <p className="text-sm text-gray-600">Currently Pricing</p>
                 <p className="text-3xl font-bold text-gray-900 mt-1">{stats.active}</p>
               </div>
               <div className="p-3 bg-yellow-50 rounded-xl">
-                <DocumentTextIcon className="w-6 h-6 text-yellow-600" />
+                <ClockIcon className="w-6 h-6 text-yellow-600" />
               </div>
             </div>
           </div>
@@ -1743,117 +1851,174 @@ function ManagerDashboard() {
           </div>
         </div>
 
+        {/* Tabs */}
+        <div className="flex space-x-1 bg-white p-1 rounded-xl border border-gray-200 mb-6">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition ${
+              activeTab === 'all' 
+                ? 'bg-blue-600 text-white' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            All Quotes ({quotes.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('available')}
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition ${
+              activeTab === 'available' 
+                ? 'bg-blue-600 text-white' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Available ({quotes.filter(q => canLockQuote(q)).length})
+          </button>
+          <button
+            onClick={() => setActiveTab('locked')}
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition ${
+              activeTab === 'locked' 
+                ? 'bg-blue-600 text-white' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            My Locked ({lockedQuotes.length})
+          </button>
+        </div>
+
         {/* Quotes List */}
         <div className="space-y-6">
-          {Array.isArray(quotes) && quotes.length > 0 ? (
-            quotes.map(quote => {
-              const quoteItems = quote.items || [];
-              const totalEstimate = quoteItems.reduce((sum, item) => 
-                sum + (item.quantity * (item.unitPrice || item.product?.price || 0)), 0
-              );
-              
-              return (
-                <div key={quote.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {quote.client?.name || 'Hotel Client'}
-                        </h3>
-                        {getStatusBadge(quote)}
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <span>Quote #{quote.id?.slice(-8) || 'N/A'}</span>
-                        <span>•</span>
-                        <span>Created {new Date(quote.createdAt).toLocaleDateString()}</span>
-                        <span>•</span>
-                        <span>{quoteItems.length} items</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {(!quote.managerId || quote.managerId === user.id) && !quote.isFinalized ? (
-                        <button
-                          onClick={() => handlePriceQuote(quote)}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-                          disabled={quote.isFinalized}
-                        >
-                          {quote.isPriced ? 'Update Pricing' : 'Price Quote'}
-                        </button>
-                      ) : !quote.managerId && !quote.isFinalized ? (
-                        <button
-                          onClick={() => handleAcceptQuote(quote.id)}
-                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
-                        >
-                          Accept Quote
-                        </button>
-                      ) : null}
-                      {quote.managerId && quote.managerId !== user.id && (
-                        <span className="px-3 py-1 bg-gray-100 text-gray-600 text-sm rounded-full">
-                          Assigned to another manager
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {quoteItems.length > 0 && (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-                        {quoteItems.slice(0, 3).map((item, index) => (
-                          <div key={index} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm text-gray-900 truncate">
-                                  {item.product?.name || 'Product'}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  SKU: {item.product?.sku || 'N/A'}
-                                </p>
-                              </div>
-                              <div className="text-right ml-4">
-                                <p className="text-sm font-semibold text-gray-900">
-                                  {item.quantity}x
-                                </p>
-                                <p className="text-xs text-gray-600">
-                                  RWF {item.unitPrice?.toLocaleString() || item.product?.price?.toLocaleString() || '0'}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        {quoteItems.length > 3 && (
-                          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 flex items-center justify-center">
-                            <span className="text-sm text-blue-700 font-medium">
-                              +{quoteItems.length - 3} more items
+          {(() => {
+            let filteredQuotes = quotes;
+            if (activeTab === 'available') {
+              filteredQuotes = quotes.filter(q => canLockQuote(q));
+            } else if (activeTab === 'locked') {
+              filteredQuotes = lockedQuotes;
+            }
+
+            return filteredQuotes.length > 0 ? (
+              filteredQuotes.map(quote => {
+                const quoteItems = quote.items || [];
+                const totalEstimate = quoteItems.reduce((sum, item) => 
+                  sum + (item.quantity * (item.unitPrice || item.product?.price || 0)), 0
+                );
+                const status = getQuoteStatus(quote);
+                
+                return (
+                  <div key={quote.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {quote.client?.name || 'Hotel Client'}
+                          </h3>
+                          <span className={`px-3 py-1 ${status.color} text-xs font-medium rounded-full`}>
+                            {status.icon} {status.text}
+                          </span>
+                          {quote.lockExpiresAt && quote.lockedById === user.id && (
+                            <span className="px-3 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">
+                              ⏳ Lock expires: {Math.ceil((new Date(quote.lockExpiresAt) - new Date()) / 60000)} min
                             </span>
-                          </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <span>Quote #{quote.id?.slice(-8) || 'N/A'}</span>
+                          <span>•</span>
+                          <span>Created {new Date(quote.createdAt).toLocaleDateString()}</span>
+                          <span>•</span>
+                          <span>{quoteItems.length} items</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {canLockQuote(quote) && (
+                          <button
+                            onClick={() => handleLockQuote(quote)}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                          >
+                            Lock Quote
+                          </button>
+                        )}
+                        {canPriceQuote(quote) && (
+                          <button
+                            onClick={() => handlePriceQuote(quote)}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
+                          >
+                            Price Quote
+                          </button>
+                        )}
+                        {quote.status === 'AWAITING_CLIENT_APPROVAL' && quote.managerId === user.id && (
+                          <span className="px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full">
+                            Awaiting Client
+                          </span>
                         )}
                       </div>
-                      
-                      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                        <div className="text-sm text-gray-600">
-                          <span className="font-medium">Client Notes:</span>{' '}
-                          {quote.notes || 'No additional notes'}
+                    </div>
+                    
+                    {quoteItems.length > 0 && (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                          {quoteItems.slice(0, 3).map((item, index) => (
+                            <div key={index} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm text-gray-900 truncate">
+                                    {item.product?.name || 'Product'}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    SKU: {item.product?.sku || 'N/A'}
+                                  </p>
+                                </div>
+                                <div className="text-right ml-4">
+                                  <p className="text-sm font-semibold text-gray-900">
+                                    {item.quantity}x
+                                  </p>
+                                  <p className="text-xs text-gray-600">
+                                    RWF {(item.unitPrice || item.product?.price || 0).toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {quoteItems.length > 3 && (
+                            <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 flex items-center justify-center">
+                              <span className="text-sm text-blue-700 font-medium">
+                                +{quoteItems.length - 3} more items
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm text-gray-500">Estimated Total</div>
-                          <div className="text-xl font-bold text-blue-900">
-                            RWF {totalEstimate.toLocaleString()}
+                        
+                        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                          <div className="text-sm text-gray-600">
+                            <span className="font-medium">Client Notes:</span>{' '}
+                            {quote.notes || 'No additional notes'}
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm text-gray-500">Estimated Total</div>
+                            <div className="text-xl font-bold text-blue-900">
+                              RWF {totalEstimate.toLocaleString()}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </>
-                  )}
+                      </>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-16">
+                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <DocumentTextIcon className="w-12 h-12 text-gray-400" />
                 </div>
-              );
-            })
-          ) : (
-            <div className="text-center py-16">
-              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <DocumentTextIcon className="w-12 h-12 text-gray-400" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No pending quotes</h3>
-              <p className="text-gray-600 mb-6">All caught up! New quotes will appear here automatically.</p>
-              <div className="flex justify-center gap-4">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  {activeTab === 'all' ? 'No quotes available' : 
+                   activeTab === 'available' ? 'No available quotes' : 
+                   'No locked quotes'}
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  {activeTab === 'available' 
+                    ? 'All quotes are currently being priced by managers.' 
+                    : 'New quotes will appear here automatically.'}
+                </p>
                 <button
                   onClick={fetchManagerData}
                   className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium inline-flex items-center gap-2"
@@ -1863,27 +2028,16 @@ function ManagerDashboard() {
                   </svg>
                   Refresh
                 </button>
-                <button
-                  onClick={debugFetch}
-                  className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition font-medium inline-flex items-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  Debug Endpoints
-                </button>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 
-      {/* Pricing Modal */}
+      {/* Pricing Modal - Keep the same as before */}
       {showPricingModal && selectedQuote && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl w-full max-w-4xl my-8 shadow-2xl">
-            {/* Header */}
             <div className="sticky top-0 bg-white border-b border-gray-200 px-8 py-6 rounded-t-3xl z-10">
               <div className="flex items-center justify-between">
                 <div>
@@ -1891,6 +2045,11 @@ function ManagerDashboard() {
                   <p className="text-gray-600 mt-1">
                     {selectedQuote.client?.name || 'Client'} • #{selectedQuote.id?.slice(-8) || 'N/A'}
                   </p>
+                  {selectedQuote.lockedById === user.id && selectedQuote.lockExpiresAt && (
+                    <p className="text-sm text-orange-600 mt-1">
+                      ⏰ Lock expires in: {Math.ceil((new Date(selectedQuote.lockExpiresAt) - new Date()) / 60000)} minutes
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={() => setShowPricingModal(false)}
@@ -1903,7 +2062,6 @@ function ManagerDashboard() {
               </div>
             </div>
 
-            {/* Content */}
             <div className="p-8">
               {/* Sourcing Notes */}
               <div className="mb-8">
@@ -1924,7 +2082,7 @@ function ManagerDashboard() {
                 <h3 className="text-lg font-semibold text-gray-900">Items to Price</h3>
                 {selectedQuote.items && Array.isArray(selectedQuote.items) ? (
                   selectedQuote.items.map((item, index) => {
-                    const id = item.productId || item.product?.id;
+                    const productId = item.product?.id || item.productId;
                     const name = item.product?.name || 'Unknown Product';
                     const sku = item.product?.sku || 'N/A';
                     const currentPrice = item.unitPrice || item.product?.price || 0;
@@ -1957,8 +2115,8 @@ function ManagerDashboard() {
                               </div>
                               <input
                                 type="number"
-                                value={pricing[id] || ''}
-                                onChange={(e) => setPricing(p => ({ ...p, [id]: e.target.value }))}
+                                value={pricing[productId] || ''}
+                                onChange={(e) => setPricing(p => ({ ...p, [productId]: e.target.value }))}
                                 placeholder="Enter price"
                                 className="pl-16 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                               />
@@ -1969,7 +2127,7 @@ function ManagerDashboard() {
                             <div className="text-right">
                               <div className="text-sm text-gray-500">Line Total</div>
                               <div className="text-xl font-bold text-blue-900">
-                                RWF {((pricing[id] || currentPrice) * item.quantity).toLocaleString()}
+                                RWF {((pricing[productId] || currentPrice) * item.quantity).toLocaleString()}
                               </div>
                             </div>
                           </div>
