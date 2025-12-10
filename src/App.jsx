@@ -366,6 +366,196 @@ const ConfirmModal = ({ confirmModal, setConfirmModal }) => {
   );
 };
 
+// Add this to your AdminDashboard or create a new component
+function AdminQuotesPanel() {
+  const [quotes, setQuotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({
+    status: '',
+    search: '',
+    startDate: '',
+    endDate: ''
+  });
+  const token = localStorage.getItem('token');
+
+  useEffect(() => {
+    fetchQuotes();
+  }, [filters]);
+
+  const fetchQuotes = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (filters.status) params.append('status', filters.status);
+      if (filters.search) params.append('search', filters.search);
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+
+      const res = await axios.get(`${API_BASE}/admin/quotes?${params}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setQuotes(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch quotes:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteQuote = async (quoteId) => {
+    if (window.confirm('Are you sure you want to delete this quote? This action cannot be undone.')) {
+      try {
+        await axios.delete(`${API_BASE}/admin/quotes/${quoteId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        // Remove from state
+        setQuotes(prev => prev.filter(q => q.id !== quoteId));
+        
+        // Show success message
+        alert('Quote deleted successfully');
+      } catch (err) {
+        console.error('Delete error:', err);
+        alert(err.response?.data?.message || 'Failed to delete quote');
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-blue-900">Quote Management</h2>
+        <button onClick={fetchQuotes} className="px-4 py-2 bg-blue-600 text-white rounded-lg">
+          Refresh
+        </button>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <select
+            value={filters.status}
+            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+            className="px-4 py-2 border rounded-lg"
+          >
+            <option value="">All Statuses</option>
+            <option value="PENDING_ITEMS">Pending Items</option>
+            <option value="PENDING_PRICING">Pending Pricing</option>
+            <option value="IN_PRICING">In Pricing</option>
+            <option value="AWAITING_CLIENT_APPROVAL">Awaiting Approval</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="CONVERTED_TO_ORDER">Converted to Order</option>
+          </select>
+          
+          <input
+            type="text"
+            placeholder="Search by client or ID..."
+            value={filters.search}
+            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+            className="px-4 py-2 border rounded-lg"
+          />
+          
+          <input
+            type="date"
+            value={filters.startDate}
+            onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+            className="px-4 py-2 border rounded-lg"
+            placeholder="Start Date"
+          />
+          
+          <input
+            type="date"
+            value={filters.endDate}
+            onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+            className="px-4 py-2 border rounded-lg"
+            placeholder="End Date"
+          />
+        </div>
+      </div>
+
+      {/* Quotes Table */}
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="text-center py-8">Loading quotes...</div>
+        ) : quotes.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">No quotes found</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quote ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {quotes.map(quote => (
+                  <tr key={quote.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <span className="font-medium text-blue-900">#{quote.id?.slice(-8)}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="font-medium">{quote.client?.name || 'Unknown'}</p>
+                        <p className="text-sm text-gray-500">{quote.client?.email || ''}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        quote.status === 'PENDING_PRICING' ? 'bg-yellow-100 text-yellow-800' :
+                        quote.status === 'IN_PRICING' ? 'bg-blue-100 text-blue-800' :
+                        quote.status === 'AWAITING_CLIENT_APPROVAL' ? 'bg-purple-100 text-purple-800' :
+                        quote.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                        quote.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {quote.status?.replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {quote.totalAmount ? (
+                        <span className="font-bold">RWF {quote.totalAmount.toLocaleString()}</span>
+                      ) : (
+                        <span className="text-gray-500">Not priced</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {new Date(quote.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => window.open(`${window.location.origin}/quotes/${quote.id}`, '_blank')}
+                          className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                          title="View Quote"
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={() => handleDeleteQuote(quote.id)}
+                          className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                          title="Delete Quote"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 // MAIN GOD COMPONENT
 function App() {
   const [confirmModal, setConfirmModal] = useState(null);
@@ -614,17 +804,17 @@ function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
   const menuItems = user?.role === 'ADMIN' ? [
-    { name: 'Overview', path: '/dashboard/overview', icon: ChartBarIcon },
-    { name: 'Products', path: '/dashboard/products', icon: CubeIcon },
-    { name: 'Managers', path: '/dashboard/managers', icon: UsersIcon },
-    { name: 'Drivers', path: '/dashboard/drivers', icon: TruckIcon },
-    { name: 'Pending Quotes', path: '/dashboard/manager', icon: ClockIcon },
-    { name: 'Orders', path: '/dashboard/orders', icon: ClipboardDocumentListIcon },
-    { name: 'Settings', path: '/dashboard/settings', icon: Cog6ToothIcon }
-  ] : [
-    { name: 'Pricing Dashboard', path: '/dashboard/manager', icon: CurrencyDollarIcon },
-    { name: 'My Orders', path: '/dashboard/my-orders', icon: CheckCircleIcon }
-  ]
+  { name: 'Overview', path: '/dashboard/overview', icon: ChartBarIcon },
+  { name: 'Products', path: '/dashboard/products', icon: CubeIcon },
+  { name: 'Managers', path: '/dashboard/managers', icon: UsersIcon },
+  { name: 'Drivers', path: '/dashboard/drivers', icon: TruckIcon },
+  { name: 'Quotes', path: '/dashboard/quotes', icon: DocumentTextIcon },
+  { name: 'Orders', path: '/dashboard/orders', icon: ClipboardDocumentListIcon },
+  { name: 'Settings', path: '/dashboard/settings', icon: Cog6ToothIcon }
+] : [
+  { name: 'Pricing Dashboard', path: '/dashboard/manager', icon: CurrencyDollarIcon },
+  { name: 'My Orders', path: '/dashboard/my-orders', icon: CheckCircleIcon }
+];
 
   const logout = () => {
     localStorage.clear()
@@ -1386,7 +1576,52 @@ function ManagerDashboard() {
     
    // return () => clearInterval(interval);
   }, []);
+// In your ManagerDashboard component, update the handleDeleteQuote function:
 
+const handleDeleteQuote = async (quote) => {
+  if (window.confirm(`Are you sure you want to delete quote #${quote.id?.slice(-8)}? This action cannot be undone.`)) {
+    try {
+      await axios.delete(`${API_BASE}/quotes/${quote.id}/delete`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setToast({
+        type: 'success',
+        title: 'Success',
+        message: 'Quote deleted successfully'
+      });
+      
+      // Refresh quotes
+      fetchManagerData();
+    } catch (err) {
+      console.error('Delete error:', err);
+      setToast({
+        type: 'error',
+        title: 'Error',
+        message: err.response?.data?.message || 'Failed to delete quote'
+      });
+    }
+  }
+};
+
+// Add delete button in the quote card (inside the actions section):
+{canPriceQuote(quote) && (
+  <>
+    <button
+      onClick={() => handlePriceQuote(quote)}
+      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
+    >
+      Price Quote
+    </button>
+    <button
+      onClick={() => handleDeleteQuote(quote)}
+      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium"
+      title="Delete this quote"
+    >
+      Delete
+    </button>
+  </>
+)}
 
 const fetchManagerData = async () => {
   try {
@@ -2178,7 +2413,7 @@ function ProtectedDashboard({ deleteUser, resetUserPassword, token }) {
         <Route path="/managers" element={<AdminDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} />} />
         <Route path="/drivers" element={<AdminDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} />} />
         <Route path="/orders" element={<AdminDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} />} />
-        
+        <Route path="/quotes" element={<AdminQuotesPanel />} />
         {/* MANAGER ROUTES */}
         <Route path="/manager" element={<ManagerDashboard />} />
         <Route path="/my-orders" element={<div className="text-6xl text-center py-32 font-black text-blue-900">My Orders - Coming Soon</div>} />
