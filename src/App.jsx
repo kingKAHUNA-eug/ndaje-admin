@@ -1723,9 +1723,9 @@ useEffect(() => {
       setQuoteToLock(null);
       
       // Refresh data
-      setTimeout(() => {
-        fetchManagerData();
-      }, 1000);
+     // setTimeout(() => {
+       // fetchManagerData();
+      //}, 1000);
       
     } catch (error) {
       console.error('Lock error:', error.response?.data || error);
@@ -1825,9 +1825,9 @@ useEffect(() => {
       setSourcingNotes('');
       
       // Refresh data
-      setTimeout(() => {
-        fetchManagerData();
-      }, 1000);
+      //setTimeout(() => {
+        //fetchManagerData();
+      //}, 1000);
       
     } catch (err) {
       console.error('Pricing error:', err.response?.data || err);
