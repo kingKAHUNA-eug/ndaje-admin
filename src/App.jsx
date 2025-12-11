@@ -1544,11 +1544,12 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
     </div>
   )
 }
-// Enhanced Manager Dashboard with Locking System
 // Enhanced Manager Dashboard - FIXED VERSION
 function ManagerDashboard() {
   const [activeTab, setActiveTab] = useState('all');
   const [quotes, setQuotes] = useState([]);
+  const [availableQuotes, setAvailableQuotes] = useState([]);
+  const [lockedQuotes, setLockedQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedQuote, setSelectedQuote] = useState(null);
   const [pricing, setPricing] = useState({});
@@ -1563,136 +1564,139 @@ function ManagerDashboard() {
   const [toast, setToast] = useState(null);
   const [showLockModal, setShowLockModal] = useState(false);
   const [quoteToLock, setQuoteToLock] = useState(null);
+  const [newQuotesCount, setNewQuotesCount] = useState(0);
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+// Add to useEffect
+useEffect(() => {
+  const ws = new WebSocket(`${API_BASE.replace('http', 'ws')}/ws/quotes`);
+  
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.type === 'NEW_QUOTE') {
+      setToast({
+        type: 'info',
+        title: 'New Quote!',
+        message: `New quote from ${data.clientName} available for pricing.`
+      });
+      fetchManagerData();
+    }
+  };
+  
+  return () => ws.close();
+}, []);
+
+  const fetchManagerData = async () => {
+    try {
+      setLoading(true);
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      console.log('📡 Fetching manager data...');
+      
+      // Fetch all manager endpoints
+      const [quotesRes, availableRes, lockedRes, approvalRes] = await Promise.all([
+        axios.get(`${API_BASE}/quotes/manager/quotes`, { headers }),
+        axios.get(`${API_BASE}/quotes/manager/available`, { headers }),
+        axios.get(`${API_BASE}/quotes/manager/locked`, { headers }),
+        axios.get(`${API_BASE}/quotes/manager/awaiting-approval`, { headers })
+      ]);
+      
+      const allQuotes = quotesRes.data.data || [];
+      const available = availableRes.data.data || [];
+      const locked = lockedRes.data.data || [];
+      const awaitingApproval = approvalRes.data.data || [];
+      
+      console.log(`📊 Stats: ${available.length} available, ${locked.length} locked, ${awaitingApproval.length} awaiting approval`);
+      
+      setQuotes(allQuotes);
+      setAvailableQuotes(available);
+      setLockedQuotes(locked);
+      
+      // Calculate new quotes count
+      const lastCheck = localStorage.getItem('lastQuoteCheck') || new Date().toISOString();
+      const newQuotes = allQuotes.filter(q => 
+        new Date(q.createdAt) > new Date(lastCheck)
+      );
+      
+      if (newQuotes.length > 0 && newQuotesCount === 0) {
+        setNewQuotesCount(newQuotes.length);
+        // Show notification
+        setToast({
+          type: 'info',
+          title: 'New Quotes Available',
+          message: `${newQuotes.length} new quote${newQuotes.length > 1 ? 's' : ''} ready for pricing!`
+        });
+      }
+      
+      // Update last check time
+      localStorage.setItem('lastQuoteCheck', new Date().toISOString());
+      
+      // Calculate stats
+      setStats({
+        pending: available.length,
+        active: locked.length,
+        completed: awaitingApproval.length,
+        totalRevenue: allQuotes.reduce((sum, q) => sum + (q.totalAmount || 0), 0)
+      });
+      
+    } catch (err) {
+      console.error('Failed to fetch manager data:', err);
+      
+      // Try fallback endpoint
+      try {
+        console.log('Trying fallback endpoint...');
+        const fallbackRes = await axios.get(`${API_BASE}/quotes/manager/pending`, { headers });
+        const fallbackData = fallbackRes.data.data || [];
+        
+        // Filter quotes
+        const available = fallbackData.filter(q => 
+          q.status === 'PENDING_PRICING' && 
+          (!q.lockedById || new Date(q.lockExpiresAt) < new Date())
+        );
+        
+        const locked = fallbackData.filter(q => 
+          q.status === 'IN_PRICING' && 
+          q.lockedById === user?.id &&
+          new Date(q.lockExpiresAt) > new Date()
+        );
+        
+        setQuotes(fallbackData);
+        setAvailableQuotes(available);
+        setLockedQuotes(locked);
+        
+        setStats({
+          pending: available.length,
+          active: locked.length,
+          completed: 0,
+          totalRevenue: fallbackData.reduce((sum, q) => sum + (q.totalAmount || 0), 0)
+        });
+        
+      } catch (fallbackErr) {
+        console.error('Fallback also failed:', fallbackErr);
+        setToast({
+          type: 'error',
+          title: 'Connection Error',
+          message: 'Unable to load quotes. Please check your connection.'
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchManagerData();
     
-    // Poll for new quotes every 10 seconds
-    //const interval = setInterval(() => {
-    //  fetchManagerData();
-   // }, 10000);
-    
-   // return () => clearInterval(interval);
-  }, []);
-// In your ManagerDashboard component, update the handleDeleteQuote function:
-
-const handleDeleteQuote = async (quote) => {
-  if (window.confirm(`Are you sure you want to delete quote #${quote.id?.slice(-8)}? This action cannot be undone.`)) {
-    try {
-      await axios.delete(`${API_BASE}/quotes/${quote.id}/delete`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      setToast({
-        type: 'success',
-        title: 'Success',
-        message: 'Quote deleted successfully'
-      });
-      
-      // Refresh quotes
+    // Enable polling for new quotes every 30 seconds
+    const interval = setInterval(() => {
       fetchManagerData();
-    } catch (err) {
-      console.error('Delete error:', err);
-      setToast({
-        type: 'error',
-        title: 'Error',
-        message: err.response?.data?.message || 'Failed to delete quote'
-      });
-    }
-  }
-};
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
-// Add delete button in the quote card (inside the actions section):
-{canPriceQuote(quote) && (
-  <>
-    <button
-      onClick={() => handlePriceQuote(quote)}
-      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
-    >
-      Price Quote
-    </button>
-    <button
-      onClick={() => handleDeleteQuote(quote)}
-      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium"
-      title="Delete this quote"
-    >
-      Delete
-    </button>
-  </>
-)}
-
-const fetchManagerData = async () => {
-  try {
-    setLoading(true);
-    const headers = { Authorization: `Bearer ${token}` };
-    
-    // Use the new endpoints
-    const availableRes = await axios.get(`${API_BASE}/quotes/manager/available`, { headers });
-    const lockedRes = await axios.get(`${API_BASE}/quotes/manager/locked`, { headers });
-    const approvalRes = await axios.get(`${API_BASE}/quotes/manager/awaiting-approval`, { headers });
-    
-    const availableQuotes = availableRes.data.data || [];
-    const lockedQuotes = lockedRes.data.data || [];
-    const approvalQuotes = approvalRes.data.data || [];
-    
-    console.log(`📊 Available: ${availableQuotes.length}, Locked: ${lockedQuotes.length}, Awaiting: ${approvalQuotes.length}`);
-    
-    // Combine all for total view
-    const allQuotes = [...availableQuotes, ...lockedQuotes, ...approvalQuotes];
-    
-    setQuotes(allQuotes);
-    setAvailableQuotes(availableQuotes);
-    setLockedQuotes(lockedQuotes);
-    
-    // Calculate stats
-    setStats({
-      pending: availableQuotes.length,
-      active: lockedQuotes.length,
-      completed: approvalQuotes.length,
-      totalRevenue: allQuotes.reduce((sum, q) => sum + (q.totalAmount || 0), 0)
-    });
-    
-    console.log(`📊 Stats: ${availableQuotes.length} pending, ${lockedQuotes.length} active, ${approvalQuotes.length} completed`);
-    console.log(`🔒 Locked quotes:`, lockedQuotes);
-    
-  } catch (err) {
-    console.error('Failed to fetch manager data:', err);
-    
-    // Fallback to old endpoint if new ones fail
-    try {
-      console.log('Trying fallback to old endpoint...');
-      const fallbackRes = await axios.get(`${API_BASE}/quotes/manager/pending`, { headers });
-      const quotesData = fallbackRes.data.data || [];
-      
-      // Old logic for filtering
-      const lockedQuotes = quotesData.filter(q => 
-        q.status === 'IN_PRICING' && q.lockedById === user?.id
-      );
-      
-      const availableQuotes = quotesData.filter(q => 
-        q.status === 'PENDING_PRICING'
-      );
-      
-      setQuotes(quotesData);
-      setLockedQuotes(lockedQuotes);
-      setAvailableQuotes(availableQuotes);
-      
-      console.log(`Fallback: Found ${lockedQuotes.length} locked, ${availableQuotes.length} available`);
-    } catch (fallbackErr) {
-      console.error('Fallback also failed:', fallbackErr);
-      setToast({
-        type: 'error',
-        title: 'Error',
-        message: 'Failed to load quotes data from all endpoints'
-      });
-    }
-  } finally {
-    setLoading(false);
-  }
-};
-  const handleLockQuote = (quote) => {
+  const handleLockQuote = async (quote) => {
     setQuoteToLock(quote);
     setShowLockModal(true);
   };
@@ -1701,8 +1705,9 @@ const fetchManagerData = async () => {
     if (!quoteToLock) return;
     
     try {
-      // Lock the quote
-      await axios.post(`${API_BASE}/quotes/lock`, {
+      console.log(`🔒 Locking quote: ${quoteToLock.id}`);
+      
+      const response = await axios.post(`${API_BASE}/quotes/manager/lock`, {
         quoteId: quoteToLock.id
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -1710,30 +1715,30 @@ const fetchManagerData = async () => {
       
       setToast({
         type: 'success',
-        title: 'Quote Locked',
-        message: `You have locked quote #${quoteToLock.id?.slice(-6) || ''}. You now have 30 minutes to price it.`
+        title: 'Quote Locked!',
+        message: `You have locked quote #${quoteToLock.id?.slice(-6)}. You now have 30 minutes to price it.`
       });
       
       setShowLockModal(false);
       setQuoteToLock(null);
-      fetchManagerData();
+      
+      // Refresh data
+      setTimeout(() => {
+        fetchManagerData();
+      }, 1000);
       
     } catch (error) {
-      console.error('Lock error:', error);
+      console.error('Lock error:', error.response?.data || error);
       
-      if (error.response?.status === 409) {
-        setToast({
-          type: 'error',
-          title: 'Already Locked',
-          message: error.response?.data?.message || 'This quote is already being handled by another manager.'
-        });
-      } else {
-        setToast({
-          type: 'error',
-          title: 'Lock Failed',
-          message: error.response?.data?.message || 'Failed to lock quote'
-        });
-      }
+      const errorMessage = error.response?.data?.message || 
+        error.response?.status === 409 ? 'This quote is already locked by another manager.' :
+        'Failed to lock quote. Please try again.';
+      
+      setToast({
+        type: 'error',
+        title: 'Lock Failed',
+        message: errorMessage
+      });
       
       setShowLockModal(false);
       setQuoteToLock(null);
@@ -1748,8 +1753,10 @@ const fetchManagerData = async () => {
     const initialPricing = {};
     if (quote.items && Array.isArray(quote.items)) {
       quote.items.forEach(item => {
-        const productId = item.product?.id || item.productId || `product-${Math.random()}`;
-        initialPricing[productId] = item.unitPrice || item.product?.price || 0;
+        const productId = item.product?.id || item.productId;
+        if (productId) {
+          initialPricing[productId] = item.unitPrice || item.product?.price || '';
+        }
       });
     }
     setPricing(initialPricing);
@@ -1760,7 +1767,7 @@ const fetchManagerData = async () => {
     if (!selectedQuote) return;
 
     try {
-      // Check if items exist and is array
+      // Validate items exist
       if (!selectedQuote.items || !Array.isArray(selectedQuote.items)) {
         setToast({
           type: 'error',
@@ -1770,51 +1777,105 @@ const fetchManagerData = async () => {
         return;
       }
 
+      // Prepare items array
       const items = selectedQuote.items.map(item => {
-        const productId = item.product?.id || item.productId || `product-${Math.random()}`;
+        const productId = item.product?.id || item.productId;
         return {
           productId: productId,
           quantity: item.quantity,
-          unitPrice: Number(pricing[productId]) || item.product?.price || 0
+          unitPrice: Number(pricing[productId]) || 0
         };
       });
 
-      if (items.some(i => i.unitPrice <= 0)) {
+      // Validate all prices are set
+      const missingPrices = items.filter(i => i.unitPrice <= 0);
+      if (missingPrices.length > 0) {
         setToast({
           type: 'error',
           title: 'Invalid Pricing',
-          message: 'Please set valid price for all items!'
+          message: 'Please set a valid price for all items!'
         });
         return;
       }
 
-      // Update pricing
-      await axios.put(`${API_BASE}/quotes/${selectedQuote.id}/update-pricing`, {
-        items,
-        sourcingNotes
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      console.log(`💰 Submitting pricing for quote: ${selectedQuote.id}`);
+      
+      // Submit pricing
+      const response = await axios.put(
+        `${API_BASE}/quotes/manager/${selectedQuote.id}/update-pricing`,
+        {
+          items,
+          sourcingNotes
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
 
       setToast({
         type: 'success',
-        title: 'Success',
-        message: `Quote #${selectedQuote.id?.slice(-6) || ''} priced and sent to client!`
+        title: 'Pricing Submitted!',
+        message: `Quote #${selectedQuote.id?.slice(-6)} has been sent to client for approval.`
       });
 
+      // Close modal and reset
       setShowPricingModal(false);
       setSelectedQuote(null);
       setPricing({});
       setSourcingNotes('');
-      fetchManagerData();
+      
+      // Refresh data
+      setTimeout(() => {
+        fetchManagerData();
+      }, 1000);
       
     } catch (err) {
-      console.error('Pricing error:', err);
+      console.error('Pricing error:', err.response?.data || err);
+      
+      const errorMessage = err.response?.data?.message || 
+        err.response?.status === 403 ? 'Your lock on this quote has expired.' :
+        'Failed to submit pricing. Please try again.';
+      
       setToast({
         type: 'error',
         title: 'Error',
-        message: err.response?.data?.message || 'Failed to submit pricing'
+        message: errorMessage
       });
+    }
+  };
+
+const canDeleteQuote = (quote) => {
+  // Managers can delete quotes they have locked
+  // Or quotes that are available (not locked by anyone)
+  return (
+    (quote.lockedById === user.id && quote.status === 'IN_PRICING') ||
+    (quote.status === 'PENDING_PRICING' && !quote.lockedById)
+  );
+};
+
+  const handleDeleteQuote = async (quote) => {
+    if (window.confirm(`Are you sure you want to delete quote #${quote.id?.slice(-8)}? This action cannot be undone.`)) {
+      try {
+        await axios.delete(`${API_BASE}/quotes/manager/${quote.id}/delete`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        setToast({
+          type: 'success',
+          title: 'Success',
+          message: 'Quote deleted successfully'
+        });
+        
+        // Refresh quotes
+        fetchManagerData();
+      } catch (err) {
+        console.error('Delete error:', err);
+        setToast({
+          type: 'error',
+          title: 'Error',
+          message: err.response?.data?.message || 'Failed to delete quote'
+        });
+      }
     }
   };
 
@@ -1894,6 +1955,7 @@ const fetchManagerData = async () => {
       (quote.status === 'PENDING_PRICING' && quote.lockedById === user.id)
     );
   };
+
 
   if (loading) {
     return (
@@ -2363,6 +2425,38 @@ const fetchManagerData = async () => {
               </div>
 
               {/* Actions */}
+<div className="flex items-center gap-2">
+  {canLockQuote(quote) && (
+    <button
+      onClick={() => handleLockQuote(quote)}
+      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+    >
+      Lock Quote
+    </button>
+  )}
+  {canPriceQuote(quote) && (
+    <button
+      onClick={() => handlePriceQuote(quote)}
+      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
+    >
+      Price Quote
+    </button>
+  )}
+  {canDeleteQuote(quote) && (
+    <button
+      onClick={() => handleDeleteQuote(quote)}
+      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium"
+      title="Delete this quote"
+    >
+      Delete
+    </button>
+  )}
+  {quote.status === 'AWAITING_CLIENT_APPROVAL' && quote.managerId === user.id && (
+    <span className="px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full">
+      Awaiting Client
+    </span>
+  )}
+</div>
               <div className="flex gap-4">
                 <button
                   onClick={() => setShowPricingModal(false)}
