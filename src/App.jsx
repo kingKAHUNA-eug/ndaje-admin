@@ -1689,11 +1689,11 @@ useEffect(() => {
     fetchManagerData();
     
     // Enable polling for new quotes every 30 seconds
-    const interval = setInterval(() => {
-      fetchManagerData();
-    }, 30000);
+    //const interval = setInterval(() => {
+    //  fetchManagerData();
+  //  }, 30000);
     
-    return () => clearInterval(interval);
+   // return () => clearInterval(interval);
   }, []);
 
   const handleLockQuote = async (quote) => {
@@ -1723,9 +1723,9 @@ useEffect(() => {
       setQuoteToLock(null);
       
       // Refresh data
-     // setTimeout(() => {
-       // fetchManagerData();
-      //}, 1000);
+      setTimeout(() => {
+       fetchManagerData();
+      }, 1000);
       
     } catch (error) {
       console.error('Lock error:', error.response?.data || error);
@@ -1825,9 +1825,9 @@ useEffect(() => {
       setSourcingNotes('');
       
       // Refresh data
-      //setTimeout(() => {
-        //fetchManagerData();
-      //}, 1000);
+      setTimeout(() => {
+        fetchManagerData();
+      }, 1000);
       
     } catch (err) {
       console.error('Pricing error:', err.response?.data || err);
@@ -1845,39 +1845,88 @@ useEffect(() => {
   };
 
 const canDeleteQuote = (quote) => {
-  // Managers can delete quotes they have locked
-  // Or quotes that are available (not locked by anyone)
-  return (
-    (quote.lockedById === user.id && quote.status === 'IN_PRICING') ||
-    (quote.status === 'PENDING_PRICING' && !quote.lockedById)
-  );
-};
-
-  const handleDeleteQuote = async (quote) => {
-    if (window.confirm(`Are you sure you want to delete quote #${quote.id?.slice(-8)}? This action cannot be undone.`)) {
-      try {
-        await axios.delete(`${API_BASE}/quotes/manager/${quote.id}/delete`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
+    if (!quote || !user.id) return false;
+    
+    const isLockExpired = quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date();
+    
+    // Allow deletion if:
+    // 1. Manager has locked the quote, OR
+    // 2. Quote is available (PENDING_PRICING with no lock or expired lock), OR
+    // 3. Manager assigned to the quote
+    return (
+      (quote.lockedById === user.id && quote.status === 'IN_PRICING') ||
+      (quote.status === 'PENDING_PRICING' && (!quote.lockedById || isLockExpired)) ||
+      (quote.managerId === user.id)
+    );
+  };
+const handleDeleteQuote = async (quote) => {
+    if (!quote || !quote.id) return;
+    
+    // FIXED: Better confirmation message
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete quote #${quote.id?.slice(-8)}?\n\n` +
+      `Client: ${quote.client?.name || 'Unknown'}\n` +
+      `Status: ${quote.status?.replace(/_/g, ' ') || 'Unknown'}\n` +
+      `Items: ${quote.items?.length || 0}\n` +
+      `This action cannot be undone.`
+    );
+    
+    if (!confirmDelete) return;
+    
+    try {
+      setLoading(true);
+      
+      console.log(`🗑️ Deleting quote: ${quote.id}`);
+      
+      const response = await axios.delete(
+        `${API_BASE}/quotes/manager/${quote.id}/delete`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.data.success) {
         setToast({
           type: 'success',
           title: 'Success',
-          message: 'Quote deleted successfully'
+          message: `Quote #${quote.id?.slice(-6)} has been deleted successfully`
         });
         
-        // Refresh quotes
-        fetchManagerData();
-      } catch (err) {
-        console.error('Delete error:', err);
-        setToast({
-          type: 'error',
-          title: 'Error',
-          message: err.response?.data?.message || 'Failed to delete quote'
+        // FIXED: Update all quote lists
+        setQuotes(prev => prev.filter(q => q.id !== quote.id));
+        setAvailableQuotes(prev => prev.filter(q => q.id !== quote.id));
+        setLockedQuotes(prev => prev.filter(q => q.id !== quote.id));
+        setAwaitingApprovalQuotes(prev => prev.filter(q => q.id !== quote.id));
+        
+        // FIXED: Update stats correctly
+        setStats(prev => {
+          const wasPending = quote.status === 'PENDING_PRICING';
+          const wasLocked = quote.status === 'IN_PRICING' && quote.lockedById === user.id;
+          const wasAwaiting = quote.status === 'AWAITING_CLIENT_APPROVAL' && quote.managerId === user.id;
+          
+          return {
+            ...prev,
+            pending: wasPending ? prev.pending - 1 : prev.pending,
+            active: wasLocked ? prev.active - 1 : prev.active,
+            completed: wasAwaiting ? prev.completed - 1 : prev.completed,
+            allQuotes: prev.allQuotes - 1
+          };
         });
+        
+        console.log(`✅ Quote ${quote.id} deleted successfully`);
+      } else {
+        throw new Error(response.data.message || 'Failed to delete quote');
       }
+    } catch (err) {
+      console.error('Delete error:', err);
+      setToast({
+        type: 'error',
+        title: 'Error',
+        message: err.response?.data?.message || 'Failed to delete quote. Please try again.'
+      });
+    } finally {
+      setLoading(false);
     }
   };
+
 
   const getQuoteStatus = (quote) => {
     if (quote.status === 'IN_PRICING') {
@@ -2178,62 +2227,54 @@ const canDeleteQuote = (quote) => {
                   sum + (item.quantity * (item.unitPrice || item.product?.price || 0)), 0
                 );
                 const status = getQuoteStatus(quote);
-                
-                return (
-                  <div key={quote.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            {quote.client?.name || 'Hotel Client'}
-                          </h3>
-                          <span className={`px-3 py-1 ${status.color} text-xs font-medium rounded-full`}>
-                            {status.icon} {status.text}
-                          </span>
-                          {quote.lockExpiresAt && quote.lockedById === user.id && (
-                            <span className="px-3 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full">
-                              ⏳ Lock expires: {Math.ceil((new Date(quote.lockExpiresAt) - new Date()) / 60000)} min
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
-                          <span>Quote #{quote.id?.slice(-8) || 'N/A'}</span>
-                          <span>•</span>
-                          <span>Created {new Date(quote.createdAt).toLocaleDateString()}</span>
-                          <span>•</span>
-                          <span>{quoteItems.length} items</span>
-                          {quote.sourcingNotes && (
-                            <>
-                              <span>•</span>
-                              <span className="text-blue-600">Has notes</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {canLockQuote(quote) && (
-                          <button
-                            onClick={() => handleLockQuote(quote)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-                          >
-                            Lock Quote
-                          </button>
-                        )}
-                        {canPriceQuote(quote) && (
-                          <button
-                            onClick={() => handlePriceQuote(quote)}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
-                          >
-                            Price Quote
-                          </button>
-                        )}
-                        {quote.status === 'AWAITING_CLIENT_APPROVAL' && quote.managerId === user.id && (
-                          <span className="px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full">
-                            Awaiting Client
-                          </span>
-                        )}
-                      </div>
-                    </div>
+      
+      return (
+        <div key={quote.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              {/* ... quote header ... */}
+            </div>
+            <div className="flex items-center gap-2">
+              {/* FIXED: Add delete button to the action buttons */}
+              {canDeleteQuote(quote) && (
+                <button
+                  onClick={() => handleDeleteQuote(quote)}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium"
+                  title="Delete this quote"
+                >
+                  <TrashIcon className="w-4 h-4 inline mr-1" />
+                  Delete
+                </button>
+              )}
+              
+              {canLockQuote(quote) && (
+                <button
+                  onClick={() => handleLockQuote(quote)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                >
+                  <LockClosedIcon className="w-4 h-4 inline mr-1" />
+                  Lock Quote
+                </button>
+              )}
+              
+              {canPriceQuote(quote) && (
+                <button
+                  onClick={() => handlePriceQuote(quote)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
+                >
+                  <CurrencyDollarIcon className="w-4 h-4 inline mr-1" />
+                  Price Quote
+                </button>
+              )}
+              
+              {quote.status === 'AWAITING_CLIENT_APPROVAL' && quote.managerId === user.id && (
+                <span className="px-3 py-2 bg-purple-100 text-purple-800 text-sm rounded-lg">
+                  Awaiting Client
+                </span>
+              )}
+            </div>
+          </div>
+          
                     
                     {quoteItems.length > 0 && (
                       <>
@@ -2457,20 +2498,25 @@ const canDeleteQuote = (quote) => {
     </span>
   )}
 </div>
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setShowPricingModal(false)}
-                  className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={submitPricing}
-                  className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium"
-                >
-                  Submit to Client
-                </button>
-              </div>
+              <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+  <div className="text-sm text-gray-500">
+    You have {Math.ceil((new Date(selectedQuote.lockExpiresAt) - new Date()) / 60000)} minutes remaining
+  </div>
+  <div className="flex gap-4">
+    <button
+      onClick={() => setShowPricingModal(false)}
+      className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-medium"
+    >
+      Cancel
+    </button>
+    <button
+      onClick={submitPricing}
+      className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium"
+    >
+      Submit to Client
+    </button>
+  </div>
+</div>
             </div>
           </div>
         </div>
