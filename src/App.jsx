@@ -1844,88 +1844,112 @@ useEffect(() => {
     }
   };
 
-const canDeleteQuote = (quote) => {
-    if (!quote || !user.id) return false;
-    
-    const isLockExpired = quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date();
-    
-    // Allow deletion if:
-    // 1. Manager has locked the quote, OR
-    // 2. Quote is available (PENDING_PRICING with no lock or expired lock), OR
-    // 3. Manager assigned to the quote
-    return (
-      (quote.lockedById === user.id && quote.status === 'IN_PRICING') ||
-      (quote.status === 'PENDING_PRICING' && (!quote.lockedById || isLockExpired)) ||
-      (quote.managerId === user.id)
-    );
-  };
+// In your frontend ManagerDashboard component - FIXED handleDeleteQuote
 const handleDeleteQuote = async (quote) => {
-    if (!quote || !quote.id) return;
+  if (!quote || !quote.id) return;
+  
+  const confirmDelete = window.confirm(
+    `Are you sure you want to delete quote #${quote.id?.slice(-8)}?\n\n` +
+    `Client: ${quote.client?.name || 'Unknown'}\n` +
+    `Status: ${quote.status}\n` +
+    `This action cannot be undone.`
+  );
+  
+  if (!confirmDelete) return;
+  
+  try {
+    console.log(`🗑️ Deleting quote: ${quote.id}`);
     
-    // FIXED: Better confirmation message
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete quote #${quote.id?.slice(-8)}?\n\n` +
-      `Client: ${quote.client?.name || 'Unknown'}\n` +
-      `Status: ${quote.status?.replace(/_/g, ' ') || 'Unknown'}\n` +
-      `Items: ${quote.items?.length || 0}\n` +
-      `This action cannot be undone.`
+    // FIXED: Use the correct endpoint path
+    const response = await axios.delete(
+      `${API_BASE}/quotes/manager/${quote.id}/delete`,
+      { 
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        } 
+      }
     );
     
-    if (!confirmDelete) return;
-    
-    try {
-      setLoading(true);
-      
-      console.log(`🗑️ Deleting quote: ${quote.id}`);
-      
-      const response = await axios.delete(
-        `${API_BASE}/quotes/manager/${quote.id}/delete`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      if (response.data.success) {
-        setToast({
-          type: 'success',
-          title: 'Success',
-          message: `Quote #${quote.id?.slice(-6)} has been deleted successfully`
-        });
-        
-        // FIXED: Update all quote lists
-        setQuotes(prev => prev.filter(q => q.id !== quote.id));
-        setAvailableQuotes(prev => prev.filter(q => q.id !== quote.id));
-        setLockedQuotes(prev => prev.filter(q => q.id !== quote.id));
-        setAwaitingApprovalQuotes(prev => prev.filter(q => q.id !== quote.id));
-        
-        // FIXED: Update stats correctly
-        setStats(prev => {
-          const wasPending = quote.status === 'PENDING_PRICING';
-          const wasLocked = quote.status === 'IN_PRICING' && quote.lockedById === user.id;
-          const wasAwaiting = quote.status === 'AWAITING_CLIENT_APPROVAL' && quote.managerId === user.id;
-          
-          return {
-            ...prev,
-            pending: wasPending ? prev.pending - 1 : prev.pending,
-            active: wasLocked ? prev.active - 1 : prev.active,
-            completed: wasAwaiting ? prev.completed - 1 : prev.completed,
-            allQuotes: prev.allQuotes - 1
-          };
-        });
-        
-        console.log(`✅ Quote ${quote.id} deleted successfully`);
-      } else {
-        throw new Error(response.data.message || 'Failed to delete quote');
-      }
-    } catch (err) {
-      console.error('Delete error:', err);
+    if (response.data.success) {
       setToast({
-        type: 'error',
-        title: 'Error',
-        message: err.response?.data?.message || 'Failed to delete quote. Please try again.'
+        type: 'success',
+        title: 'Success',
+        message: `Quote #${quote.id?.slice(-6)} has been deleted successfully`
       });
-    } finally {
-      setLoading(false);
+      
+      // Remove from all lists
+      setQuotes(prev => prev.filter(q => q.id !== quote.id));
+      setAvailableQuotes(prev => prev.filter(q => q.id !== quote.id));
+      setLockedQuotes(prev => prev.filter(q => q.id !== quote.id));
+      
+      // Update stats
+      setStats(prev => ({
+        ...prev,
+        pending: availableQuotes.filter(q => q.id !== quote.id).length,
+        active: lockedQuotes.filter(q => q.id !== quote.id).length,
+        totalRevenue: prev.totalRevenue - (quote.totalAmount || 0)
+      }));
+      
+    } else {
+      throw new Error(response.data.message || 'Failed to delete quote');
     }
-  };
+  } catch (err) {
+    console.error('Delete error:', err);
+    console.error('Error response:', err.response?.data);
+    
+    let errorMessage = 'Failed to delete quote. Please try again.';
+    
+    if (err.response) {
+      switch (err.response.status) {
+        case 401:
+          errorMessage = 'You are not authorized to delete this quote. Please login again.';
+          break;
+        case 403:
+          errorMessage = 'You do not have permission to delete this quote.';
+          break;
+        case 404:
+          errorMessage = 'Quote not found. It may have been already deleted.';
+          break;
+        case 500:
+          errorMessage = err.response.data?.message || 'Server error. Please try again later.';
+          break;
+      }
+    }
+    
+    setToast({
+      type: 'error',
+      title: 'Error',
+      message: errorMessage
+    });
+  }
+};
+
+// FIXED: Enhanced canDeleteQuote function
+const canDeleteQuote = (quote) => {
+  if (!quote || !user.id) return false;
+  
+  const isLockExpired = quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date();
+  
+  // Allow deletion if:
+  // 1. Manager has locked the quote (IN_PRICING status)
+  // 2. Quote is available (PENDING_PRICING with no lock or expired lock)
+  // 3. Manager assigned to the quote
+  const canDelete = 
+    (quote.lockedById === user.id && quote.status === 'IN_PRICING') ||
+    (quote.status === 'PENDING_PRICING' && (!quote.lockedById || isLockExpired)) ||
+    (quote.managerId === user.id);
+  
+  console.log(`🔍 Delete check for quote ${quote.id}:`, {
+    canDelete,
+    status: quote.status,
+    lockedById: quote.lockedById,
+    managerId: user.id,
+    isLockExpired
+  });
+  
+  return canDelete;
+};
 
 
   const getQuoteStatus = (quote) => {
@@ -2234,38 +2258,42 @@ const handleDeleteQuote = async (quote) => {
             <div className="flex-1">
               {/* ... quote header ... */}
             </div>
-            <div className="flex items-center gap-2">
-              {/* FIXED: Add delete button to the action buttons */}
-              {canDeleteQuote(quote) && (
-                <button
-                  onClick={() => handleDeleteQuote(quote)}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium"
-                  title="Delete this quote"
-                >
-                  <TrashIcon className="w-4 h-4 inline mr-1" />
-                  Delete
-                </button>
-              )}
+           <div className="flex items-center gap-2">
+  {/* DELETE BUTTON - FIXED POSITION */}
+  {canDeleteQuote(quote) && (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        handleDeleteQuote(quote);
+      }}
+      className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium flex items-center gap-1"
+      title="Delete this quote"
+    >
+      <TrashIcon className="w-4 h-4" />
+      <span className="hidden sm:inline">Delete</span>
+    </button>
+  )}
               
-              {canLockQuote(quote) && (
-                <button
-                  onClick={() => handleLockQuote(quote)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-                >
-                  <LockClosedIcon className="w-4 h-4 inline mr-1" />
-                  Lock Quote
-                </button>
-              )}
+               {/* LOCK BUTTON */}
+  {canLockQuote(quote) && (
+    <button
+      onClick={() => handleLockQuote(quote)}
+      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium flex items-center gap-1"
+    >
+      <LockClosedIcon className="w-4 h-4" />
+      <span className="hidden sm:inline">Lock</span>
+    </button>
+  )}
               
-              {canPriceQuote(quote) && (
-                <button
-                  onClick={() => handlePriceQuote(quote)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
-                >
-                  <CurrencyDollarIcon className="w-4 h-4 inline mr-1" />
-                  Price Quote
-                </button>
-              )}
+             {canPriceQuote(quote) && (
+    <button
+      onClick={() => handlePriceQuote(quote)}
+      className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium flex items-center gap-1"
+    >
+      <CurrencyDollarIcon className="w-4 h-4" />
+      <span className="hidden sm:inline">Price</span>
+    </button>
+  )}
               
               {quote.status === 'AWAITING_CLIENT_APPROVAL' && quote.managerId === user.id && (
                 <span className="px-3 py-2 bg-purple-100 text-purple-800 text-sm rounded-lg">
