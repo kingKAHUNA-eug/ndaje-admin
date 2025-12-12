@@ -1843,14 +1843,21 @@ useEffect(() => {
       });
     }
   };
-
-// In your frontend ManagerDashboard component - FIXED handleDeleteQuote
+// In your frontend ManagerDashboard component
 const handleDeleteQuote = async (quote) => {
-  if (!quote || !quote.id) return;
+  if (!quote || !quote.id) {
+    setToast({
+      type: 'error',
+      title: 'Error',
+      message: 'Invalid quote data'
+    });
+    return;
+  }
   
   const confirmDelete = window.confirm(
     `Are you sure you want to delete quote #${quote.id?.slice(-8)}?\n\n` +
     `Client: ${quote.client?.name || 'Unknown'}\n` +
+    `Items: ${quote.items?.length || 0}\n` +
     `Status: ${quote.status}\n` +
     `This action cannot be undone.`
   );
@@ -1858,9 +1865,8 @@ const handleDeleteQuote = async (quote) => {
   if (!confirmDelete) return;
   
   try {
-    console.log(`🗑️ Deleting quote: ${quote.id}`);
+    console.log(`🗑️ Attempting to delete quote: ${quote.id}`);
     
-    // FIXED: Use the correct endpoint path
     const response = await axios.delete(
       `${API_BASE}/quotes/manager/${quote.id}/delete`,
       { 
@@ -1872,54 +1878,55 @@ const handleDeleteQuote = async (quote) => {
     );
     
     if (response.data.success) {
-      setToast({
-        type: 'success',
-        title: 'Success',
-        message: `Quote #${quote.id?.slice(-6)} has been deleted successfully`
-      });
-      
-      // Remove from all lists
+      // Update UI immediately
       setQuotes(prev => prev.filter(q => q.id !== quote.id));
       setAvailableQuotes(prev => prev.filter(q => q.id !== quote.id));
       setLockedQuotes(prev => prev.filter(q => q.id !== quote.id));
       
-      // Update stats
-      setStats(prev => ({
-        ...prev,
-        pending: availableQuotes.filter(q => q.id !== quote.id).length,
-        active: lockedQuotes.filter(q => q.id !== quote.id).length,
-        totalRevenue: prev.totalRevenue - (quote.totalAmount || 0)
-      }));
+      // Show success message
+      setToast({
+        type: 'success',
+        title: 'Success!',
+        message: `Quote #${quote.id?.slice(-8)} has been deleted.`
+      });
       
-    } else {
-      throw new Error(response.data.message || 'Failed to delete quote');
+      console.log(`✅ Quote ${quote.id} deleted successfully`);
     }
+    
   } catch (err) {
-    console.error('Delete error:', err);
-    console.error('Error response:', err.response?.data);
+    console.error('❌ Frontend delete error:', err);
     
     let errorMessage = 'Failed to delete quote. Please try again.';
     
     if (err.response) {
       switch (err.response.status) {
+        case 400:
+          errorMessage = 'Invalid request. Please check the quote ID.';
+          break;
         case 401:
-          errorMessage = 'You are not authorized to delete this quote. Please login again.';
+          errorMessage = 'Your session has expired. Please log in again.';
+          // Optionally redirect to login
           break;
         case 403:
           errorMessage = 'You do not have permission to delete this quote.';
           break;
         case 404:
           errorMessage = 'Quote not found. It may have been already deleted.';
+          // Refresh the list
+          fetchManagerData();
+          break;
+        case 409:
+          errorMessage = 'This quote cannot be deleted right now. Please try again later.';
           break;
         case 500:
-          errorMessage = err.response.data?.message || 'Server error. Please try again later.';
+          errorMessage = 'Server error. Please try again later.';
           break;
       }
     }
     
     setToast({
       type: 'error',
-      title: 'Error',
+      title: 'Delete Failed',
       message: errorMessage
     });
   }
