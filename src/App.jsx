@@ -366,196 +366,7 @@ const ConfirmModal = ({ confirmModal, setConfirmModal }) => {
   );
 };
 
-// Add this to your AdminDashboard or create a new component
-function AdminQuotesPanel() {
-  const [quotes, setQuotes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
-    status: '',
-    search: '',
-    startDate: '',
-    endDate: ''
-  });
-  const token = localStorage.getItem('token');
 
-  useEffect(() => {
-    fetchQuotes();
-  }, [filters]);
-
-  const fetchQuotes = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (filters.status) params.append('status', filters.status);
-      if (filters.search) params.append('search', filters.search);
-      if (filters.startDate) params.append('startDate', filters.startDate);
-      if (filters.endDate) params.append('endDate', filters.endDate);
-
-      const res = await axios.get(`${API_BASE}/admin/quotes?${params}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      setQuotes(res.data.data || []);
-    } catch (err) {
-      console.error('Failed to fetch quotes:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteQuote = async (quoteId) => {
-    if (window.confirm('Are you sure you want to delete this quote? This action cannot be undone.')) {
-      try {
-        await axios.delete(`${API_BASE}/admin/quotes/${quoteId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        // Remove from state
-        setQuotes(prev => prev.filter(q => q.id !== quoteId));
-        
-        // Show success message
-        alert('Quote deleted successfully');
-      } catch (err) {
-        console.error('Delete error:', err);
-        alert(err.response?.data?.message || 'Failed to delete quote');
-      }
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-blue-900">Quote Management</h2>
-        <button onClick={fetchQuotes} className="px-4 py-2 bg-blue-600 text-white rounded-lg">
-          Refresh
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-            className="px-4 py-2 border rounded-lg"
-          >
-            <option value="">All Statuses</option>
-            <option value="PENDING_ITEMS">Pending Items</option>
-            <option value="PENDING_PRICING">Pending Pricing</option>
-            <option value="IN_PRICING">In Pricing</option>
-            <option value="AWAITING_CLIENT_APPROVAL">Awaiting Approval</option>
-            <option value="APPROVED">Approved</option>
-            <option value="REJECTED">Rejected</option>
-            <option value="CONVERTED_TO_ORDER">Converted to Order</option>
-          </select>
-          
-          <input
-            type="text"
-            placeholder="Search by client or ID..."
-            value={filters.search}
-            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-            className="px-4 py-2 border rounded-lg"
-          />
-          
-          <input
-            type="date"
-            value={filters.startDate}
-            onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-            className="px-4 py-2 border rounded-lg"
-            placeholder="Start Date"
-          />
-          
-          <input
-            type="date"
-            value={filters.endDate}
-            onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-            className="px-4 py-2 border rounded-lg"
-            placeholder="End Date"
-          />
-        </div>
-      </div>
-
-      {/* Quotes Table */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="text-center py-8">Loading quotes...</div>
-        ) : quotes.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">No quotes found</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quote ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {quotes.map(quote => (
-                  <tr key={quote.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <span className="font-medium text-blue-900">#{quote.id?.slice(-8)}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="font-medium">{quote.client?.name || 'Unknown'}</p>
-                        <p className="text-sm text-gray-500">{quote.client?.email || ''}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        quote.status === 'PENDING_PRICING' ? 'bg-yellow-100 text-yellow-800' :
-                        quote.status === 'IN_PRICING' ? 'bg-blue-100 text-blue-800' :
-                        quote.status === 'AWAITING_CLIENT_APPROVAL' ? 'bg-purple-100 text-purple-800' :
-                        quote.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                        quote.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {quote.status?.replace(/_/g, ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {quote.totalAmount ? (
-                        <span className="font-bold">RWF {quote.totalAmount.toLocaleString()}</span>
-                      ) : (
-                        <span className="text-gray-500">Not priced</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {new Date(quote.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => window.open(`${window.location.origin}/quotes/${quote.id}`, '_blank')}
-                          className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                          title="View Quote"
-                        >
-                          View
-                        </button>
-                        <button
-                          onClick={() => handleDeleteQuote(quote.id)}
-                          className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
-                          title="Delete Quote"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 // MAIN GOD COMPONENT
 function App() {
   const [confirmModal, setConfirmModal] = useState(null);
@@ -1146,7 +957,194 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
   const [showAddDriver, setShowAddDriver] = useState(false)
   const [newManager, setNewManager] = useState({ name: '', email: '', phone: '', password: '' })
   const [newDriver, setNewDriver] = useState({ name: '', email: '', phone: '', password: '', vehicle: '' })
+  // Add this to your AdminDashboard or create a new component
+  const [quotes, setQuotes] = useState([]);
+  const [filters, setFilters] = useState({
+    status: '',
+    search: '',
+    startDate: '',
+    endDate: ''
+  });
+  const token = localStorage.getItem('token');
 
+  useEffect(() => {
+    fetchQuotes();
+  }, [filters]);
+
+  const fetchQuotes = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (filters.status) params.append('status', filters.status);
+      if (filters.search) params.append('search', filters.search);
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+
+      const res = await axios.get(`${API_BASE}/admin/quotes?${params}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setQuotes(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch quotes:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteQuote = async (quoteId) => {
+    if (window.confirm('Are you sure you want to delete this quote? This action cannot be undone.')) {
+      try {
+        await axios.delete(`${API_BASE}/admin/quotes/${quoteId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        // Remove from state
+        setQuotes(prev => prev.filter(q => q.id !== quoteId));
+        
+        // Show success message
+        alert('Quote deleted successfully');
+      } catch (err) {
+        console.error('Delete error:', err);
+        alert(err.response?.data?.message || 'Failed to delete quote');
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-blue-900">Quote Management</h2>
+        <button onClick={fetchQuotes} className="px-4 py-2 bg-blue-600 text-white rounded-lg">
+          Refresh
+        </button>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <select
+            value={filters.status}
+            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+            className="px-4 py-2 border rounded-lg"
+          >
+            <option value="">All Statuses</option>
+            <option value="PENDING_ITEMS">Pending Items</option>
+            <option value="PENDING_PRICING">Pending Pricing</option>
+            <option value="IN_PRICING">In Pricing</option>
+            <option value="AWAITING_CLIENT_APPROVAL">Awaiting Approval</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="CONVERTED_TO_ORDER">Converted to Order</option>
+          </select>
+          
+          <input
+            type="text"
+            placeholder="Search by client or ID..."
+            value={filters.search}
+            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+            className="px-4 py-2 border rounded-lg"
+          />
+          
+          <input
+            type="date"
+            value={filters.startDate}
+            onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+            className="px-4 py-2 border rounded-lg"
+            placeholder="Start Date"
+          />
+          
+          <input
+            type="date"
+            value={filters.endDate}
+            onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+            className="px-4 py-2 border rounded-lg"
+            placeholder="End Date"
+          />
+        </div>
+      </div>
+
+      {/* Quotes Table */}
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="text-center py-8">Loading quotes...</div>
+        ) : quotes.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">No quotes found</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quote ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {quotes.map(quote => (
+                  <tr key={quote.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <span className="font-medium text-blue-900">#{quote.id?.slice(-8)}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="font-medium">{quote.client?.name || 'Unknown'}</p>
+                        <p className="text-sm text-gray-500">{quote.client?.email || ''}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        quote.status === 'PENDING_PRICING' ? 'bg-yellow-100 text-yellow-800' :
+                        quote.status === 'IN_PRICING' ? 'bg-blue-100 text-blue-800' :
+                        quote.status === 'AWAITING_CLIENT_APPROVAL' ? 'bg-purple-100 text-purple-800' :
+                        quote.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                        quote.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {quote.status?.replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {quote.totalAmount ? (
+                        <span className="font-bold">RWF {quote.totalAmount.toLocaleString()}</span>
+                      ) : (
+                        <span className="text-gray-500">Not priced</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {new Date(quote.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => window.open(`${window.location.origin}/quotes/${quote.id}`, '_blank')}
+                          className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                          title="View Quote"
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={() => handleDeleteQuote(quote.id)}
+                          className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                          title="Delete Quote"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
   const token = localStorage.getItem('token')
 
   useEffect(() => {
@@ -1543,7 +1541,7 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
       </div>
     </div>
   )
-}
+
 // Enhanced Manager Dashboard - FIXED VERSION
 function ManagerDashboard() {
   const [activeTab, setActiveTab] = useState('all');
@@ -2567,6 +2565,202 @@ const canDeleteQuote = (quote) => {
     </div>
   );
 }
+
+// Driver Dashboard Component
+function DriverDashboard() {
+  const [deliveries, setDeliveries] = useState([]);
+  const [stats, setStats] = useState({ assigned: 0, inTransit: 0, completed: 0 });
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null);
+  const [selectedDelivery, setSelectedDelivery] = useState(null);
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  useEffect(() => {
+    fetchDeliveries();
+  }, []);
+
+  const fetchDeliveries = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/deliveries/agent`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const data = res.data.data || [];
+      setDeliveries(data);
+      
+      setStats({
+        assigned: data.filter(d => d.status === 'ASSIGNED').length,
+        inTransit: data.filter(d => d.status === 'IN_TRANSIT').length,
+        completed: data.filter(d => d.status === 'DELIVERED').length
+      });
+    } catch (err) {
+      setToast({ type: 'error', title: 'Error', message: 'Failed to load deliveries' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateStatus = async (deliveryId, status) => {
+    try {
+      await axios.put(
+        `${API_BASE}/deliveries/${deliveryId}/status`,
+        { status },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setToast({ type: 'success', title: 'Success', message: 'Status updated successfully' });
+      fetchDeliveries();
+    } catch (err) {
+      setToast({ type: 'error', title: 'Error', message: 'Failed to update status' });
+    }
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      ASSIGNED: 'bg-blue-100 text-blue-800',
+      PICKED_UP: 'bg-yellow-100 text-yellow-800',
+      IN_TRANSIT: 'bg-purple-100 text-purple-800',
+      DELIVERED: 'bg-green-100 text-green-800',
+      CLIENT_VERIFIED: 'bg-emerald-100 text-emerald-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">Loading deliveries...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+      {/* Header */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Driver Dashboard</h1>
+              <p className="text-gray-600 mt-1">Welcome, <span className="font-semibold text-blue-600">{user.name}</span></p>
+            </div>
+            <button onClick={fetchDeliveries} className="p-2 hover:bg-gray-100 rounded-lg">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-8 py-6">
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {[
+            { title: 'Assigned', value: stats.assigned, icon: ClipboardDocumentListIcon, color: 'blue' },
+            { title: 'In Transit', value: stats.inTransit, icon: TruckIcon, color: 'purple' },
+            { title: 'Completed', value: stats.completed, icon: CheckCircleIcon, color: 'green' }
+          ].map((stat) => (
+            <div key={stat.title} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">{stat.title}</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                </div>
+                <div className={`p-3 bg-${stat.color}-50 rounded-xl`}>
+                  <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Deliveries List */}
+        <div className="space-y-4">
+          {deliveries.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-2xl">
+              <TruckIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">No Deliveries</h3>
+              <p className="text-gray-600">You don't have any assigned deliveries yet.</p>
+            </div>
+          ) : (
+            deliveries.map((delivery) => (
+              <div key={delivery.id} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Order #{delivery.order?.id?.slice(-8)}
+                    </h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Client: {delivery.order?.client?.name || 'Unknown'}
+                    </p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(delivery.status)}`}>
+                    {delivery.status.replace(/_/g, ' ')}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Address</p>
+                    <p className="font-medium">{delivery.order?.address?.line1}</p>
+                    <p className="text-sm text-gray-600">{delivery.order?.address?.city}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Contact</p>
+                    <p className="font-medium">{delivery.order?.client?.phone || 'N/A'}</p>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2">
+                  {delivery.status === 'ASSIGNED' && (
+                    <button
+                      onClick={() => updateStatus(delivery.id, 'PICKED_UP')}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      Mark as Picked Up
+                    </button>
+                  )}
+                  {delivery.status === 'PICKED_UP' && (
+                    <button
+                      onClick={() => updateStatus(delivery.id, 'IN_TRANSIT')}
+                      className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                    >
+                      Start Delivery
+                    </button>
+                  )}
+                  {delivery.status === 'IN_TRANSIT' && (
+                    <button
+                      onClick={() => updateStatus(delivery.id, 'DELIVERED')}
+                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    >
+                      Mark as Delivered
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setSelectedDelivery(delivery)}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  >
+                    View Details
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <Toast toast={toast} onClose={() => setToast(null)} />
+    </div>
+  );
+}
+
+
 function ProtectedDashboard({ deleteUser, resetUserPassword, token }) {
   const user = JSON.parse(localStorage.getItem('user') || 'null')
   const navigate = useNavigate()
