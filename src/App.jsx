@@ -246,7 +246,7 @@ const PasswordResetModal = ({ isOpen, onClose, userId, userName, userEmail, onRe
                     <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Minimum 6 characters required
+                   Minimum 6 characters required
                   </div>
                 </div>
               )}
@@ -514,182 +514,638 @@ function AdminQuotesPanel() {
   );
 }
 
-// MAIN APP COMPONENT
-function App() {
-  const [confirmModal, setConfirmModal] = useState(null);
-  const [toast, setToast] = useState(null);
-  const [passwordResetModal, setPasswordResetModal] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token') || '');
-  const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
+// Admin Manager Panel Component
+function AdminManagerPanel({ deleteUser, resetUserPassword }) {
+  const [managers, setManagers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddManager, setShowAddManager] = useState(false);
+  const [newManager, setNewManager] = useState({ name: '', email: '', phone: '', password: '' });
+  const token = localStorage.getItem('token');
 
-  // Add CSS for animations
   useEffect(() => {
-    const styleSheet = document.createElement('style');
-    styleSheet.textContent = `
-      @keyframes slide-in {
-        from {
-          transform: translateX(100%);
-          opacity: 0;
-        }
-        to {
-          transform: translateX(0);
-          opacity: 1;
-        }
-      }
-      
-      @keyframes progress {
-        from {
-          width: 100%;
-        }
-        to {
-          width: 0%;
-        }
-      }
-      
-      .animate-slide-in {
-        animation: slide-in 0.3s ease-out;
-      }
-      
-      .animate-progress {
-        animation: progress 5s linear forwards;
-      }
-      
-      .dark {
-        background-color: #111827;
-        color: #f3f4f6;
-      }
-      
-      .dark .bg-white {
-        background-color: #1f2937;
-      }
-      
-      .dark .bg-gray-50 {
-        background-color: #111827;
-      }
-      
-      .dark .text-gray-900 {
-        color: #f3f4f6;
-      }
-      
-      .dark .text-gray-600 {
-        color: #d1d5db;
-      }
-      
-      .dark .border-gray-200 {
-        border-color: #374151;
-      }
-    `;
-    document.head.appendChild(styleSheet);
-    
-    // Apply dark mode
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    
-    return () => {
-      document.head.removeChild(styleSheet);
-    };
-  }, [darkMode]);
+    fetchManagers();
+  }, []);
 
-  // DELETE USER
-  const deleteUser = async (userId, userName, type) => {
-    setConfirmModal({
-      title: `Delete ${type === 'manager' ? 'Manager' : 'Driver'}`,
-      message: `Are you sure you want to remove ${userName}? This action cannot be undone.`,
-      onConfirm: async () => {
-        try {
-          await axios.delete(`${API_BASE}/admin/${type}s/${userId}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          setToast({
-            type: 'success',
-            title: 'Success',
-            message: `${type === 'manager' ? 'Manager' : 'Driver'} deleted successfully`
-          });
-        } catch (err) {
-          setToast({
-            type: 'error',
-            title: 'Error',
-            message: err.response?.data?.message || 'Failed to delete user'
-          });
-        }
-      }
-    });
+  const fetchManagers = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/admin/managers`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setManagers(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch managers:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // RESET PASSWORD
-  const resetUserPassword = async (userId, userName, userEmail) => {
-    setPasswordResetModal({
-      userId,
-      userName,
-      userEmail,
-      onReset: async (id, newPassword) => {
-        try {
-          await axios.post(`${API_BASE}/admin/reset-password/${id}`, 
-            { newPassword }, 
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          
-          setToast({
-            type: 'success',
-            title: 'Password Reset',
-            message: `Password has been reset for ${userName}. New password sent to ${userEmail}`
-          });
-          
-          return true;
-        } catch (err) {
-          setToast({
-            type: 'error',
-            title: 'Reset Failed',
-            message: err.response?.data?.message || 'Failed to reset password'
-          });
-          return false;
-        }
-      }
-    });
+  const createManager = async () => {
+    try {
+      await axios.post(`${API_BASE}/admin/managers`, newManager, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setShowAddManager(false);
+      setNewManager({ name: '', email: '', phone: '', password: '' });
+      fetchManagers();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to create manager');
+    }
   };
 
   return (
-    <>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Login />} />
-          <Route 
-            path="/dashboard/*" 
-            element={
-              <ProtectedDashboard 
-                deleteUser={deleteUser} 
-                resetUserPassword={resetUserPassword} 
-                token={token}
-                darkMode={darkMode}
-                setDarkMode={setDarkMode}
-              />
-            } 
-          />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </BrowserRouter>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-blue-900">Operations Managers</h2>
+        <button onClick={() => setShowAddManager(true)} className="inline-flex items-center gap-2 px-6 py-3 bg-blue-900 text-white rounded-xl hover:bg-blue-800">
+          <PlusIcon className="w-5 h-5" /> Add Manager
+        </button>
+      </div>
 
-      <ConfirmModal confirmModal={confirmModal} setConfirmModal={setConfirmModal} />
-      
-      {passwordResetModal && (
-        <PasswordResetModal
-          isOpen={!!passwordResetModal}
-          onClose={() => setPasswordResetModal(null)}
-          userId={passwordResetModal.userId}
-          userName={passwordResetModal.userName}
-          userEmail={passwordResetModal.userEmail}
-          onReset={passwordResetModal.onReset}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {managers.map(manager => (
+          <div key={manager.id} className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <UsersIcon className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-gray-900">{manager.name}</h3>
+                <p className="text-sm text-gray-500">{manager.email}</p>
+              </div>
+            </div>
+            
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center text-sm text-gray-600">
+                <PhoneIcon className="w-4 h-4 mr-2" />
+                <span>{manager.phone}</span>
+              </div>
+              <div className="flex items-center text-sm text-gray-600">
+                <ClipboardDocumentListIcon className="w-4 h-4 mr-2" />
+                <span>Active Quotes: {manager.activeQuotes || 0}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-4 border-t border-gray-100">
+              <button
+                onClick={() => resetUserPassword(manager.id, manager.name, manager.email)}
+                className="flex-1 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
+              >
+                Reset Password
+              </button>
+              <button
+                onClick={() => deleteUser(manager.id, manager.name, 'manager')}
+                className="flex-1 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {showAddManager && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold mb-4">Add New Manager</h3>
+            <div className="space-y-4">
+              <input placeholder="Name" value={newManager.name} onChange={e => setNewManager(prev => ({...prev, name: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+              <input placeholder="Email" value={newManager.email} onChange={e => setNewManager(prev => ({...prev, email: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+              <input placeholder="Phone" value={newManager.phone} onChange={e => setNewManager(prev => ({...prev, phone: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+              <input type="password" placeholder="Password" value={newManager.password} onChange={e => setNewManager(prev => ({...prev, password: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowAddManager(false)} className="flex-1 px-4 py-2 border rounded-xl">Cancel</button>
+              <button onClick={createManager} className="flex-1 px-4 py-2 bg-blue-900 text-white rounded-xl">Create</button>
+            </div>
+          </div>
+        </div>
       )}
-
-      <EnhancedToast toast={toast} onClose={() => setToast(null)} />
-    </>
+    </div>
   );
 }
 
+// Admin Driver Panel Component
+function AdminDriverPanel({ deleteUser, resetUserPassword }) {
+  const [drivers, setDrivers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddDriver, setShowAddDriver] = useState(false);
+  const [newDriver, setNewDriver] = useState({ name: '', email: '', phone: '', password: '', vehicle: '' });
+  const token = localStorage.getItem('token');
+
+  useEffect(() => {
+    fetchDrivers();
+  }, []);
+
+  const fetchDrivers = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/admin/drivers`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setDrivers(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch drivers:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createDriver = async () => {
+    try {
+      await axios.post(`${API_BASE}/admin/drivers`, newDriver, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setShowAddDriver(false);
+      setNewDriver({ name: '', email: '', phone: '', password: '', vehicle: '' });
+      fetchDrivers();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to create driver');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-blue-900">Delivery Drivers</h2>
+        <button onClick={() => setShowAddDriver(true)} className="inline-flex items-center gap-2 px-6 py-3 bg-blue-900 text-white rounded-xl hover:bg-blue-800">
+          <PlusIcon className="w-5 h-5" /> Add Driver
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {drivers.map(driver => (
+          <div key={driver.id} className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                <TruckIcon className="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-gray-900">{driver.name}</h3>
+                <p className="text-sm text-gray-500">{driver.email}</p>
+              </div>
+            </div>
+            
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center text-sm text-gray-600">
+                <PhoneIcon className="w-4 h-4 mr-2" />
+                <span>{driver.phone}</span>
+              </div>
+              <div className="flex items-center text-sm text-gray-600">
+                <TruckIcon className="w-4 h-4 mr-2" />
+                <span>{driver.vehicle || 'No vehicle assigned'}</span>
+              </div>
+              <div className="flex items-center text-sm text-gray-600">
+                <CheckCircleIcon className="w-4 h-4 mr-2" />
+                <span>Deliveries: {driver.completedDeliveries || 0}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-4 border-t border-gray-100">
+              <button
+                onClick={() => resetUserPassword(driver.id, driver.name, driver.email)}
+                className="flex-1 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
+              >
+                Reset Password
+              </button>
+              <button
+                onClick={() => deleteUser(driver.id, driver.name, 'driver')}
+                className="flex-1 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {showAddDriver && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold mb-4">Add New Driver</h3>
+            <div className="space-y-4">
+              <input placeholder="Name" value={newDriver.name} onChange={e => setNewDriver(prev => ({...prev, name: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+              <input placeholder="Email" value={newDriver.email} onChange={e => setNewDriver(prev => ({...prev, email: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+              <input placeholder="Phone" value={newDriver.phone} onChange={e => setNewDriver(prev => ({...prev, phone: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+              <input type="password" placeholder="Password" value={newDriver.password} onChange={e => setNewDriver(prev => ({...prev, password: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+              <input placeholder="Vehicle" value={newDriver.vehicle} onChange={e => setNewDriver(prev => ({...prev, vehicle: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowAddDriver(false)} className="flex-1 px-4 py-2 border rounded-xl">Cancel</button>
+              <button onClick={createDriver} className="flex-1 px-4 py-2 bg-blue-900 text-white rounded-xl">Create</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Admin Orders Panel Component
+function AdminOrdersPanel() {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const token = localStorage.getItem('token');
+
+  useEffect(() => {
+    fetchOrders();
+  }, [statusFilter]);
+
+  const fetchOrders = async () => {
+    try {
+      const url = statusFilter === 'ALL' 
+        ? `${API_BASE}/admin/orders`
+        : `${API_BASE}/admin/orders?status=${statusFilter}`;
+      
+      const res = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setOrders(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch orders:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredOrders = orders.filter(order => 
+    order.id?.toLowerCase().includes(search.toLowerCase()) ||
+    order.client?.name?.toLowerCase().includes(search.toLowerCase()) ||
+    order.deliveryAddress?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const getStatusColor = (status) => {
+    const colors = {
+      PENDING: 'bg-yellow-100 text-yellow-800',
+      PROCESSING: 'bg-blue-100 text-blue-800',
+      DELIVERED: 'bg-green-100 text-green-800',
+      CANCELLED: 'bg-red-100 text-red-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-blue-900">Order Management</h2>
+        <div className="flex gap-3">
+          <input
+            type="text"
+            placeholder="Search orders..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="px-4 py-2 border rounded-xl"
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-4 py-2 border rounded-xl"
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="PENDING">Pending</option>
+            <option value="PROCESSING">Processing</option>
+            <option value="DELIVERED">Delivered</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delivery Address</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {filteredOrders.map(order => (
+              <tr key={order.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">
+                  <span className="font-medium text-blue-900">#{order.id?.slice(-8)}</span>
+                </td>
+                <td className="px-6 py-4">
+                  <div>
+                    <p className="font-medium">{order.client?.name || 'Unknown'}</p>
+                    <p className="text-sm text-gray-500">{order.client?.phone || ''}</p>
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="font-bold">RWF {order.totalAmount?.toLocaleString() || 0}</span>
+                </td>
+                <td className="px-6 py-4">
+                  <p className="text-sm">{order.deliveryAddress || 'N/A'}</p>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                    {order.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500">
+                  {new Date(order.createdAt).toLocaleDateString()}
+                </td>
+                <td className="px-6 py-4">
+                  <button className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+                    View Details
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// Manager Orders Panel Component
+function ManagerOrdersPanel() {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const token = localStorage.getItem('token');
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/manager/orders`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setOrders(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch manager orders:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-blue-900">My Priced Orders</h2>
+      <div className="grid grid-cols-1 gap-6">
+        {orders.map(order => (
+          <div key={order.id} className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="font-bold text-lg text-gray-900">Order #{order.id?.slice(-8)}</h3>
+                <p className="text-gray-600">Client: {order.client?.name || 'Unknown'}</p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                order.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                order.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
+                'bg-blue-100 text-blue-800'
+              }`}>
+                {order.status}
+              </span>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <p className="text-sm text-gray-500">Total Amount</p>
+                <p className="text-xl font-bold text-blue-900">RWF {order.totalAmount?.toLocaleString() || 0}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Items</p>
+                <p className="text-lg font-medium">{order.items?.length || 0} items</p>
+              </div>
+            </div>
+            
+            <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+              <span className="text-sm text-gray-500">
+                Created: {new Date(order.createdAt).toLocaleDateString()}
+              </span>
+              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                View Details
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Driver History Panel Component
+function DriverHistoryPanel() {
+  const [deliveries, setDeliveries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const token = localStorage.getItem('token');
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
+
+  const fetchHistory = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/deliveries/driver/history`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setDeliveries(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch delivery history:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-blue-900">Delivery History</h2>
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delivery #</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">From → To</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fee</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {deliveries.map(delivery => (
+              <tr key={delivery.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">
+                  <span className="font-medium">{delivery.deliveryNumber || 'N/A'}</span>
+                </td>
+                <td className="px-6 py-4">
+                  <p className="font-medium">{delivery.client?.name || 'Unknown'}</p>
+                  <p className="text-sm text-gray-500">{delivery.client?.phone || ''}</p>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="text-sm">
+                    <p className="font-medium">{delivery.pickupAddress}</p>
+                    <p className="text-gray-500">→ {delivery.deliveryAddress}</p>
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="font-bold">${delivery.deliveryFee?.toFixed(2) || '0.00'}</span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    delivery.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
+                    delivery.status === 'CANCELLED' ? 'bg-red-100 text-red-800' :
+                    'bg-blue-100 text-blue-800'
+                  }`}>
+                    {delivery.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500">
+                  {new Date(delivery.deliveredAt || delivery.createdAt).toLocaleDateString()}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// Settings Panel Component
+function SettingsPanel({ darkMode, setDarkMode }) {
+  const [settings, setSettings] = useState({
+    notifications: true,
+    emailUpdates: true,
+    autoRefresh: true,
+    language: 'en'
+  });
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-blue-900">System Settings</h2>
+      
+      <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">Appearance</h3>
+        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl mb-4">
+          <div>
+            <p className="font-medium">Dark Mode</p>
+            <p className="text-sm text-gray-500">Toggle between light and dark theme</p>
+          </div>
+          <button
+            onClick={() => {
+              setDarkMode(!darkMode);
+              localStorage.setItem('darkMode', !darkMode);
+            }}
+            className={`w-12 h-6 flex items-center rounded-full p-1 ${darkMode ? 'bg-blue-600' : 'bg-gray-300'}`}
+          >
+            <div className={`bg-white w-4 h-4 rounded-full transform transition ${darkMode ? 'translate-x-6' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">Notifications</h3>
+        <div className="space-y-4">
+          {[
+            { key: 'notifications', label: 'Push Notifications', description: 'Receive real-time updates' },
+            { key: 'emailUpdates', label: 'Email Updates', description: 'Get daily summary emails' },
+            { key: 'autoRefresh', label: 'Auto Refresh', description: 'Automatically refresh data every 30 seconds' }
+          ].map(item => (
+            <div key={item.key} className="flex items-center justify-between p-4 border border-gray-200 rounded-xl">
+              <div>
+                <p className="font-medium">{item.label}</p>
+                <p className="text-sm text-gray-500">{item.description}</p>
+              </div>
+              <button
+                onClick={() => setSettings(prev => ({ ...prev, [item.key]: !prev[item.key] }))}
+                className={`w-12 h-6 flex items-center rounded-full p-1 ${settings[item.key] ? 'bg-blue-600' : 'bg-gray-300'}`}
+              >
+                <div className={`bg-white w-4 h-4 rounded-full transform transition ${settings[item.key] ? 'translate-x-6' : ''}`} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">Language & Region</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Language</label>
+            <select
+              value={settings.language}
+              onChange={(e) => setSettings(prev => ({ ...prev, language: e.target.value }))}
+              className="w-full px-4 py-3 border rounded-xl"
+            >
+              <option value="en">English</option>
+              <option value="fr">French</option>
+              <option value="rw">Kinyarwanda</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <button className="px-6 py-3 bg-blue-900 text-white rounded-xl hover:bg-blue-800">
+          Save Settings
+        </button>
+      </div>
+    </div>
+  );
+}
+
+ function ProtectedDashboard({ deleteUser, resetUserPassword, darkMode, setDarkMode }) {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const token = localStorage.getItem('token');
+  
+  // Redirect to login if no token
+  if (!token) {
+    return <Navigate to="/" />;
+  }
+
+  return (
+    <DashboardLayout darkMode={darkMode} setDarkMode={setDarkMode}>
+      <Routes>
+        {/* Admin Routes */}
+        {user.role === 'ADMIN' && (
+          <>
+            <Route path="/overview" element={<AdminDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} darkMode={darkMode} setDarkMode={setDarkMode} />} />
+            <Route path="/products" element={<ProductsPanel />} />
+            <Route path="/managers" element={<AdminManagerPanel deleteUser={deleteUser} resetUserPassword={resetUserPassword} />} />
+            <Route path="/drivers" element={<AdminDriverPanel deleteUser={deleteUser} resetUserPassword={resetUserPassword} />} />
+            <Route path="/quotes" element={<AdminQuotesPanel />} />
+            <Route path="/orders" element={<AdminOrdersPanel />} />
+            <Route path="/settings" element={<SettingsPanel darkMode={darkMode} setDarkMode={setDarkMode} />} />
+            <Route path="/" element={<Navigate to="/dashboard/overview" />} />
+          </>
+        )}
+
+        {/* Manager Routes */}
+        {user.role === 'MANAGER' && (
+          <>
+            <Route path="/manager" element={<ManagerDashboard />} />
+            <Route path="/my-orders" element={<ManagerOrdersPanel />} />
+            <Route path="/" element={<Navigate to="/dashboard/manager" />} />
+          </>
+        )}
+
+        {/* Driver Routes */}
+        {user.role === 'DELIVERY_AGENT' && (
+          <>
+            <Route path="/driver" element={<DriverDashboard />} />
+            <Route path="/delivery-history" element={<DriverHistoryPanel />} />
+            <Route path="/" element={<Navigate to="/dashboard/driver" />} />
+          </>
+        )}
+
+        {/* Default redirect */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </DashboardLayout>
+  );
+}
+
+
+//LAYOUT COMPONENTS
 function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -2178,33 +2634,33 @@ function ManagerDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
-                  RWF {stats.totalRevenue.toLocaleString()}
-                </p>
-              </div>
-              <div className="p-3 bg-green-50 rounded-xl">
-                <CurrencyDollarIcon className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Completed Quotes</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{stats.completed}</p>
-              </div>
-              <div className="p-3 bg-emerald-50 rounded-xl">
-                <CheckCircleIcon className="w-6 h-6 text-emerald-600" />
-              </div>
-            </div>
-          </div>
+  <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
+  <div className="flex items-center justify-between">
+    <div>
+      <p className="text-sm text-gray-600">Total Revenue</p>
+      
+       </div>
+    <div className="p-3 bg-green-50 rounded-xl">
+      <CurrencyDollarIcon className="w-6 h-6 text-green-600" />
+    </div>
+  </div>
+</div>
+<div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
+  <div className="flex items-center justify-between">
+    <div>
+      <p className="text-sm text-gray-600">Completed Quotes</p>
+      <p className="text-3xl font-bold text-gray-900 mt-1">
+        {stats?.completed || 0}
+      </p>
+    </div>
+    <div className="p-3 bg-emerald-50 rounded-xl">
+      <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    </div>
+  </div>
+</div>
         </div>
-
         <div className="flex space-x-1 bg-white p-1 rounded-xl border border-gray-200 mb-6">
           <button
             onClick={() => setActiveTab('all')}
@@ -2535,27 +2991,69 @@ function ManagerDashboard() {
   );
 }
 
-// Driver Dashboard Component
 function DriverDashboard() {
   const [deliveries, setDeliveries] = useState([]);
+  const [assignedDeliveries, setAssignedDeliveries] = useState([]);
+  const [inTransitDeliveries, setInTransitDeliveries] = useState([]);
+  const [completedDeliveries, setCompletedDeliveries] = useState([]);
+  const [stats, setStats] = useState({
+    totalDeliveries: 0,
+    completedToday: 0,
+    pendingDeliveries: 0,
+    totalEarnings: 0
+  });
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [selectedDelivery, setSelectedDelivery] = useState(null);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [actionType, setActionType] = useState('');
+  const [actionDeliveryId, setActionDeliveryId] = useState(null);
+  
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
-    fetchDeliveries();
+    fetchDriverData();
+    // Set up real-time updates (WebSocket or polling)
+    const interval = setInterval(fetchDriverData, 30000); // Every 30 seconds
+    return () => clearInterval(interval);
   }, []);
 
-  const fetchDeliveries = async () => {
+  const fetchDriverData = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/deliveries/agent`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setDeliveries(res.data.data || []);
+      setLoading(true);
+      const [deliveriesRes, notificationsRes, statsRes] = await Promise.all([
+        axios.get(`${API_BASE}/deliveries/driver`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`${API_BASE}/notifications/driver`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`${API_BASE}/drivers/stats/${user.id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
+
+      const allDeliveries = deliveriesRes.data.data || [];
+      setDeliveries(allDeliveries);
+      
+      // Categorize deliveries
+      setAssignedDeliveries(allDeliveries.filter(d => d.status === 'ASSIGNED'));
+      setInTransitDeliveries(allDeliveries.filter(d => d.status === 'IN_TRANSIT' || d.status === 'PICKED_UP'));
+      setCompletedDeliveries(allDeliveries.filter(d => d.status === 'DELIVERED' || d.status === 'CLIENT_VERIFIED'));
+      
+      setNotifications(notificationsRes.data.data || []);
+      setStats(statsRes.data.data || stats);
     } catch (err) {
-      console.error('Failed to fetch deliveries:', err);
-      setToast({ type: 'error', title: 'Error', message: 'Failed to load deliveries' });
+      console.error('Failed to fetch driver data:', err);
+      setToast({ 
+        type: 'error', 
+        title: 'Error', 
+        message: 'Failed to load dashboard data' 
+      });
     } finally {
       setLoading(false);
     }
@@ -2569,11 +3067,67 @@ function DriverDashboard() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      setToast({ type: 'success', title: 'Success', message: 'Status updated successfully' });
-      fetchDeliveries();
+      setToast({ 
+        type: 'success', 
+        title: 'Success', 
+        message: 'Delivery status updated successfully' 
+      });
+      fetchDriverData();
+      
+      // Send notification to client
+      if (status === 'PICKED_UP' || status === 'IN_TRANSIT' || status === 'DELIVERED') {
+        await axios.post(`${API_BASE}/notifications/delivery-update`, {
+          deliveryId,
+          status,
+          driverId: user.id
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
     } catch (err) {
       console.error('Failed to update status:', err);
-      setToast({ type: 'error', title: 'Error', message: 'Failed to update status' });
+      setToast({ 
+        type: 'error', 
+        title: 'Error', 
+        message: err.response?.data?.message || 'Failed to update status' 
+      });
+    }
+  };
+
+  const verifyDeliveryCode = async (deliveryId, code) => {
+    try {
+      const response = await axios.post(
+        `${API_BASE}/deliveries/${deliveryId}/verify`,
+        { verificationCode: code },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.data.success) {
+        setToast({ 
+          type: 'success', 
+          title: 'Success', 
+          message: 'Delivery verified successfully!' 
+        });
+        setShowDeliveryModal(false);
+        setVerificationCode('');
+        fetchDriverData();
+        
+        // Notify admin and client
+        await axios.post(`${API_BASE}/notifications/delivery-complete`, {
+          deliveryId,
+          driverId: user.id,
+          verificationCode: code
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+    } catch (err) {
+      console.error('Verification failed:', err);
+      setToast({ 
+        type: 'error', 
+        title: 'Error', 
+        message: err.response?.data?.message || 'Invalid verification code' 
+      });
     }
   };
 
@@ -2583,9 +3137,159 @@ function DriverDashboard() {
       PICKED_UP: 'bg-yellow-100 text-yellow-800',
       IN_TRANSIT: 'bg-purple-100 text-purple-800',
       DELIVERED: 'bg-green-100 text-green-800',
-      CLIENT_VERIFIED: 'bg-emerald-100 text-emerald-800'
+      CLIENT_VERIFIED: 'bg-emerald-100 text-emerald-800',
+      CANCELLED: 'bg-red-100 text-red-800'
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getStatusIcon = (status) => {
+    const icons = {
+      ASSIGNED: ClipboardDocumentListIcon,
+      PICKED_UP: TruckIcon,
+      IN_TRANSIT: MapPinIcon,
+      DELIVERED: CheckCircleIcon,
+      CLIENT_VERIFIED: CheckCircleIcon,
+      CANCELLED: XCircleIcon
+    };
+    return icons[status] || ClipboardDocumentListIcon;
+  };
+
+  const handleAction = (action, deliveryId) => {
+    setActionType(action);
+    setActionDeliveryId(deliveryId);
+    setShowConfirmModal(true);
+  };
+
+  const confirmAction = async () => {
+    try {
+      if (actionType === 'start') {
+        await updateStatus(actionDeliveryId, 'PICKED_UP');
+      } else if (actionType === 'transit') {
+        await updateStatus(actionDeliveryId, 'IN_TRANSIT');
+      } else if (actionType === 'complete') {
+        const delivery = deliveries.find(d => d.id === actionDeliveryId);
+        setSelectedDelivery(delivery);
+        setShowDeliveryModal(true);
+      }
+      setShowConfirmModal(false);
+    } catch (error) {
+      console.error('Action failed:', error);
+    }
+  };
+
+  const DeliveryCard = ({ delivery }) => {
+    const StatusIcon = getStatusIcon(delivery.status);
+    
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h3 className="font-bold text-lg text-gray-900">
+              Delivery #{delivery.deliveryNumber}
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Client: {delivery.client?.name || 'Unknown'}
+            </p>
+          </div>
+          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(delivery.status)}`}>
+            {delivery.status.replace('_', ' ')}
+          </span>
+        </div>
+
+        <div className="space-y-3 mb-4">
+          <div className="flex items-center text-sm text-gray-600">
+            <MapPinIcon className="w-4 h-4 mr-2" />
+            <span>From: {delivery.pickupAddress}</span>
+          </div>
+          <div className="flex items-center text-sm text-gray-600">
+            <MapPinIcon className="w-4 h-4 mr-2" />
+            <span>To: {delivery.deliveryAddress}</span>
+          </div>
+          <div className="flex items-center text-sm text-gray-600">
+            <PhoneIcon className="w-4 h-4 mr-2" />
+            <span>Contact: {delivery.client?.phone || 'N/A'}</span>
+          </div>
+          <div className="flex items-center text-sm text-gray-600">
+            <ClockIcon className="w-4 h-4 mr-2" />
+            <span>Estimated: {new Date(delivery.estimatedDelivery).toLocaleString()}</span>
+          </div>
+          {delivery.notes && (
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">Notes: </span>
+              {delivery.notes}
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-between items-center pt-4 border-t">
+          <div>
+            <span className="font-bold text-lg text-gray-900">
+              ${delivery.deliveryFee?.toFixed(2) || '0.00'}
+            </span>
+            <p className="text-xs text-gray-500">Delivery Fee</p>
+          </div>
+          
+          <div className="flex space-x-2">
+            {delivery.status === 'ASSIGNED' && (
+              <button
+                onClick={() => handleAction('start', delivery.id)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+              >
+                Start Delivery
+              </button>
+            )}
+            {delivery.status === 'PICKED_UP' && (
+              <button
+                onClick={() => handleAction('transit', delivery.id)}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"
+              >
+                Mark In Transit
+              </button>
+            )}
+            {delivery.status === 'IN_TRANSIT' && (
+              <button
+                onClick={() => handleAction('complete', delivery.id)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+              >
+                Complete Delivery
+              </button>
+            )}
+            {delivery.status === 'DELIVERED' && (
+              <button
+                onClick={() => {
+                  setSelectedDelivery(delivery);
+                  setShowDeliveryModal(true);
+                }}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium"
+              >
+                Enter Verification Code
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const NotificationBell = () => {
+    const unreadCount = notifications.filter(n => !n.read).length;
+    
+    return (
+      <div className="relative">
+        <button
+          onClick={() => {/* Open notifications panel */}}
+          className="p-2 hover:bg-gray-100 rounded-lg relative"
+        >
+          <BellIcon className="w-6 h-6 text-gray-600" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+              {unreadCount}
+            </span>
+          )}
+        </button>
+      </div>
+    );
   };
 
   if (loading) {
@@ -2593,7 +3297,7 @@ function DriverDashboard() {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">Loading deliveries...</p>
+          <p className="text-lg text-gray-600">Loading driver dashboard...</p>
         </div>
       </div>
     );
@@ -2601,30 +3305,57 @@ function DriverDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-8 py-6">
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg ${
+          toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        } text-white`}>
+          <div className="font-bold">{toast.title}</div>
+          <div>{toast.message}</div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="bg-white border-b shadow-sm sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Driver Dashboard</h1>
-              <p className="text-gray-600 mt-1">Welcome, <span className="font-semibold text-blue-600">{user.name}</span></p>
+            <div className="flex items-center space-x-4">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <TruckIcon className="w-8 h-8 text-blue-600" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Driver Portal</h1>
+                <p className="text-gray-600">
+                  Welcome, <span className="font-semibold text-blue-600">{user.name}</span>
+                </p>
+              </div>
             </div>
-            <button onClick={fetchDeliveries} className="p-2 hover:bg-gray-100 rounded-lg">
-              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
+            
+            <div className="flex items-center space-x-4">
+              <NotificationBell />
+              <button
+                onClick={fetchDriverData}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+                title="Refresh"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-8 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      {/* Stats Overview */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Assigned</p>
+                <p className="text-sm text-gray-600">Total Deliveries</p>
                 <p className="text-3xl font-bold text-gray-900 mt-1">
-                  {deliveries.filter(d => d.status === 'ASSIGNED').length}
+                  {stats.totalDeliveries}
                 </p>
               </div>
               <div className="p-3 bg-blue-50 rounded-xl">
@@ -2636,10 +3367,392 @@ function DriverDashboard() {
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">In Transit</p>
+                <p className="text-sm text-gray-600">Completed Today</p>
                 <p className="text-3xl font-bold text-gray-900 mt-1">
-                  {deliveries.filter(d => d.status === 'IN_TRANSIT').length}
-                </p>/ /   F i x   b u i l d   e r r o r  
- / /   n o w  
- / /   n o w  
- 
+                  {stats.completedToday}
+                </p>
+              </div>
+              <div className="p-3 bg-green-50 rounded-xl">
+                <CheckCircleIcon className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Pending Deliveries</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">
+                  {stats.pendingDeliveries}
+                </p>
+              </div>
+              <div className="p-3 bg-yellow-50 rounded-xl">
+                <ClockIcon className="w-6 h-6 text-yellow-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Earnings</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">
+                  ${stats.totalEarnings?.toFixed(2) || '0.00'}
+                </p>
+              </div>
+              <div className="p-3 bg-emerald-50 rounded-xl">
+                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Delivery Sections */}
+        <div className="space-y-8">
+          {/* Assigned Deliveries */}
+          {assignedDeliveries.length > 0 && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Assigned Deliveries</h2>
+                <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                  {assignedDeliveries.length} pending
+                </span>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {assignedDeliveries.map(delivery => (
+                  <DeliveryCard key={delivery.id} delivery={delivery} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* In Transit Deliveries */}
+          {inTransitDeliveries.length > 0 && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">In Transit</h2>
+                <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
+                  {inTransitDeliveries.length} active
+                </span>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {inTransitDeliveries.map(delivery => (
+                  <DeliveryCard key={delivery.id} delivery={delivery} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Completed Deliveries */}
+          {completedDeliveries.length > 0 && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Completed Deliveries</h2>
+                <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                  {completedDeliveries.length} total
+                </span>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {completedDeliveries.map(delivery => (
+                  <div key={delivery.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="font-bold text-lg text-gray-900">
+                          Delivery #{delivery.deliveryNumber}
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Client: {delivery.client?.name || 'Unknown'}
+                        </p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(delivery.status)}`}>
+                        {delivery.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-600 space-y-2">
+                      <p>Delivered on: {new Date(delivery.deliveredAt).toLocaleString()}</p>
+                      <p>Delivery Fee: <span className="font-bold">${delivery.deliveryFee?.toFixed(2) || '0.00'}</span></p>
+                      {delivery.verificationCode && (
+                        <p>Verification Code: <span className="font-mono">{delivery.verificationCode}</span></p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {deliveries.length === 0 && (
+            <div className="text-center py-12">
+              <TruckIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No deliveries assigned</h3>
+              <p className="text-gray-600">You don't have any deliveries assigned at the moment.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Delivery Verification Modal */}
+      {showDeliveryModal && selectedDelivery && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              Verify Delivery #{selectedDelivery.deliveryNumber}
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Please enter the verification code provided by the client to complete delivery.
+            </p>
+            
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Verification Code
+              </label>
+              <input
+                type="text"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value.toUpperCase())}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter 6-digit code"
+                maxLength="6"
+              />
+              <p className="text-sm text-gray-500 mt-2">
+                Ask the client for the delivery verification code sent to their phone.
+              </p>
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowDeliveryModal(false);
+                  setVerificationCode('');
+                }}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => verifyDeliveryCode(selectedDelivery.id, verificationCode)}
+                disabled={!verificationCode}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Verify Delivery
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">
+              {actionType === 'start' && 'Start Delivery'}
+              {actionType === 'transit' && 'Mark as In Transit'}
+              {actionType === 'complete' && 'Complete Delivery'}
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to proceed with this action? This will notify the client.
+            </p>
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmAction}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// MAIN APP COMPONENT
+function App() {
+  const [confirmModal, setConfirmModal] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [passwordResetModal, setPasswordResetModal] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem('token') || '');
+  const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
+
+  // Add CSS for animations
+  useEffect(() => {
+    const styleSheet = document.createElement('style');
+    styleSheet.textContent = `
+      @keyframes slide-in {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      
+      @keyframes progress {
+        from {
+          width: 100%;
+        }
+        to {
+          width: 0%;
+        }
+      }
+      
+      .animate-slide-in {
+        animation: slide-in 0.3s ease-out;
+      }
+      
+      .animate-progress {
+        animation: progress 5s linear forwards;
+      }
+      
+      .dark {
+        background-color: #111827;
+        color: #f3f4f6;
+      }
+      
+      .dark .bg-white {
+        background-color: #1f2937;
+      }
+      
+      .dark .bg-gray-50 {
+        background-color: #111827;
+      }
+      
+      .dark .text-gray-900 {
+        color: #f3f4f6;
+      }
+      
+      .dark .text-gray-600 {
+        color: #d1d5db;
+      }
+      
+      .dark .border-gray-200 {
+        border-color: #374151;
+      }
+    `;
+    document.head.appendChild(styleSheet);
+    
+    // Apply dark mode
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    
+    return () => {
+      document.head.removeChild(styleSheet);
+    };
+  }, [darkMode]);
+
+  // DELETE USER
+  const deleteUser = async (userId, userName, type) => {
+    setConfirmModal({
+      title: `Delete ${type === 'manager' ? 'Manager' : 'Driver'}`,
+      message: `Are you sure you want to remove ${userName}? This action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          await axios.delete(`${API_BASE}/admin/${type}s/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setToast({
+            type: 'success',
+            title: 'Success',
+            message: `${type === 'manager' ? 'Manager' : 'Driver'} deleted successfully`
+          });
+        } catch (err) {
+          setToast({
+            type: 'error',
+            title: 'Error',
+            message: err.response?.data?.message || 'Failed to delete user'
+          });
+        }
+      }
+    });
+  };
+
+  // RESET PASSWORD
+  const resetUserPassword = async (userId, userName, userEmail) => {
+    setPasswordResetModal({
+      userId,
+      userName,
+      userEmail,
+      onReset: async (id, newPassword) => {
+        try {
+          await axios.post(`${API_BASE}/admin/reset-password/${id}`, 
+            { newPassword }, 
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          
+          setToast({
+            type: 'success',
+            title: 'Password Reset',
+            message: `Password has been reset for ${userName}. New password sent to ${userEmail}`
+          });
+          
+          return true;
+        } catch (err) {
+          setToast({
+            type: 'error',
+            title: 'Reset Failed',
+            message: err.response?.data?.message || 'Failed to reset password'
+          });
+          return false;
+        }
+      }
+    });
+  };
+
+ 
+  return (
+  <>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route 
+          path="/dashboard/*" 
+          element={
+            <ProtectedDashboard 
+              deleteUser={deleteUser} 
+              resetUserPassword={resetUserPassword} 
+              darkMode={darkMode}
+              setDarkMode={setDarkMode}
+            />
+          } 
+        />
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </BrowserRouter>
+
+    <ConfirmModal confirmModal={confirmModal} setConfirmModal={setConfirmModal} />
+    
+    {passwordResetModal && (
+      <PasswordResetModal
+        isOpen={!!passwordResetModal}
+        onClose={() => setPasswordResetModal(null)}
+        userId={passwordResetModal.userId}
+        userName={passwordResetModal.userName}
+        userEmail={passwordResetModal.userEmail}
+        onReset={passwordResetModal.onReset}
+      />
+    )}
+
+    <EnhancedToast toast={toast} onClose={() => setToast(null)} />
+  </>
+);
+}
+
+
+
+export default App;
