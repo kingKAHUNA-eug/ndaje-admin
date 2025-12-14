@@ -8,14 +8,17 @@ import {
   ShoppingCartIcon, CurrencyDollarIcon, UserGroupIcon,
   MapPinIcon, PhoneIcon, EnvelopeIcon, ArrowTrendingUpIcon,
   ClockIcon, CheckCircleIcon, ArrowRightOnRectangleIcon,
-  CubeIcon, BuildingStorefrontIcon, DocumentTextIcon
+  CubeIcon, BuildingStorefrontIcon, DocumentTextIcon,
+  BellIcon, XMarkIcon, SunIcon, MoonIcon
 } from '@heroicons/react/24/outline'
 
-// FIXED API BASE — CLEAN & FINAL
+// FIXED API BASE
 const API_BASE = import.meta.env.VITE_API_URL
-  .replace(/\/+$/, '')
-  .replace(/\/api\/api/, '/api')
-  .replace(/\/\/auth/, '/auth')
+  ? import.meta.env.VITE_API_URL
+      .replace(/\/+$/, '')
+      .replace(/\/api\/api/, '/api')
+      .replace(/\/\/auth/, '/auth')
+  : 'http://localhost:10000/api';
 
 // Enhanced Toast Notification Component
 const EnhancedToast = ({ toast, onClose }) => {
@@ -90,48 +93,6 @@ const EnhancedToast = ({ toast, onClose }) => {
     </div>
   );
 };
-
-
-// Test function to check locked quotes
-const testLockedQuotes = async () => {
-  try {
-    // Test 1: Get all manager quotes
-    const allResponse = await fetch('/api/quotes/manager/quotes');
-    const allData = await allResponse.json();
-    console.log('All manager quotes:', allData.data?.length || 0);
-    
-    // Test 2: Get locked quotes only
-    const lockedResponse = await fetch('/api/quotes/manager/locked');
-    const lockedData = await lockedResponse.json();
-    console.log('Locked quotes only:', lockedData.data?.length || 0);
-    
-    // Test 3: Get available quotes for locking
-    const availableResponse = await fetch('/api/quotes/manager/available');
-    const availableData = await availableResponse.json();
-    console.log('Available quotes for locking:', availableData.data?.length || 0);
-    
-    // Log details of locked quotes
-    if (lockedData.success && lockedData.data.length > 0) {
-      console.log('Locked quotes details:');
-      lockedData.data.forEach(quote => {
-        console.log(`- Quote ${quote.id}: ${quote.client?.name}, Status: ${quote.status}, Locked until: ${new Date(quote.lockExpiresAt).toLocaleString()}`);
-      });
-    } else {
-      console.log('No locked quotes found');
-    }
-    
-    return {
-      all: allData.data?.length || 0,
-      locked: lockedData.data?.length || 0,
-      available: availableData.data?.length || 0
-    };
-  } catch (error) {
-    console.error('Test error:', error);
-  }
-};
-
-// Call this function to test
-testLockedQuotes();
 
 // Password Reset Modal Component
 const PasswordResetModal = ({ isOpen, onClose, userId, userName, userEmail, onReset }) => {
@@ -366,13 +327,200 @@ const ConfirmModal = ({ confirmModal, setConfirmModal }) => {
   );
 };
 
+// Admin Quotes Panel Component
+function AdminQuotesPanel() {
+  const [quotes, setQuotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({
+    status: '',
+    search: '',
+    startDate: '',
+    endDate: ''
+  });
+  const token = localStorage.getItem('token');
 
-// MAIN GOD COMPONENT
+  useEffect(() => {
+    fetchQuotes();
+  }, [filters]);
+
+  const fetchQuotes = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (filters.status) params.append('status', filters.status);
+      if (filters.search) params.append('search', filters.search);
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+
+      const res = await axios.get(`${API_BASE}/admin/quotes?${params}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setQuotes(res.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch quotes:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteQuote = async (quoteId) => {
+    if (window.confirm('Are you sure you want to delete this quote? This action cannot be undone.')) {
+      try {
+        await axios.delete(`${API_BASE}/admin/quotes/${quoteId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        setQuotes(prev => prev.filter(q => q.id !== quoteId));
+        
+        alert('Quote deleted successfully');
+      } catch (err) {
+        console.error('Delete error:', err);
+        alert(err.response?.data?.message || 'Failed to delete quote');
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-blue-900">Quote Management</h2>
+        <button onClick={fetchQuotes} className="px-4 py-2 bg-blue-600 text-white rounded-lg">
+          Refresh
+        </button>
+      </div>
+
+      <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <select
+            value={filters.status}
+            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+            className="px-4 py-2 border rounded-lg"
+          >
+            <option value="">All Statuses</option>
+            <option value="PENDING_ITEMS">Pending Items</option>
+            <option value="PENDING_PRICING">Pending Pricing</option>
+            <option value="IN_PRICING">In Pricing</option>
+            <option value="AWAITING_CLIENT_APPROVAL">Awaiting Approval</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="CONVERTED_TO_ORDER">Converted to Order</option>
+          </select>
+          
+          <input
+            type="text"
+            placeholder="Search by client or ID..."
+            value={filters.search}
+            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+            className="px-4 py-2 border rounded-lg"
+          />
+          
+          <input
+            type="date"
+            value={filters.startDate}
+            onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+            className="px-4 py-2 border rounded-lg"
+            placeholder="Start Date"
+          />
+          
+          <input
+            type="date"
+            value={filters.endDate}
+            onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+            className="px-4 py-2 border rounded-lg"
+            placeholder="End Date"
+          />
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="text-center py-8">Loading quotes...</div>
+        ) : quotes.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">No quotes found</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quote ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {quotes.map(quote => (
+                  <tr key={quote.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <span className="font-medium text-blue-900">#{quote.id?.slice(-8)}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="font-medium">{quote.client?.name || 'Unknown'}</p>
+                        <p className="text-sm text-gray-500">{quote.client?.email || ''}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        quote.status === 'PENDING_PRICING' ? 'bg-yellow-100 text-yellow-800' :
+                        quote.status === 'IN_PRICING' ? 'bg-blue-100 text-blue-800' :
+                        quote.status === 'AWAITING_CLIENT_APPROVAL' ? 'bg-purple-100 text-purple-800' :
+                        quote.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                        quote.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {quote.status?.replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {quote.totalAmount ? (
+                        <span className="font-bold">RWF {quote.totalAmount.toLocaleString()}</span>
+                      ) : (
+                        <span className="text-gray-500">Not priced</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {new Date(quote.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => window.open(`${window.location.origin}/quotes/${quote.id}`, '_blank')}
+                          className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                          title="View Quote"
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={() => handleDeleteQuote(quote.id)}
+                          className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                          title="Delete Quote"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// MAIN APP COMPONENT
 function App() {
   const [confirmModal, setConfirmModal] = useState(null);
   const [toast, setToast] = useState(null);
   const [passwordResetModal, setPasswordResetModal] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token') || '');
+  const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
 
   // Add CSS for animations
   useEffect(() => {
@@ -405,14 +553,47 @@ function App() {
       .animate-progress {
         animation: progress 5s linear forwards;
       }
+      
+      .dark {
+        background-color: #111827;
+        color: #f3f4f6;
+      }
+      
+      .dark .bg-white {
+        background-color: #1f2937;
+      }
+      
+      .dark .bg-gray-50 {
+        background-color: #111827;
+      }
+      
+      .dark .text-gray-900 {
+        color: #f3f4f6;
+      }
+      
+      .dark .text-gray-600 {
+        color: #d1d5db;
+      }
+      
+      .dark .border-gray-200 {
+        border-color: #374151;
+      }
     `;
     document.head.appendChild(styleSheet);
+    
+    // Apply dark mode
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    
     return () => {
       document.head.removeChild(styleSheet);
     };
-  }, []);
+  }, [darkMode]);
 
-  // DELETE USER — SILENT AND MERCILESS
+  // DELETE USER
   const deleteUser = async (userId, userName, type) => {
     setConfirmModal({
       title: `Delete ${type === 'manager' ? 'Manager' : 'Driver'}`,
@@ -438,7 +619,7 @@ function App() {
     });
   };
 
-  // RESET PASSWORD — Enhanced with new modal
+  // RESET PASSWORD
   const resetUserPassword = async (userId, userName, userEmail) => {
     setPasswordResetModal({
       userId,
@@ -481,7 +662,9 @@ function App() {
               <ProtectedDashboard 
                 deleteUser={deleteUser} 
                 resetUserPassword={resetUserPassword} 
-                token={token} 
+                token={token}
+                darkMode={darkMode}
+                setDarkMode={setDarkMode}
               />
             } 
           />
@@ -489,7 +672,6 @@ function App() {
         </Routes>
       </BrowserRouter>
 
-      {/* Modals and Toasts */}
       <ConfirmModal confirmModal={confirmModal} setConfirmModal={setConfirmModal} />
       
       {passwordResetModal && (
@@ -503,11 +685,7 @@ function App() {
         />
       )}
 
-      {/* Enhanced Toast */}
-      <EnhancedToast 
-        toast={toast} 
-        onClose={() => setToast(null)} 
-      />
+      <EnhancedToast toast={toast} onClose={() => setToast(null)} />
     </>
   );
 }
@@ -529,7 +707,7 @@ function Login() {
       const user = res.data.data?.user || res.data.user
       const token = res.data.data?.token || res.data.token
 
-      if (res.data.success && ['ADMIN', 'MANAGER'].includes(user.role)) {
+      if (res.data.success && ['ADMIN', 'MANAGER', 'DELIVERY_AGENT'].includes(user.role)) {
         localStorage.setItem('token', token)
         localStorage.setItem('user', JSON.stringify(user))
         navigate('/dashboard')
@@ -608,24 +786,44 @@ function Login() {
   )
 }
 
-function DashboardLayout({ children }) {
+function DashboardLayout({ children, darkMode, setDarkMode }) {
   const navigate = useNavigate()
   const location = useLocation()
   const user = JSON.parse(localStorage.getItem('user') || 'null')
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [notifications, setNotifications] = useState([])
+  const token = localStorage.getItem('token')
+
+  useEffect(() => {
+    fetchNotifications()
+  }, [])
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/notifications`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setNotifications(res.data.data || [])
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err)
+    }
+  }
 
   const menuItems = user?.role === 'ADMIN' ? [
-  { name: 'Overview', path: '/dashboard/overview', icon: ChartBarIcon },
-  { name: 'Products', path: '/dashboard/products', icon: CubeIcon },
-  { name: 'Managers', path: '/dashboard/managers', icon: UsersIcon },
-  { name: 'Drivers', path: '/dashboard/drivers', icon: TruckIcon },
-  { name: 'Quotes', path: '/dashboard/quotes', icon: DocumentTextIcon },
-  { name: 'Orders', path: '/dashboard/orders', icon: ClipboardDocumentListIcon },
-  { name: 'Settings', path: '/dashboard/settings', icon: Cog6ToothIcon }
-] : [
-  { name: 'Pricing Dashboard', path: '/dashboard/manager', icon: CurrencyDollarIcon },
-  { name: 'My Orders', path: '/dashboard/my-orders', icon: CheckCircleIcon }
-];
+    { name: 'Overview', path: '/dashboard/overview', icon: ChartBarIcon },
+    { name: 'Products', path: '/dashboard/products', icon: CubeIcon },
+    { name: 'Managers', path: '/dashboard/managers', icon: UsersIcon },
+    { name: 'Drivers', path: '/dashboard/drivers', icon: TruckIcon },
+    { name: 'Quotes', path: '/dashboard/quotes', icon: DocumentTextIcon },
+    { name: 'Orders', path: '/dashboard/orders', icon: ClipboardDocumentListIcon },
+    { name: 'Settings', path: '/dashboard/settings', icon: Cog6ToothIcon }
+  ] : user?.role === 'MANAGER' ? [
+    { name: 'Pricing Dashboard', path: '/dashboard/manager', icon: CurrencyDollarIcon },
+    { name: 'My Orders', path: '/dashboard/my-orders', icon: CheckCircleIcon }
+  ] : user?.role === 'DELIVERY_AGENT' ? [
+    { name: 'My Deliveries', path: '/dashboard/driver', icon: TruckIcon },
+    { name: 'Delivery History', path: '/dashboard/delivery-history', icon: ClipboardDocumentListIcon }
+  ] : [];
 
   const logout = () => {
     localStorage.clear()
@@ -633,7 +831,7 @@ function DashboardLayout({ children }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex">
+    <div className={`min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex ${darkMode ? 'dark' : ''}`}>
       <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white shadow-lg transition-all duration-300 flex flex-col`}>
         <div className="p-6 border-b border-blue-100">
           <div className="flex items-center gap-3">
@@ -680,6 +878,22 @@ function DashboardLayout({ children }) {
         <div className="bg-white shadow-sm border-b px-8 py-4 flex items-center justify-between">
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-2xl">Menu</button>
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="p-2 rounded-lg hover:bg-gray-100"
+            >
+              {darkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
+            </button>
+            <div className="relative">
+              <button className="p-2 rounded-lg hover:bg-gray-100 relative">
+                <BellIcon className="w-5 h-5" />
+                {notifications.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    {notifications.length}
+                  </span>
+                )}
+              </button>
+            </div>
             <span className="text-sm font-medium text-gray-700">
               {user?.name || 'Staff'} • <span className="text-blue-900 font-bold">{user?.role}</span>
             </span>
@@ -944,242 +1158,101 @@ function ProductsPanel() {
   )
 }
 
-// Enhanced Admin Dashboard with Updated Cards
-function AdminDashboard({ deleteUser, resetUserPassword }) {
+// Enhanced Admin Dashboard with Analytics
+function AdminDashboard({ deleteUser, resetUserPassword, darkMode, setDarkMode }) {
   const [activeTab, setActiveTab] = useState('overview')
   const [managers, setManagers] = useState([])
   const [drivers, setDrivers] = useState([])
   const [orders, setOrders] = useState([])
-  const [stats, setStats] = useState({ totalRevenue: 0, totalOrders: 0, activeManagers: 0, activeDrivers: 0 })
+  const [stats, setStats] = useState({ 
+    totalRevenue: 0, 
+    totalOrders: 0, 
+    activeManagers: 0, 
+    activeDrivers: 0,
+    pendingQuotes: 0,
+    completedDeliveries: 0 
+  })
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [showAddManager, setShowAddManager] = useState(false)
   const [showAddDriver, setShowAddDriver] = useState(false)
   const [newManager, setNewManager] = useState({ name: '', email: '', phone: '', password: '' })
   const [newDriver, setNewDriver] = useState({ name: '', email: '', phone: '', password: '', vehicle: '' })
-  // Add this to your AdminDashboard or create a new component
-  const [quotes, setQuotes] = useState([]);
-  const [filters, setFilters] = useState({
-    status: '',
-    search: '',
-    startDate: '',
-    endDate: ''
-  });
-  const token = localStorage.getItem('token');
+  const [topProducts, setTopProducts] = useState([])
 
-  useEffect(() => {
-    fetchQuotes();
-  }, [filters]);
-
-  const fetchQuotes = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (filters.status) params.append('status', filters.status);
-      if (filters.search) params.append('search', filters.search);
-      if (filters.startDate) params.append('startDate', filters.startDate);
-      if (filters.endDate) params.append('endDate', filters.endDate);
-
-      const res = await axios.get(`${API_BASE}/admin/quotes?${params}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      setQuotes(res.data.data || []);
-    } catch (err) {
-      console.error('Failed to fetch quotes:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteQuote = async (quoteId) => {
-    if (window.confirm('Are you sure you want to delete this quote? This action cannot be undone.')) {
-      try {
-        await axios.delete(`${API_BASE}/admin/quotes/${quoteId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        // Remove from state
-        setQuotes(prev => prev.filter(q => q.id !== quoteId));
-        
-        // Show success message
-        alert('Quote deleted successfully');
-      } catch (err) {
-        console.error('Delete error:', err);
-        alert(err.response?.data?.message || 'Failed to delete quote');
-      }
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-blue-900">Quote Management</h2>
-        <button onClick={fetchQuotes} className="px-4 py-2 bg-blue-600 text-white rounded-lg">
-          Refresh
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-            className="px-4 py-2 border rounded-lg"
-          >
-            <option value="">All Statuses</option>
-            <option value="PENDING_ITEMS">Pending Items</option>
-            <option value="PENDING_PRICING">Pending Pricing</option>
-            <option value="IN_PRICING">In Pricing</option>
-            <option value="AWAITING_CLIENT_APPROVAL">Awaiting Approval</option>
-            <option value="APPROVED">Approved</option>
-            <option value="REJECTED">Rejected</option>
-            <option value="CONVERTED_TO_ORDER">Converted to Order</option>
-          </select>
-          
-          <input
-            type="text"
-            placeholder="Search by client or ID..."
-            value={filters.search}
-            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-            className="px-4 py-2 border rounded-lg"
-          />
-          
-          <input
-            type="date"
-            value={filters.startDate}
-            onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-            className="px-4 py-2 border rounded-lg"
-            placeholder="Start Date"
-          />
-          
-          <input
-            type="date"
-            value={filters.endDate}
-            onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-            className="px-4 py-2 border rounded-lg"
-            placeholder="End Date"
-          />
-        </div>
-      </div>
-
-      {/* Quotes Table */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="text-center py-8">Loading quotes...</div>
-        ) : quotes.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">No quotes found</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quote ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {quotes.map(quote => (
-                  <tr key={quote.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <span className="font-medium text-blue-900">#{quote.id?.slice(-8)}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="font-medium">{quote.client?.name || 'Unknown'}</p>
-                        <p className="text-sm text-gray-500">{quote.client?.email || ''}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        quote.status === 'PENDING_PRICING' ? 'bg-yellow-100 text-yellow-800' :
-                        quote.status === 'IN_PRICING' ? 'bg-blue-100 text-blue-800' :
-                        quote.status === 'AWAITING_CLIENT_APPROVAL' ? 'bg-purple-100 text-purple-800' :
-                        quote.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                        quote.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {quote.status?.replace(/_/g, ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {quote.totalAmount ? (
-                        <span className="font-bold">RWF {quote.totalAmount.toLocaleString()}</span>
-                      ) : (
-                        <span className="text-gray-500">Not priced</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
-                      {new Date(quote.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => window.open(`${window.location.origin}/quotes/${quote.id}`, '_blank')}
-                          className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                          title="View Quote"
-                        >
-                          View
-                        </button>
-                        <button
-                          onClick={() => handleDeleteQuote(quote.id)}
-                          className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
-                          title="Delete Quote"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
   const token = localStorage.getItem('token')
 
   useEffect(() => {
-    const fetchAllData = async () => {
-      if (!token) return
-      try {
-        const headers = { Authorization: `Bearer ${token}` }
-
-        const [manRes, driRes, ordRes] = await Promise.all([
-          axios.get(`${API_BASE}/admin/managers`, { headers }),
-          axios.get(`${API_BASE}/admin/drivers`, { headers }),
-          axios.get(`${API_BASE}/admin/orders`, { headers })
-        ])
-
-        setManagers(manRes.data.data || [])
-        setDrivers(driRes.data.data || [])
-        setOrders(ordRes.data.data || [])
-
-        const revenue = ordRes.data.data?.reduce((sum, o) => sum + (o.total || 0), 0) || 0
-        setStats({
-          totalRevenue: revenue,
-          totalOrders: ordRes.data.data?.length || 0,
-          activeManagers: manRes.data.data?.filter(m => m.isActive).length || 0,
-          activeDrivers: driRes.data.data?.filter(d => d.isActive).length || 0
-        })
-      } catch (err) {
-        console.error('Failed to load data', err)
-        if (err.response?.status === 401) localStorage.clear()
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchAllData()
   }, [token])
+
+  const fetchAllData = async () => {
+    if (!token) return
+    try {
+      const headers = { Authorization: `Bearer ${token}` }
+
+      const [manRes, driRes, ordRes, quotesRes, productsRes] = await Promise.all([
+        axios.get(`${API_BASE}/admin/managers`, { headers }),
+        axios.get(`${API_BASE}/admin/drivers`, { headers }),
+        axios.get(`${API_BASE}/admin/orders`, { headers }),
+        axios.get(`${API_BASE}/admin/quotes`, { headers }),
+        axios.get(`${API_BASE}/products`, { headers })
+      ])
+
+      setManagers(manRes.data.data || [])
+      setDrivers(driRes.data.data || [])
+      setOrders(ordRes.data.data || [])
+
+      const quotes = quotesRes.data.data || []
+      const products = productsRes.data.data || []
+
+      // Calculate top products
+      const productSales = {}
+      orders.forEach(order => {
+        order.items?.forEach(item => {
+          if (item.productId) {
+            if (!productSales[item.productId]) {
+              productSales[item.productId] = { id: item.productId, name: 'Unknown', sales: 0 }
+            }
+            productSales[item.productId].sales += item.quantity
+          }
+        })
+      })
+
+      // Match with product names
+      Object.keys(productSales).forEach(productId => {
+        const product = products.find(p => p.id === productId)
+        if (product) {
+          productSales[productId].name = product.name
+        }
+      })
+
+      const topProductsList = Object.values(productSales)
+        .sort((a, b) => b.sales - a.sales)
+        .slice(0, 5)
+
+      setTopProducts(topProductsList)
+
+      const revenue = orders.reduce((sum, o) => sum + (o.total || 0), 0) || 0
+      const pendingQuotes = quotes.filter(q => 
+        q.status === 'PENDING_PRICING' || q.status === 'IN_PRICING'
+      ).length
+
+      setStats({
+        totalRevenue: revenue,
+        totalOrders: orders.length,
+        activeManagers: manRes.data.data?.filter(m => m.isActive).length || 0,
+        activeDrivers: driRes.data.data?.filter(d => d.isActive).length || 0,
+        pendingQuotes,
+        completedDeliveries: orders.filter(o => o.status === 'DELIVERED').length
+      })
+    } catch (err) {
+      console.error('Failed to load data', err)
+      if (err.response?.status === 401) localStorage.clear()
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const createManager = async () => {
     try {
@@ -1189,6 +1262,7 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
       setManagers(prev => [...prev, res.data.data.manager])
       setShowAddManager(false)
       setNewManager({ name: '', email: '', phone: '', password: '' })
+      fetchAllData()
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to create manager')
     }
@@ -1202,6 +1276,7 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
       setDrivers(prev => [...prev, res.data.data.driver])
       setShowAddDriver(false)
       setNewDriver({ name: '', email: '', phone: '', password: '', vehicle: '' })
+      fetchAllData()
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to create driver')
     }
@@ -1251,6 +1326,7 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
             { id: 'products', name: 'Products', icon: CubeIcon },
             { id: 'managers', name: 'Managers', icon: UsersIcon },
             { id: 'drivers', name: 'Drivers', icon: TruckIcon },
+            { id: 'quotes', name: 'Quotes', icon: DocumentTextIcon },
             { id: 'orders', name: 'Orders', icon: ClipboardDocumentListIcon },
             { id: 'settings', name: 'Settings', icon: Cog6ToothIcon }
           ].map((item) => (
@@ -1290,7 +1366,8 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
                activeTab === 'products' ? 'Product Catalog' :
                activeTab === 'managers' ? 'Operations Managers' :
                activeTab === 'drivers' ? 'Delivery Drivers' :
-               activeTab === 'orders' ? 'Order Management' : 'Settings'}
+               activeTab === 'orders' ? 'Order Management' :
+               activeTab === 'quotes' ? 'Quote Management' : 'Settings'}
             </h1>
           </div>
           <div className="relative">
@@ -1330,36 +1407,67 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
               ))}
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">Recent Orders</h3>
-              <div className="space-y-4">
-                {orders.slice(0, 5).map((order) => (
-                  <div key={order.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <ClipboardDocumentListIcon className="w-5 h-5 text-blue-600" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">Top Products</h3>
+                <div className="space-y-4">
+                  {topProducts.length > 0 ? (
+                    topProducts.map((product, index) => (
+                      <div key={product.id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-gray-500">#{index + 1}</span>
+                          <div>
+                            <p className="font-medium text-gray-900">{product.name}</p>
+                            <p className="text-sm text-gray-500">{product.sales} units sold</p>
+                          </div>
+                        </div>
+                        <div className="w-32 bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full" 
+                            style={{ width: `${(product.sales / Math.max(...topProducts.map(p => p.sales)) * 100)}%` }}
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">Order #{order.id?.slice(-8) || 'N/A'}</p>
-                        <p className="text-sm text-gray-500">{order.client?.name || 'Unknown Client'}</p>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-center">No sales data available</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">Recent Orders</h3>
+                <div className="space-y-4">
+                  {orders.slice(0, 5).map((order) => (
+                    <div key={order.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <ClipboardDocumentListIcon className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">Order #{order.id?.slice(-8) || 'N/A'}</p>
+                          <p className="text-sm text-gray-500">{order.client?.name || 'Unknown Client'}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-gray-900">RWF {order.total?.toLocaleString() || 0}</p>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          order.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
+                          order.status === 'PROCESSING' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {order.status || 'pending'}
+                        </span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-gray-900">RWF {order.total?.toLocaleString() || 0}</p>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        order.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
-                        order.status === 'PROCESSING' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>
-                        {order.status || 'pending'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         )}
+
+        {activeTab === 'quotes' && <AdminQuotesPanel />}
 
         {activeTab === 'managers' && (
           <div className="space-y-6">
@@ -1502,6 +1610,32 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
           </div>
         )}
 
+        {activeTab === 'settings' && (
+          <div className="bg-white rounded-2xl shadow-sm p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">System Settings</h2>
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Appearance</h3>
+                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl">
+                  <div>
+                    <p className="font-medium">Dark Mode</p>
+                    <p className="text-sm text-gray-500">Toggle dark/light theme</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setDarkMode(!darkMode)
+                      localStorage.setItem('darkMode', !darkMode)
+                    }}
+                    className={`w-12 h-6 flex items-center rounded-full p-1 ${darkMode ? 'bg-blue-600' : 'bg-gray-300'}`}
+                  >
+                    <div className={`bg-white w-4 h-4 rounded-full transform transition ${darkMode ? 'translate-x-6' : ''}`} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showAddManager && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl p-6 w-full max-w-md">
@@ -1541,8 +1675,9 @@ function AdminDashboard({ deleteUser, resetUserPassword }) {
       </div>
     </div>
   )
+}
 
-// Enhanced Manager Dashboard - FIXED VERSION
+// Enhanced Manager Dashboard
 function ManagerDashboard() {
   const [activeTab, setActiveTab] = useState('all');
   const [quotes, setQuotes] = useState([]);
@@ -1562,37 +1697,18 @@ function ManagerDashboard() {
   const [toast, setToast] = useState(null);
   const [showLockModal, setShowLockModal] = useState(false);
   const [quoteToLock, setQuoteToLock] = useState(null);
-  const [newQuotesCount, setNewQuotesCount] = useState(0);
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-// Add to useEffect
-useEffect(() => {
-  const ws = new WebSocket(`${API_BASE.replace('http', 'ws')}/ws/quotes`);
-  
-  ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.type === 'NEW_QUOTE') {
-      setToast({
-        type: 'info',
-        title: 'New Quote!',
-        message: `New quote from ${data.clientName} available for pricing.`
-      });
-      fetchManagerData();
-    }
-  };
-  
-  return () => ws.close();
-}, []);
+  useEffect(() => {
+    fetchManagerData();
+  }, []);
 
   const fetchManagerData = async () => {
     try {
       setLoading(true);
       const headers = { Authorization: `Bearer ${token}` };
       
-      console.log('📡 Fetching manager data...');
-      
-      // Fetch all manager endpoints
       const [quotesRes, availableRes, lockedRes, approvalRes] = await Promise.all([
         axios.get(`${API_BASE}/quotes/manager/quotes`, { headers }),
         axios.get(`${API_BASE}/quotes/manager/available`, { headers }),
@@ -1605,32 +1721,10 @@ useEffect(() => {
       const locked = lockedRes.data.data || [];
       const awaitingApproval = approvalRes.data.data || [];
       
-      console.log(`📊 Stats: ${available.length} available, ${locked.length} locked, ${awaitingApproval.length} awaiting approval`);
-      
       setQuotes(allQuotes);
       setAvailableQuotes(available);
       setLockedQuotes(locked);
       
-      // Calculate new quotes count
-      const lastCheck = localStorage.getItem('lastQuoteCheck') || new Date().toISOString();
-      const newQuotes = allQuotes.filter(q => 
-        new Date(q.createdAt) > new Date(lastCheck)
-      );
-      
-      if (newQuotes.length > 0 && newQuotesCount === 0) {
-        setNewQuotesCount(newQuotes.length);
-        // Show notification
-        setToast({
-          type: 'info',
-          title: 'New Quotes Available',
-          message: `${newQuotes.length} new quote${newQuotes.length > 1 ? 's' : ''} ready for pricing!`
-        });
-      }
-      
-      // Update last check time
-      localStorage.setItem('lastQuoteCheck', new Date().toISOString());
-      
-      // Calculate stats
       setStats({
         pending: available.length,
         active: locked.length,
@@ -1640,59 +1734,15 @@ useEffect(() => {
       
     } catch (err) {
       console.error('Failed to fetch manager data:', err);
-      
-      // Try fallback endpoint
-      try {
-        console.log('Trying fallback endpoint...');
-        const fallbackRes = await axios.get(`${API_BASE}/quotes/manager/pending`, { headers });
-        const fallbackData = fallbackRes.data.data || [];
-        
-        // Filter quotes
-        const available = fallbackData.filter(q => 
-          q.status === 'PENDING_PRICING' && 
-          (!q.lockedById || new Date(q.lockExpiresAt) < new Date())
-        );
-        
-        const locked = fallbackData.filter(q => 
-          q.status === 'IN_PRICING' && 
-          q.lockedById === user?.id &&
-          new Date(q.lockExpiresAt) > new Date()
-        );
-        
-        setQuotes(fallbackData);
-        setAvailableQuotes(available);
-        setLockedQuotes(locked);
-        
-        setStats({
-          pending: available.length,
-          active: locked.length,
-          completed: 0,
-          totalRevenue: fallbackData.reduce((sum, q) => sum + (q.totalAmount || 0), 0)
-        });
-        
-      } catch (fallbackErr) {
-        console.error('Fallback also failed:', fallbackErr);
-        setToast({
-          type: 'error',
-          title: 'Connection Error',
-          message: 'Unable to load quotes. Please check your connection.'
-        });
-      }
+      setToast({
+        type: 'error',
+        title: 'Connection Error',
+        message: 'Unable to load quotes. Please check your connection.'
+      });
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchManagerData();
-    
-    // Enable polling for new quotes every 30 seconds
-    //const interval = setInterval(() => {
-    //  fetchManagerData();
-  //  }, 30000);
-    
-   // return () => clearInterval(interval);
-  }, []);
 
   const handleLockQuote = async (quote) => {
     setQuoteToLock(quote);
@@ -1703,8 +1753,6 @@ useEffect(() => {
     if (!quoteToLock) return;
     
     try {
-      console.log(`🔒 Locking quote: ${quoteToLock.id}`);
-      
       const response = await axios.post(`${API_BASE}/quotes/manager/lock`, {
         quoteId: quoteToLock.id
       }, {
@@ -1720,13 +1768,12 @@ useEffect(() => {
       setShowLockModal(false);
       setQuoteToLock(null);
       
-      // Refresh data
       setTimeout(() => {
-       fetchManagerData();
+        fetchManagerData();
       }, 1000);
       
     } catch (error) {
-      console.error('Lock error:', error.response?.data || error);
+      console.error('Lock error:', error);
       
       const errorMessage = error.response?.data?.message || 
         error.response?.status === 409 ? 'This quote is already locked by another manager.' :
@@ -1747,7 +1794,6 @@ useEffect(() => {
     setSelectedQuote(quote);
     setShowPricingModal(true);
     
-    // Initialize pricing with current values
     const initialPricing = {};
     if (quote.items && Array.isArray(quote.items)) {
       quote.items.forEach(item => {
@@ -1765,7 +1811,6 @@ useEffect(() => {
     if (!selectedQuote) return;
 
     try {
-      // Validate items exist
       if (!selectedQuote.items || !Array.isArray(selectedQuote.items)) {
         setToast({
           type: 'error',
@@ -1775,7 +1820,6 @@ useEffect(() => {
         return;
       }
 
-      // Prepare items array
       const items = selectedQuote.items.map(item => {
         const productId = item.product?.id || item.productId;
         return {
@@ -1785,7 +1829,6 @@ useEffect(() => {
         };
       });
 
-      // Validate all prices are set
       const missingPrices = items.filter(i => i.unitPrice <= 0);
       if (missingPrices.length > 0) {
         setToast({
@@ -1796,9 +1839,6 @@ useEffect(() => {
         return;
       }
 
-      console.log(`💰 Submitting pricing for quote: ${selectedQuote.id}`);
-      
-      // Submit pricing
       const response = await axios.put(
         `${API_BASE}/quotes/manager/${selectedQuote.id}/update-pricing`,
         {
@@ -1816,19 +1856,17 @@ useEffect(() => {
         message: `Quote #${selectedQuote.id?.slice(-6)} has been sent to client for approval.`
       });
 
-      // Close modal and reset
       setShowPricingModal(false);
       setSelectedQuote(null);
       setPricing({});
       setSourcingNotes('');
       
-      // Refresh data
       setTimeout(() => {
         fetchManagerData();
       }, 1000);
       
     } catch (err) {
-      console.error('Pricing error:', err.response?.data || err);
+      console.error('Pricing error:', err);
       
       const errorMessage = err.response?.data?.message || 
         err.response?.status === 403 ? 'Your lock on this quote has expired.' :
@@ -1841,135 +1879,111 @@ useEffect(() => {
       });
     }
   };
-// In your frontend ManagerDashboard component
-const handleDeleteQuote = async (quote) => {
-  if (!quote || !quote.id) {
-    setToast({
-      type: 'error',
-      title: 'Error',
-      message: 'Invalid quote data'
-    });
-    return;
-  }
-  
-  const confirmDelete = window.confirm(
-    `Are you sure you want to delete quote #${quote.id?.slice(-8)}?\n\n` +
-    `Client: ${quote.client?.name || 'Unknown'}\n` +
-    `Items: ${quote.items?.length || 0}\n` +
-    `Status: ${quote.status}\n` +
-    `This action cannot be undone.`
-  );
-  
-  if (!confirmDelete) return;
-  
-  try {
-    console.log(`🗑️ Attempting to delete quote: ${quote.id}`);
+
+  const handleDeleteQuote = async (quote) => {
+    if (!quote || !quote.id) {
+      setToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Invalid quote data'
+      });
+      return;
+    }
     
-    const response = await axios.delete(
-      `${API_BASE}/quotes/manager/${quote.id}/delete`,
-      { 
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        } 
-      }
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete quote #${quote.id?.slice(-8)}?\n\n` +
+      `Client: ${quote.client?.name || 'Unknown'}\n` +
+      `Items: ${quote.items?.length || 0}\n` +
+      `Status: ${quote.status}\n` +
+      `This action cannot be undone.`
     );
     
-    if (response.data.success) {
-      // Update UI immediately
-      setQuotes(prev => prev.filter(q => q.id !== quote.id));
-      setAvailableQuotes(prev => prev.filter(q => q.id !== quote.id));
-      setLockedQuotes(prev => prev.filter(q => q.id !== quote.id));
+    if (!confirmDelete) return;
+    
+    try {
+      const response = await axios.delete(
+        `${API_BASE}/quotes/manager/${quote.id}/delete`,
+        { 
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          } 
+        }
+      );
       
-      // Show success message
-      setToast({
-        type: 'success',
-        title: 'Success!',
-        message: `Quote #${quote.id?.slice(-8)} has been deleted.`
-      });
-      
-      console.log(`✅ Quote ${quote.id} deleted successfully`);
-    }
-    
-  } catch (err) {
-    console.error('❌ Frontend delete error:', err);
-    
-    let errorMessage = 'Failed to delete quote. Please try again.';
-    
-    if (err.response) {
-      switch (err.response.status) {
-        case 400:
-          errorMessage = 'Invalid request. Please check the quote ID.';
-          break;
-        case 401:
-          errorMessage = 'Your session has expired. Please log in again.';
-          // Optionally redirect to login
-          break;
-        case 403:
-          errorMessage = 'You do not have permission to delete this quote.';
-          break;
-        case 404:
-          errorMessage = 'Quote not found. It may have been already deleted.';
-          // Refresh the list
-          fetchManagerData();
-          break;
-        case 409:
-          errorMessage = 'This quote cannot be deleted right now. Please try again later.';
-          break;
-        case 500:
-          errorMessage = 'Server error. Please try again later.';
-          break;
+      if (response.data.success) {
+        setQuotes(prev => prev.filter(q => q.id !== quote.id));
+        setAvailableQuotes(prev => prev.filter(q => q.id !== quote.id));
+        setLockedQuotes(prev => prev.filter(q => q.id !== quote.id));
+        
+        setToast({
+          type: 'success',
+          title: 'Success!',
+          message: `Quote #${quote.id?.slice(-8)} has been deleted.`
+        });
       }
+      
+    } catch (err) {
+      console.error('Delete error:', err);
+      
+      let errorMessage = 'Failed to delete quote. Please try again.';
+      
+      if (err.response) {
+        switch (err.response.status) {
+          case 400:
+            errorMessage = 'Invalid request. Please check the quote ID.';
+            break;
+          case 401:
+            errorMessage = 'Your session has expired. Please log in again.';
+            break;
+          case 403:
+            errorMessage = 'You do not have permission to delete this quote.';
+            break;
+          case 404:
+            errorMessage = 'Quote not found. It may have been already deleted.';
+            fetchManagerData();
+            break;
+          case 409:
+            errorMessage = 'This quote cannot be deleted right now. Please try again later.';
+            break;
+          case 500:
+            errorMessage = 'Server error. Please try again later.';
+            break;
+        }
+      }
+      
+      setToast({
+        type: 'error',
+        title: 'Delete Failed',
+        message: errorMessage
+      });
     }
+  };
+
+  const canDeleteQuote = (quote) => {
+    if (!quote || !user.id) return false;
     
-    setToast({
-      type: 'error',
-      title: 'Delete Failed',
-      message: errorMessage
-    });
-  }
-};
-
-// FIXED: Enhanced canDeleteQuote function
-const canDeleteQuote = (quote) => {
-  if (!quote || !user.id) return false;
-  
-  const isLockExpired = quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date();
-  
-  // Allow deletion if:
-  // 1. Manager has locked the quote (IN_PRICING status)
-  // 2. Quote is available (PENDING_PRICING with no lock or expired lock)
-  // 3. Manager assigned to the quote
-  const canDelete = 
-    (quote.lockedById === user.id && quote.status === 'IN_PRICING') ||
-    (quote.status === 'PENDING_PRICING' && (!quote.lockedById || isLockExpired)) ||
-    (quote.managerId === user.id);
-  
-  console.log(`🔍 Delete check for quote ${quote.id}:`, {
-    canDelete,
-    status: quote.status,
-    lockedById: quote.lockedById,
-    managerId: user.id,
-    isLockExpired
-  });
-  
-  return canDelete;
-};
-
+    const isLockExpired = quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date();
+    
+    const canDelete = 
+      (quote.lockedById === user.id && quote.status === 'IN_PRICING') ||
+      (quote.status === 'PENDING_PRICING' && (!quote.lockedById || isLockExpired)) ||
+      (quote.managerId === user.id);
+    
+    return canDelete;
+  };
 
   const getQuoteStatus = (quote) => {
     if (quote.status === 'IN_PRICING') {
       if (quote.lockedById === user.id) {
         return { 
           text: 'You are pricing this',
-          color: 'bg-yellow-100 text-yellow-800',
-          icon: '🔒'
+          color: 'bg-yellow-100 text-yellow-800'
         };
       } else {
         return { 
           text: 'Being priced by another',
-          color: 'bg-red-100 text-red-800',
-          icon: '⏳'
+          color: 'bg-red-100 text-red-800'
         };
       }
     }
@@ -1979,43 +1993,37 @@ const canDeleteQuote = (quote) => {
         if (quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date()) {
           return { 
             text: 'Lock expired',
-            color: 'bg-green-100 text-green-800',
-            icon: '🔄'
+            color: 'bg-green-100 text-green-800'
           };
         }
         return { 
           text: 'Locked by another',
-          color: 'bg-gray-100 text-gray-800',
-          icon: '🔐'
+          color: 'bg-gray-100 text-gray-800'
         };
       }
       return { 
         text: 'Available',
-        color: 'bg-blue-100 text-blue-800',
-        icon: '📋'
+        color: 'bg-blue-100 text-blue-800'
       };
     }
     
     if (quote.status === 'AWAITING_CLIENT_APPROVAL') {
       return { 
         text: 'Waiting client approval',
-        color: 'bg-purple-100 text-purple-800',
-        icon: '⏰'
+        color: 'bg-purple-100 text-purple-800'
       };
     }
     
     if (quote.status === 'APPROVED') {
       return { 
         text: 'Approved',
-        color: 'bg-green-100 text-green-800',
-        icon: '✅'
+        color: 'bg-green-100 text-green-800'
       };
     }
     
     return { 
       text: quote.status?.replace(/_/g, ' ') || 'Unknown',
-      color: 'bg-gray-100 text-gray-800',
-      icon: '❓'
+      color: 'bg-gray-100 text-gray-800'
     };
   };
 
@@ -2034,7 +2042,6 @@ const canDeleteQuote = (quote) => {
     );
   };
 
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
@@ -2048,7 +2055,6 @@ const canDeleteQuote = (quote) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-      {/* Lock Confirmation Modal */}
       {showLockModal && quoteToLock && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl">
@@ -2064,17 +2070,13 @@ const canDeleteQuote = (quote) => {
                   onClick={() => setShowLockModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg"
                 >
-                  <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <XMarkIcon className="w-6 h-6 text-gray-500" />
                 </button>
               </div>
               
               <div className="mb-6">
                 <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-xl mb-4">
-                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
+                  <LockClosedIcon className="w-8 h-8 text-blue-600" />
                   <div>
                     <h4 className="font-semibold text-blue-900">Lock Duration: 30 minutes</h4>
                     <p className="text-sm text-blue-700">You'll have exclusive access to price this quote</p>
@@ -2116,7 +2118,6 @@ const canDeleteQuote = (quote) => {
         </div>
       )}
 
-      {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
@@ -2151,7 +2152,6 @@ const canDeleteQuote = (quote) => {
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="max-w-7xl mx-auto px-8 py-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
@@ -2205,7 +2205,6 @@ const canDeleteQuote = (quote) => {
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="flex space-x-1 bg-white p-1 rounded-xl border border-gray-200 mb-6">
           <button
             onClick={() => setActiveTab('all')}
@@ -2239,7 +2238,6 @@ const canDeleteQuote = (quote) => {
           </button>
         </div>
 
-        {/* Quotes List */}
         <div className="space-y-6">
           {(() => {
             let filteredQuotes = quotes;
@@ -2257,57 +2255,65 @@ const canDeleteQuote = (quote) => {
                 );
                 const status = getQuoteStatus(quote);
       
-      return (
-        <div key={quote.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              {/* ... quote header ... */}
-            </div>
-           <div className="flex items-center gap-2">
-  {/* DELETE BUTTON - FIXED POSITION */}
-  {canDeleteQuote(quote) && (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        handleDeleteQuote(quote);
-      }}
-      className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium flex items-center gap-1"
-      title="Delete this quote"
-    >
-      <TrashIcon className="w-4 h-4" />
-      <span className="hidden sm:inline">Delete</span>
-    </button>
-  )}
-              
-               {/* LOCK BUTTON */}
-  {canLockQuote(quote) && (
-    <button
-      onClick={() => handleLockQuote(quote)}
-      className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium flex items-center gap-1"
-    >
-      <LockClosedIcon className="w-4 h-4" />
-      <span className="hidden sm:inline">Lock</span>
-    </button>
-  )}
-              
-             {canPriceQuote(quote) && (
-    <button
-      onClick={() => handlePriceQuote(quote)}
-      className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium flex items-center gap-1"
-    >
-      <CurrencyDollarIcon className="w-4 h-4" />
-      <span className="hidden sm:inline">Price</span>
-    </button>
-  )}
-              
-              {quote.status === 'AWAITING_CLIENT_APPROVAL' && quote.managerId === user.id && (
-                <span className="px-3 py-2 bg-purple-100 text-purple-800 text-sm rounded-lg">
-                  Awaiting Client
-                </span>
-              )}
-            </div>
-          </div>
-          
+                return (
+                  <div key={quote.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold text-gray-900">Quote #{quote.id?.slice(-8)}</h3>
+                        <div className="flex items-center gap-4 mt-2">
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${status.color}`}>
+                            {status.text}
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            {new Date(quote.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-gray-600 mt-2">
+                          Client: <span className="font-semibold">{quote.client?.name || 'Unknown'}</span>
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {canDeleteQuote(quote) && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteQuote(quote);
+                            }}
+                            className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium flex items-center gap-1"
+                            title="Delete this quote"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                            <span className="hidden sm:inline">Delete</span>
+                          </button>
+                        )}
+                        
+                        {canLockQuote(quote) && (
+                          <button
+                            onClick={() => handleLockQuote(quote)}
+                            className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium flex items-center gap-1"
+                          >
+                            <LockClosedIcon className="w-4 h-4" />
+                            <span className="hidden sm:inline">Lock</span>
+                          </button>
+                        )}
+                        
+                        {canPriceQuote(quote) && (
+                          <button
+                            onClick={() => handlePriceQuote(quote)}
+                            className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium flex items-center gap-1"
+                          >
+                            <CurrencyDollarIcon className="w-4 h-4" />
+                            <span className="hidden sm:inline">Price</span>
+                          </button>
+                        )}
+                        
+                        {quote.status === 'AWAITING_CLIENT_APPROVAL' && quote.managerId === user.id && (
+                          <span className="px-3 py-2 bg-purple-100 text-purple-800 text-sm rounded-lg">
+                            Awaiting Client
+                          </span>
+                        )}
+                      </div>
+                    </div>
                     
                     {quoteItems.length > 0 && (
                       <>
@@ -2390,7 +2396,6 @@ const canDeleteQuote = (quote) => {
         </div>
       </div>
 
-      {/* Pricing Modal */}
       {showPricingModal && selectedQuote && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl w-full max-w-4xl my-8 shadow-2xl">
@@ -2411,15 +2416,12 @@ const canDeleteQuote = (quote) => {
                   onClick={() => setShowPricingModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg"
                 >
-                  <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <XMarkIcon className="w-6 h-6 text-gray-500" />
                 </button>
               </div>
             </div>
 
             <div className="p-8">
-              {/* Sourcing Notes */}
               <div className="mb-8">
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Sourcing Notes (Optional)
@@ -2433,7 +2435,6 @@ const canDeleteQuote = (quote) => {
                 />
               </div>
 
-              {/* Items List */}
               <div className="space-y-4 mb-8">
                 <h3 className="text-lg font-semibold text-gray-900">Items to Price</h3>
                 {selectedQuote.items && Array.isArray(selectedQuote.items) ? (
@@ -2498,64 +2499,32 @@ const canDeleteQuote = (quote) => {
                 )}
               </div>
 
-              {/* Actions */}
-<div className="flex items-center gap-2">
-  {canLockQuote(quote) && (
-    <button
-      onClick={() => handleLockQuote(quote)}
-      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-    >
-      Lock Quote
-    </button>
-  )}
-  {canPriceQuote(quote) && (
-    <button
-      onClick={() => handlePriceQuote(quote)}
-      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
-    >
-      Price Quote
-    </button>
-  )}
-  {canDeleteQuote(quote) && (
-    <button
-      onClick={() => handleDeleteQuote(quote)}
-      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium"
-      title="Delete this quote"
-    >
-      Delete
-    </button>
-  )}
-  {quote.status === 'AWAITING_CLIENT_APPROVAL' && quote.managerId === user.id && (
-    <span className="px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full">
-      Awaiting Client
-    </span>
-  )}
-</div>
               <div className="flex items-center justify-between pt-6 border-t border-gray-200">
-  <div className="text-sm text-gray-500">
-    You have {Math.ceil((new Date(selectedQuote.lockExpiresAt) - new Date()) / 60000)} minutes remaining
-  </div>
-  <div className="flex gap-4">
-    <button
-      onClick={() => setShowPricingModal(false)}
-      className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-medium"
-    >
-      Cancel
-    </button>
-    <button
-      onClick={submitPricing}
-      className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium"
-    >
-      Submit to Client
-    </button>
-  </div>
-</div>
+                <div className="text-sm text-gray-500">
+                  {selectedQuote.lockExpiresAt && (
+                    <>You have {Math.ceil((new Date(selectedQuote.lockExpiresAt) - new Date()) / 60000)} minutes remaining</>
+                  )}
+                </div>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setShowPricingModal(false)}
+                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={submitPricing}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium"
+                  >
+                    Submit to Client
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Toast */}
       {toast && (
         <EnhancedToast 
           toast={toast} 
@@ -2569,10 +2538,8 @@ const canDeleteQuote = (quote) => {
 // Driver Dashboard Component
 function DriverDashboard() {
   const [deliveries, setDeliveries] = useState([]);
-  const [stats, setStats] = useState({ assigned: 0, inTransit: 0, completed: 0 });
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
-  const [selectedDelivery, setSelectedDelivery] = useState(null);
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -2585,16 +2552,9 @@ function DriverDashboard() {
       const res = await axios.get(`${API_BASE}/deliveries/agent`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
-      const data = res.data.data || [];
-      setDeliveries(data);
-      
-      setStats({
-        assigned: data.filter(d => d.status === 'ASSIGNED').length,
-        inTransit: data.filter(d => d.status === 'IN_TRANSIT').length,
-        completed: data.filter(d => d.status === 'DELIVERED').length
-      });
+      setDeliveries(res.data.data || []);
     } catch (err) {
+      console.error('Failed to fetch deliveries:', err);
       setToast({ type: 'error', title: 'Error', message: 'Failed to load deliveries' });
     } finally {
       setLoading(false);
@@ -2612,6 +2572,7 @@ function DriverDashboard() {
       setToast({ type: 'success', title: 'Success', message: 'Status updated successfully' });
       fetchDeliveries();
     } catch (err) {
+      console.error('Failed to update status:', err);
       setToast({ type: 'error', title: 'Error', message: 'Failed to update status' });
     }
   };
@@ -2640,7 +2601,6 @@ function DriverDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-      {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
@@ -2658,140 +2618,25 @@ function DriverDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-8 py-6">
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {[
-            { title: 'Assigned', value: stats.assigned, icon: ClipboardDocumentListIcon, color: 'blue' },
-            { title: 'In Transit', value: stats.inTransit, icon: TruckIcon, color: 'purple' },
-            { title: 'Completed', value: stats.completed, icon: CheckCircleIcon, color: 'green' }
-          ].map((stat) => (
-            <div key={stat.title} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">{stat.title}</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-1">{stat.value}</p>
-                </div>
-                <div className={`p-3 bg-${stat.color}-50 rounded-xl`}>
-                  <stat.icon className={`w-6 h-6 text-${stat.color}-600`} />
-                </div>
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Assigned</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">
+                  {deliveries.filter(d => d.status === 'ASSIGNED').length}
+                </p>
+              </div>
+              <div className="p-3 bg-blue-50 rounded-xl">
+                <ClipboardDocumentListIcon className="w-6 h-6 text-blue-600" />
               </div>
             </div>
-          ))}
-        </div>
+          </div>
 
-        {/* Deliveries List */}
-        <div className="space-y-4">
-          {deliveries.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-2xl">
-              <TruckIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No Deliveries</h3>
-              <p className="text-gray-600">You don't have any assigned deliveries yet.</p>
-            </div>
-          ) : (
-            deliveries.map((delivery) => (
-              <div key={delivery.id} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      Order #{delivery.order?.id?.slice(-8)}
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Client: {delivery.order?.client?.name || 'Unknown'}
-                    </p>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(delivery.status)}`}>
-                    {delivery.status.replace(/_/g, ' ')}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <p className="text-sm text-gray-600">Address</p>
-                    <p className="font-medium">{delivery.order?.address?.line1}</p>
-                    <p className="text-sm text-gray-600">{delivery.order?.address?.city}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Contact</p>
-                    <p className="font-medium">{delivery.order?.client?.phone || 'N/A'}</p>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  {delivery.status === 'ASSIGNED' && (
-                    <button
-                      onClick={() => updateStatus(delivery.id, 'PICKED_UP')}
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                      Mark as Picked Up
-                    </button>
-                  )}
-                  {delivery.status === 'PICKED_UP' && (
-                    <button
-                      onClick={() => updateStatus(delivery.id, 'IN_TRANSIT')}
-                      className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                    >
-                      Start Delivery
-                    </button>
-                  )}
-                  {delivery.status === 'IN_TRANSIT' && (
-                    <button
-                      onClick={() => updateStatus(delivery.id, 'DELIVERED')}
-                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                    >
-                      Mark as Delivered
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setSelectedDelivery(delivery)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                  >
-                    View Details
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <Toast toast={toast} onClose={() => setToast(null)} />
-    </div>
-  );
-}
-
-
-function ProtectedDashboard({ deleteUser, resetUserPassword, token }) {
-  const user = JSON.parse(localStorage.getItem('user') || 'null')
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    if (!user) navigate('/')
-    else if (user.role === 'ADMIN') navigate('/dashboard/overview', { replace: true })
-    else if (user.role === 'MANAGER') navigate('/dashboard/manager', { replace: true })
-  }, [user, navigate])
-
-  if (!user) return null
-
-  return (
-    <DashboardLayout>
-      <Routes>
-        {/* ALL ADMIN ROUTES — FIXED */}
-        <Route path="/overview" element={<AdminDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} />} />
-        <Route path="/products" element={<ProductsPanel />} />
-        <Route path="/managers" element={<AdminDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} />} />
-        <Route path="/drivers" element={<AdminDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} />} />
-        <Route path="/orders" element={<AdminDashboard deleteUser={deleteUser} resetUserPassword={resetUserPassword} />} />
-        <Route path="/quotes" element={<AdminQuotesPanel />} />
-        {/* MANAGER ROUTES */}
-        <Route path="/manager" element={<ManagerDashboard />} />
-        <Route path="/my-orders" element={<div className="text-6xl text-center py-32 font-black text-blue-900">My Orders - Coming Soon</div>} />
-        
-        {/* DEFAULT */}
-        <Route path="*" element={<Navigate to={user.role === 'ADMIN' ? '/dashboard/overview' : '/dashboard/manager'} />} />
-      </Routes>
-    </DashboardLayout>
-  )
-}
-
-export default App
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">In Transit</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">
+                  {deliveries.filter(d => d.status === 'IN_TRANSIT').length}
+                </p>
