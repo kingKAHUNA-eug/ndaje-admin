@@ -2638,7 +2638,9 @@ function ManagerDashboard() {
   <div className="flex items-center justify-between">
     <div>
       <p className="text-sm text-gray-600">Total Revenue</p>
-      
+      <p className="text-2xl font-bold text-gray-900 mt-1">
+        RWF {stats.totalRevenue.toLocaleString()}
+      </p>
        </div>
     <div className="p-3 bg-green-50 rounded-xl">
       <CurrencyDollarIcon className="w-6 h-6 text-green-600" />
