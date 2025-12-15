@@ -94,6 +94,7 @@ const EnhancedToast = ({ toast, onClose }) => {
   );
 };
 
+
 // Password Reset Modal Component
 const PasswordResetModal = ({ isOpen, onClose, userId, userName, userEmail, onReset }) => {
   const [passwordType, setPasswordType] = useState('auto');
@@ -1153,29 +1154,52 @@ function Login() {
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
-  const handleLogin = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+ // In the Login component, update the handleLogin function:
+const handleLogin = async (e) => {
+  e.preventDefault()
+  setLoading(true)
+  setError('')
 
-    try {
-      const res = await axios.post(`${API_BASE}/auth/login`, { email, password })
-      const user = res.data.data?.user || res.data.user
-      const token = res.data.data?.token || res.data.token
+  try {
+    const res = await axios.post(`${API_BASE}/auth/login`, { email, password })
+    const user = res.data.data?.user || res.data.user
+    const token = res.data.data?.token || res.data.token
 
-      if (res.data.success && ['ADMIN', 'MANAGER', 'DELIVERY_AGENT'].includes(user.role)) {
-        localStorage.setItem('token', token)
-        localStorage.setItem('user', JSON.stringify(user))
-        navigate('/dashboard')
-      } else {
-        setError('Access denied. Staff access only.')
+    if (res.data.success && ['ADMIN', 'MANAGER', 'DELIVERY_AGENT'].includes(user.role)) {
+      localStorage.setItem('token', token)
+      localStorage.setItem('user', JSON.stringify(user))
+      
+      // ADD THIS: Fetch manager's MongoDB _id
+      if (user.role === 'MANAGER') {
+        try {
+          const managerRes = await axios.get(`${API_BASE}/managers/me`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          if (managerRes.data.data?._id) {
+            // Merge the MongoDB _id into the user object
+            const updatedUser = {
+              ...user,
+              _id: managerRes.data.data._id
+            };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            console.log('✅ Stored manager MongoDB _id:', managerRes.data.data._id);
+          }
+        } catch (err) {
+          console.log('⚠️ Could not fetch manager MongoDB _id:', err);
+        }
       }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Login failed')
-    } finally {
-      setLoading(false)
+      
+      navigate('/dashboard')
+    } else {
+      setError('Access denied. Staff access only.')
     }
+  } catch (err) {
+    setError(err.response?.data?.message || 'Login failed')
+  } finally {
+    setLoading(false)
   }
+}
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -2469,10 +2493,9 @@ const handlePriceQuote = (quote) => {
     return canDelete;
   };
 
-// Update getQuoteStatus function
 const getQuoteStatus = (quote) => {
-  // Use user._id (MongoDB ObjectId) instead of the string ID
-  const userMongoId = user._id;
+  // Get the user's MongoDB _id if available, otherwise use the string id
+  const userMongoId = user._id || user.id;
   const lockedByIdStr = quote.lockedById?.toString();
   const userMongoIdStr = userMongoId?.toString();
   const isLockedByMe = lockedByIdStr === userMongoIdStr;
@@ -2544,23 +2567,42 @@ const canPriceQuote = (quote) => {
   
   // Check if quote is in the right status
   const isInPricing = quote.status === 'IN_PRICING';
+  if (!isInPricing) {
+    console.log('❌ Quote is not IN_PRICING status');
+    return false;
+  }
   
-  // Check if lock has expired
+  // Check if lock has expired (30 minutes lock duration)
   const lockExpiresAt = quote.lockExpiresAt ? new Date(quote.lockExpiresAt) : null;
   const isLockExpired = lockExpiresAt ? new Date() > lockExpiresAt : true;
   
-  // Use user._id (MongoDB ObjectId) for comparison
-  const userMongoId = user._id;
+  if (isLockExpired) {
+    console.log('❌ Lock has expired');
+    return false;
+  }
+  
+  // Get the user's MongoDB _id if available, otherwise use the string id
+  const userMongoId = user._id || user.id;
   const lockedByIdStr = quote.lockedById?.toString();
+  
+  // Convert both to strings for comparison
   const userMongoIdStr = userMongoId?.toString();
+  
+  console.log('🔐 ID comparison:', {
+    userMongoIdStr,
+    lockedByIdStr,
+    userMongoId: userMongoId,
+    userStringId: user.id,
+    quoteLockedById: quote.lockedById
+  });
+  
+  // Check if locked by current user
   const isLockedByMe = lockedByIdStr === userMongoIdStr;
   
   console.log('✅ Can price conditions:', {
     isInPricing,
     isLockExpired,
     isLockedByMe,
-    lockedByIdStr,
-    userMongoIdStr,
     canPrice: isInPricing && !isLockExpired && isLockedByMe
   });
   
