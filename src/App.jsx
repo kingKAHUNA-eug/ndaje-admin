@@ -2204,12 +2204,11 @@ const fetchManagerId = async () => {
   try {
     console.log('🔍 Fetching manager MongoDB _id...');
     
-    // Try multiple endpoints
+    // Use the correct endpoint based on your backend
     const endpoints = [
-      `${API_BASE}/manager/profile`,
-      `${API_BASE}/managers/profile`,
+      `${API_BASE}/managers/profile`, // Try with 's' first
+      `${API_BASE}/manager/profile`,  // Then without 's'
       `${API_BASE}/auth/me`,
-      `${API_BASE}/user/profile`
     ];
     
     let managerData = null;
@@ -2220,8 +2219,10 @@ const fetchManagerId = async () => {
           headers: { Authorization: `Bearer ${token}` }
         });
         
-        if (res.data.data?._id) {
-          managerData = res.data.data;
+        // Try different response structures
+        const data = res.data.data || res.data;
+        if (data?._id) {
+          managerData = data;
           console.log('✅ Found manager data at:', endpoint);
           break;
         }
@@ -2239,22 +2240,31 @@ const fetchManagerId = async () => {
       localStorage.setItem('user', JSON.stringify(updatedUser));
       console.log('✅ Updated user with MongoDB _id:', managerData._id);
       
-      // Force re-render
+      // Force re-render by updating state
       setUser(updatedUser);
+      return true;
     } else {
-      console.log('⚠️ Could not find manager MongoDB _id, using string id');
-      // Ensure user._id exists (use string id as fallback)
-      if (!user._id) {
+      console.log('⚠️ Could not find manager MongoDB _id');
+      
+      // Try to extract MongoDB _id from the string id
+      // Some systems use pattern: mgr_[random]_[mongodbId]
+      const match = user.id?.match(/mgr_[^_]+_(.+)/);
+      if (match && match[1]) {
         const updatedUser = {
           ...user,
-          _id: user.id
+          _id: match[1] // This might be the MongoDB _id
         };
         localStorage.setItem('user', JSON.stringify(updatedUser));
         setUser(updatedUser);
+        console.log('✅ Extracted MongoDB _id from string id:', match[1]);
+        return true;
       }
+      
+      return false;
     }
   } catch (err) {
     console.error('❌ Failed to fetch manager ID:', err);
+    return false;
   }
 };
 
@@ -2376,24 +2386,16 @@ useEffect(() => {
     }
   };
 
-const handlePriceQuote = (quote) => {
+const handlePriceQuote = async (quote) => {
   console.log('🎯 Opening pricing modal for quote:', quote.id);
-  console.log('📋 Quote details:', {
-    id: quote.id,
-    status: quote.status,
-    lockedById: quote.lockedById,
-    userMongoId: user._id,
-    userStringId: user.id,
-    itemCount: quote.items?.length
-  });
   
-  // Check if we can price this quote
+  // First check if we can price this quote
   if (!canPriceQuote(quote)) {
-    console.log('❌ Cannot price this quote');
+    console.log('❌ Cannot price this quote - permission denied');
     setToast({
       type: 'error',
       title: 'Cannot Price Quote',
-      message: 'You need to lock this quote first or it may be locked by another manager.'
+      message: 'This quote is currently locked by another manager or your lock has expired.'
     });
     return;
   }
@@ -2401,6 +2403,7 @@ const handlePriceQuote = (quote) => {
   setSelectedQuote(quote);
   setShowPricingModal(true);
   
+  // Initialize pricing data...  
   const initialPricing = {};
   if (quote.items && Array.isArray(quote.items)) {
     quote.items.forEach(item => {
@@ -2665,11 +2668,10 @@ const canPriceQuote = (quote) => {
   console.log('👤 DEBUG - Current user:', user);
   console.log('🔐 DEBUG - Quote lockedById:', quote.lockedById);
   
-  // TEMPORARY: Allow pricing if quote is IN_PRICING and user is a manager
-  // Remove this after debugging
-  if (quote.status === 'IN_PRICING' && user.role === 'MANAGER') {
-    console.log('🎯 DEBUG TEMPORARY: Allowing pricing');
-    return true;
+  // Only allow pricing if quote is IN_PRICING status
+  if (quote.status !== 'IN_PRICING') {
+    console.log('❌ Quote is not IN_PRICING status');
+    return false;
   }
   
   // Check if lock has expired (30 minutes lock duration)
@@ -2681,7 +2683,8 @@ const canPriceQuote = (quote) => {
     return false;
   }
   
-  // CRITICAL FIX: Handle both MongoDB _id and string id comparisons
+  // CRITICAL: Check if current user holds the lock
+  // We need to handle both string and ObjectId comparisons
   const userMongoId = user._id || user.id;
   const lockedByIdStr = quote.lockedById?.toString();
   const userMongoIdStr = userMongoId?.toString();
@@ -2691,29 +2694,19 @@ const canPriceQuote = (quote) => {
     lockedById: quote.lockedById,
     userMongoIdStr,
     lockedByIdStr,
-    userStringId: user.id,
-    quoteId: quote.id
+    userStringId: user.id
   });
   
   // Check if locked by current user
-  // Try multiple comparison strategies
-  const isLockedByMe = 
-    // Direct MongoDB _id comparison
-    lockedByIdStr === userMongoIdStr ||
-    // If user._id is the string id, compare with quote.managerId
-    (user.id && quote.managerId === user.id) ||
-    // Fallback: check if lockedById matches user.id (string id)
-    (quote.lockedById && quote.lockedById.toString() === user.id);
+  const isLockedByMe = lockedByIdStr === userMongoIdStr;
   
-  console.log('✅ Can price conditions:', {
-    isInPricing,
-    isLockExpired,
-    isLockedByMe,
-    canPrice: isInPricing && !isLockExpired && isLockedByMe
-  });
+  if (!isLockedByMe) {
+    console.log('❌ Quote is locked by another manager:', quote.lockedById);
+    return false;
+  }
   
-  // Can price if: IN_PRICING status + not expired + locked by current user
-  return isInPricing && !isLockExpired && isLockedByMe;
+  console.log('✅ Can price: User holds valid lock');
+  return true;
 };
   if (loading) {
     return (
