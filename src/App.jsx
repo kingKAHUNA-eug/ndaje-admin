@@ -2492,11 +2492,16 @@ function ManagerDashboard() {
   };
 
   const canPriceQuote = (quote) => {
-    return (
-      (quote.status === 'IN_PRICING' && quote.lockedById === user.id) ||
-      (quote.status === 'PENDING_PRICING' && quote.lockedById === user.id)
-    );
-  };
+  // Check if quote is locked by current user and in IN_PRICING status
+  const isLockedByMe = quote.lockedById === user.id;
+  const isInPricing = quote.status === 'IN_PRICING';
+  
+  // Additional check for lock expiration
+  const isLockExpired = quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date();
+  
+  // Can price if: locked by me AND in pricing AND lock not expired
+  return isLockedByMe && isInPricing && !isLockExpired;
+};
 
   if (loading) {
     return (
@@ -2663,55 +2668,82 @@ function ManagerDashboard() {
   </div>
 </div>
         </div>
-        <div className="flex space-x-1 bg-white p-1 rounded-xl border border-gray-200 mb-6">
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition ${
-              activeTab === 'all' 
-                ? 'bg-blue-600 text-white' 
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            All Quotes ({quotes.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('available')}
-            className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition ${
-              activeTab === 'available' 
-                ? 'bg-blue-600 text-white' 
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Available ({quotes.filter(q => canLockQuote(q)).length})
-          </button>
-          <button
-            onClick={() => setActiveTab('locked')}
-            className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition ${
-              activeTab === 'locked' 
-                ? 'bg-blue-600 text-white' 
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            My Locked ({quotes.filter(q => q.lockedById === user.id).length})
-          </button>
-        </div>
+       <div className="flex space-x-1 bg-white p-1 rounded-xl border border-gray-200 mb-6">
+  <button
+    onClick={() => setActiveTab('all')}
+    className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition ${
+      activeTab === 'all' 
+        ? 'bg-blue-600 text-white' 
+        : 'text-gray-600 hover:text-gray-900'
+    }`}
+  >
+    All Quotes ({quotes.length})
+  </button>
+  <button
+    onClick={() => setActiveTab('available')}
+    className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition ${
+      activeTab === 'available' 
+        ? 'bg-blue-600 text-white' 
+        : 'text-gray-600 hover:text-gray-900'
+    }`}
+  >
+    Available ({availableQuotes.length}) {/* FIXED: Use availableQuotes state */}
+  </button>
+  <button
+    onClick={() => setActiveTab('locked')}
+    className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition ${
+      activeTab === 'locked' 
+        ? 'bg-blue-600 text-white' 
+        : 'text-gray-600 hover:text-gray-900'
+    }`}
+  >
+    My Locked ({lockedQuotes.length}) {/* FIXED: Use lockedQuotes state */}
+  </button>
+</div>
 
         <div className="space-y-6">
-          {(() => {
-            let filteredQuotes = quotes;
-if (activeTab === 'available') {
-  filteredQuotes = availableQuotes; // Use the availableQuotes state
-} else if (activeTab === 'locked') {
-  filteredQuotes = lockedQuotes; // Use the lockedQuotes state
-}
+        {(() => {
+  let filteredQuotes = [];
+  let emptyMessage = "";
+  
+  if (activeTab === 'all') {
+    filteredQuotes = quotes;
+    emptyMessage = 'No quotes available';
+  } else if (activeTab === 'available') {
+    filteredQuotes = availableQuotes;
+    emptyMessage = 'All quotes are currently being priced by managers.';
+  } else if (activeTab === 'locked') {
+    filteredQuotes = lockedQuotes;
+    emptyMessage = 'You don\'t have any locked quotes at the moment.';
+  }
 
-            return filteredQuotes.length > 0 ? (
-              filteredQuotes.map(quote => {
-                const quoteItems = quote.items || [];
-                const totalEstimate = quoteItems.reduce((sum, item) => 
-                  sum + (item.quantity * (item.unitPrice || item.product?.price || 0)), 0
-                );
-                const status = getQuoteStatus(quote);
+  return filteredQuotes.length > 0 ? (
+    filteredQuotes.map(quote => {
+      // Rest of your quote rendering code...
+    })
+  ) : (
+    <div className="text-center py-16">
+      <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <DocumentTextIcon className="w-12 h-12 text-gray-400" />
+      </div>
+      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+        {activeTab === 'all' ? 'No quotes available' : 
+         activeTab === 'available' ? 'No available quotes' : 
+         'No locked quotes'}
+      </h3>
+      <p className="text-gray-600 mb-6">{emptyMessage}</p>
+      <button
+        onClick={fetchManagerData}
+        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium inline-flex items-center gap-2"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        Refresh
+      </button>
+    </div>
+  );
+})()}
       
                 return (
                   <div key={quote.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
@@ -2823,8 +2855,8 @@ if (activeTab === 'available') {
                     )}
                   </div>
                 );
-              })
-            ) : (
+              
+            : (
               <div className="text-center py-16">
                 <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
                   <DocumentTextIcon className="w-12 h-12 text-gray-400" />
@@ -2850,7 +2882,7 @@ if (activeTab === 'available') {
                 </button>
               </div>
             );
-          })()}
+          
         </div>
       </div>
 
