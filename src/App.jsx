@@ -2700,161 +2700,165 @@ function ManagerDashboard() {
     My Locked ({lockedQuotes.length}) {/* FIXED: Use lockedQuotes state */}
   </button>
 </div>
+<div className="space-y-6">
+  {(() => {
+    let filteredQuotes = [];
+    let emptyMessage = "";
+    
+    if (activeTab === 'all') {
+      filteredQuotes = quotes;
+      emptyMessage = 'No quotes available';
+    } else if (activeTab === 'available') {
+      filteredQuotes = availableQuotes;
+      emptyMessage = 'All quotes are currently being priced by managers.';
+    } else if (activeTab === 'locked') {
+      filteredQuotes = lockedQuotes;
+      emptyMessage = 'You don\'t have any locked quotes at the moment.';
+    }
 
-        <div className="space-y-6">
-        {(() => {
-  let filteredQuotes = [];
-  let emptyMessage = "";
-  
-  if (activeTab === 'all') {
-    filteredQuotes = quotes;
-    emptyMessage = 'No quotes available';
-  } else if (activeTab === 'available') {
-    filteredQuotes = availableQuotes;
-    emptyMessage = 'All quotes are currently being priced by managers.';
-  } else if (activeTab === 'locked') {
-    filteredQuotes = lockedQuotes;
-    emptyMessage = 'You don\'t have any locked quotes at the moment.';
-  }
+    if (filteredQuotes.length === 0) {
+      return (
+        <div className="text-center py-16">
+          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <DocumentTextIcon className="w-12 h-12 text-gray-400" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            {activeTab === 'all' ? 'No quotes available' : 
+             activeTab === 'available' ? 'No available quotes' : 
+             'No locked quotes'}
+          </h3>
+          <p className="text-gray-600 mb-6">{emptyMessage}</p>
+          <button
+            onClick={fetchManagerData}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium inline-flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
+        </div>
+      );
+    }
 
-  return filteredQuotes.length > 0 ? (
-    filteredQuotes.map(quote => {
-      // Rest of your quote rendering code...
-    })
-  ) : (
-    <div className="text-center py-16">
-      <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-        <DocumentTextIcon className="w-12 h-12 text-gray-400" />
-      </div>
-      <h3 className="text-xl font-semibold text-gray-900 mb-2">
-        {activeTab === 'all' ? 'No quotes available' : 
-         activeTab === 'available' ? 'No available quotes' : 
-         'No locked quotes'}
-      </h3>
-      <p className="text-gray-600 mb-6">{emptyMessage}</p>
-      <button
-        onClick={fetchManagerData}
-        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium inline-flex items-center gap-2"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-        Refresh
-      </button>
-    </div>
-  );
-})()}
-      
-                return (
-                  <div key={quote.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="text-xl font-bold text-gray-900">Quote #{quote.id?.slice(-8)}</h3>
-                        <div className="flex items-center gap-4 mt-2">
-                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${status.color}`}>
-                            {status.text}
-                          </span>
-                          <span className="text-sm text-gray-500">
-                            {new Date(quote.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <p className="text-gray-600 mt-2">
-                          Client: <span className="font-semibold">{quote.client?.name || 'Unknown'}</span>
+    return filteredQuotes.map(quote => {
+      const status = getQuoteStatus(quote);
+      const quoteItems = quote.items || [];
+      const totalEstimate = quoteItems.reduce((sum, item) => sum + (item.unitPrice || item.product?.price || 0) * item.quantity, 0);
+
+      return (
+        <div key={quote.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-gray-900">Quote #{quote.id?.slice(-8)}</h3>
+              <div className="flex items-center gap-4 mt-2">
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${status.color}`}>
+                  {status.text}
+                </span>
+                <span className="text-sm text-gray-500">
+                  {new Date(quote.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+              <p className="text-gray-600 mt-2">
+                Client: <span className="font-semibold">{quote.client?.name || 'Unknown'}</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {canDeleteQuote(quote) && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteQuote(quote);
+                  }}
+                  className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium flex items-center gap-1"
+                  title="Delete this quote"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">Delete</span>
+                </button>
+              )}
+              
+              {canLockQuote(quote) && (
+                <button
+                  onClick={() => handleLockQuote(quote)}
+                  className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium flex items-center gap-1"
+                >
+                  <LockClosedIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">Lock</span>
+                </button>
+              )}
+              
+              {canPriceQuote(quote) && (
+                <button
+                  onClick={() => handlePriceQuote(quote)}
+                  className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium flex items-center gap-1"
+                >
+                  <CurrencyDollarIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">Price</span>
+                </button>
+              )}
+              
+              {quote.status === 'AWAITING_CLIENT_APPROVAL' && quote.managerId === user.id && (
+                <span className="px-3 py-2 bg-purple-100 text-purple-800 text-sm rounded-lg">
+                  Awaiting Client
+                </span>
+              )}
+            </div>
+          </div>
+          
+          {quoteItems.length > 0 && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                {quoteItems.slice(0, 3).map((item, index) => (
+                  <div key={index} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-gray-900 truncate">
+                          {item.product?.name || 'Product'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          SKU: {item.product?.sku || 'N/A'}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {canDeleteQuote(quote) && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteQuote(quote);
-                            }}
-                            className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium flex items-center gap-1"
-                            title="Delete this quote"
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                            <span className="hidden sm:inline">Delete</span>
-                          </button>
-                        )}
-                        
-                        {canLockQuote(quote) && (
-                          <button
-                            onClick={() => handleLockQuote(quote)}
-                            className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium flex items-center gap-1"
-                          >
-                            <LockClosedIcon className="w-4 h-4" />
-                            <span className="hidden sm:inline">Lock</span>
-                          </button>
-                        )}
-                        
-                        {canPriceQuote(quote) && (
-                          <button
-                            onClick={() => handlePriceQuote(quote)}
-                            className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium flex items-center gap-1"
-                          >
-                            <CurrencyDollarIcon className="w-4 h-4" />
-                            <span className="hidden sm:inline">Price</span>
-                          </button>
-                        )}
-                        
-                        {quote.status === 'AWAITING_CLIENT_APPROVAL' && quote.managerId === user.id && (
-                          <span className="px-3 py-2 bg-purple-100 text-purple-800 text-sm rounded-lg">
-                            Awaiting Client
-                          </span>
-                        )}
+                      <div className="text-right ml-4">
+                        <p className="text-sm font-semibold text-gray-900">
+                          {item.quantity}x
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          RWF {(item.unitPrice || item.product?.price || 0).toLocaleString()}
+                        </p>
                       </div>
                     </div>
-                    
-                    {quoteItems.length > 0 && (
-                      <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-                          {quoteItems.slice(0, 3).map((item, index) => (
-                            <div key={index} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-sm text-gray-900 truncate">
-                                    {item.product?.name || 'Product'}
-                                  </p>
-                                  <p className="text-xs text-gray-500">
-                                    SKU: {item.product?.sku || 'N/A'}
-                                  </p>
-                                </div>
-                                <div className="text-right ml-4">
-                                  <p className="text-sm font-semibold text-gray-900">
-                                    {item.quantity}x
-                                  </p>
-                                  <p className="text-xs text-gray-600">
-                                    RWF {(item.unitPrice || item.product?.price || 0).toLocaleString()}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                          {quoteItems.length > 3 && (
-                            <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 flex items-center justify-center">
-                              <span className="text-sm text-blue-700 font-medium">
-                                +{quoteItems.length - 3} more items
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                          <div className="text-sm text-gray-600">
-                            <span className="font-medium">Client Notes:</span>{' '}
-                            {quote.notes || quote.sourcingNotes || 'No additional notes'}
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm text-gray-500">Estimated Total</div>
-                            <div className="text-xl font-bold text-blue-900">
-                              RWF {totalEstimate.toLocaleString()}
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    )}
                   </div>
-                );
+                ))}
+                {quoteItems.length > 3 && (
+                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 flex items-center justify-center">
+                    <span className="text-sm text-blue-700 font-medium">
+                      +{quoteItems.length - 3} more items
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">Client Notes:</span>{' '}
+                  {quote.notes || quote.sourcingNotes || 'No additional notes'}
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-gray-500">Estimated Total</div>
+                  <div className="text-xl font-bold text-blue-900">
+                    RWF {totalEstimate.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      );
+    });
+  })()}
+</div>
               
             : (
               <div className="text-center py-16">
@@ -2884,8 +2888,6 @@ function ManagerDashboard() {
             );
           
         </div>
-      </div>
-
       {showPricingModal && selectedQuote && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl w-full max-w-4xl my-8 shadow-2xl">
