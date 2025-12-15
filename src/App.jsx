@@ -2157,6 +2157,13 @@ function ManagerDashboard() {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
+// Debug helper
+useEffect(() => {
+  console.log('👤 Current user object:', user);
+  console.log('🔑 User MongoDB _id:', user._id);
+  console.log('🔑 User string id:', user.id);
+}, [user]);
+
   useEffect(() => {
     fetchManagerData();
   }, []);
@@ -2258,31 +2265,43 @@ function ManagerDashboard() {
     }
   };
 
-  const handlePriceQuote = (quote) => {
-    console.log('🎯 Opening pricing modal for quote:', quote.id);
-    console.log('📋 Quote details:', {
-      id: quote.id,
-      status: quote.status,
-      lockedById: quote.lockedById,
-      managerId: user.id,
-      itemCount: quote.items?.length
+const handlePriceQuote = (quote) => {
+  console.log('🎯 Opening pricing modal for quote:', quote.id);
+  console.log('📋 Quote details:', {
+    id: quote.id,
+    status: quote.status,
+    lockedById: quote.lockedById,
+    userMongoId: user._id,
+    userStringId: user.id,
+    itemCount: quote.items?.length
+  });
+  
+  // Check if we can price this quote
+  if (!canPriceQuote(quote)) {
+    console.log('❌ Cannot price this quote');
+    setToast({
+      type: 'error',
+      title: 'Cannot Price Quote',
+      message: 'You need to lock this quote first or it may be locked by another manager.'
     });
-    
-    setSelectedQuote(quote);
-    setShowPricingModal(true);
-    
-    const initialPricing = {};
-    if (quote.items && Array.isArray(quote.items)) {
-      quote.items.forEach(item => {
-        const productId = item.product?.id || item.productId;
-        if (productId) {
-          initialPricing[productId] = item.unitPrice || item.product?.price || '';
-        }
-      });
-    }
-    setPricing(initialPricing);
-    setSourcingNotes(quote.sourcingNotes || '');
-  };
+    return;
+  }
+  
+  setSelectedQuote(quote);
+  setShowPricingModal(true);
+  
+  const initialPricing = {};
+  if (quote.items && Array.isArray(quote.items)) {
+    quote.items.forEach(item => {
+      const productId = item.product?.id || item.productId;
+      if (productId) {
+        initialPricing[productId] = item.unitPrice || item.product?.price || '';
+      }
+    });
+  }
+  setPricing(initialPricing);
+  setSourcingNotes(quote.sourcingNotes || '');
+};
 
   const submitPricing = async () => {
     if (!selectedQuote) return;
@@ -2452,9 +2471,11 @@ function ManagerDashboard() {
 
 // Update getQuoteStatus function
 const getQuoteStatus = (quote) => {
-  const userIdStr = getUserIdForComparison();
+  // Use user._id (MongoDB ObjectId) instead of the string ID
+  const userMongoId = user._id;
   const lockedByIdStr = quote.lockedById?.toString();
-  const isLockedByMe = lockedByIdStr === userIdStr;
+  const userMongoIdStr = userMongoId?.toString();
+  const isLockedByMe = lockedByIdStr === userMongoIdStr;
   
   if (quote.status === 'IN_PRICING') {
     if (isLockedByMe) {
@@ -2469,45 +2490,45 @@ const getQuoteStatus = (quote) => {
       };
     }
   }
-    
-    if (quote.status === 'PENDING_PRICING') {
-      if (quote.lockedById) {
-        if (quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date()) {
-          return { 
-            text: 'Lock expired',
-            color: 'bg-green-100 text-green-800'
-          };
-        }
+  
+  if (quote.status === 'PENDING_PRICING') {
+    if (quote.lockedById) {
+      if (quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date()) {
         return { 
-          text: 'Locked by another',
-          color: 'bg-gray-100 text-gray-800'
+          text: 'Lock expired',
+          color: 'bg-green-100 text-green-800'
         };
       }
       return { 
-        text: 'Available',
-        color: 'bg-blue-100 text-blue-800'
+        text: 'Locked by another',
+        color: 'bg-gray-100 text-gray-800'
       };
     }
-    
-    if (quote.status === 'AWAITING_CLIENT_APPROVAL') {
-      return { 
-        text: 'Waiting client approval',
-        color: 'bg-purple-100 text-purple-800'
-      };
-    }
-    
-    if (quote.status === 'APPROVED') {
-      return { 
-        text: 'Approved',
-        color: 'bg-green-100 text-green-800'
-      };
-    }
-    
     return { 
-      text: quote.status?.replace(/_/g, ' ') || 'Unknown',
-      color: 'bg-gray-100 text-gray-800'
+      text: 'Available',
+      color: 'bg-blue-100 text-blue-800'
     };
+  }
+  
+  if (quote.status === 'AWAITING_CLIENT_APPROVAL') {
+    return { 
+      text: 'Waiting client approval',
+      color: 'bg-purple-100 text-purple-800'
+    };
+  }
+  
+  if (quote.status === 'APPROVED') {
+    return { 
+      text: 'Approved',
+      color: 'bg-green-100 text-green-800'
+    };
+  }
+  
+  return { 
+    text: quote.status?.replace(/_/g, ' ') || 'Unknown',
+    color: 'bg-gray-100 text-gray-800'
   };
+};
 
   const canLockQuote = (quote) => {
     return (
@@ -2517,25 +2538,21 @@ const getQuoteStatus = (quote) => {
     );
   };
 
- const canPriceQuote = (quote) => {
+const canPriceQuote = (quote) => {
   console.log('🔍 Price check for quote:', quote.id);
   console.log('📊 Quote status:', quote.status);
-  console.log('🔐 lockedById:', quote.lockedById);
-  console.log('👤 user._id:', user._id);
-  console.log('👤 user.id:', user.id);
-  console.log('👤 Full user object:', user);
   
   // Check if quote is in the right status
   const isInPricing = quote.status === 'IN_PRICING';
   
   // Check if lock has expired
-  const isLockExpired = quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date();
+  const lockExpiresAt = quote.lockExpiresAt ? new Date(quote.lockExpiresAt) : null;
+  const isLockExpired = lockExpiresAt ? new Date() > lockExpiresAt : true;
   
-  // Use user._id (MongoDB ObjectId) instead of user.id (string)
+  // Use user._id (MongoDB ObjectId) for comparison
   const userMongoId = user._id;
   const lockedByIdStr = quote.lockedById?.toString();
   const userMongoIdStr = userMongoId?.toString();
-  
   const isLockedByMe = lockedByIdStr === userMongoIdStr;
   
   console.log('✅ Can price conditions:', {
