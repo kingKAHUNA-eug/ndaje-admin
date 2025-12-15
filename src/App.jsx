@@ -1160,12 +1160,14 @@ function Login() {
 
     try {
       const res = await axios.post(`${API_BASE}/auth/login`, { email, password })
+       console.log('🔑 Login response:', res.data); // Add this line
       const user = res.data.data?.user || res.data.user
       const token = res.data.data?.token || res.data.token
 
       if (res.data.success && ['ADMIN', 'MANAGER', 'DELIVERY_AGENT'].includes(user.role)) {
         localStorage.setItem('token', token)
         localStorage.setItem('user', JSON.stringify(user))
+        console.log('👤 User saved to localStorage:', user); // Add this line
         navigate('/dashboard')
       } else {
         setError('Access denied. Staff access only.')
@@ -2157,6 +2159,8 @@ function ManagerDashboard() {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
+
+  
   useEffect(() => {
     fetchManagerData();
   }, []);
@@ -2211,6 +2215,25 @@ function ManagerDashboard() {
       setLoading(false);
     }
   };
+
+  // Add this in your ManagerDashboard component after useState declarations
+useEffect(() => {
+  console.log('🔍 DEBUG - Full User Object:', {
+    id: user.id,
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role
+  });
+  
+  console.log('🔍 DEBUG - First Locked Quote (if any):', lockedQuotes[0] ? {
+    id: lockedQuotes[0].id,
+    status: lockedQuotes[0].status,
+    lockedById: lockedQuotes[0].lockedById,
+    lockedByIdType: typeof lockedQuotes[0].lockedById,
+    lockExpiresAt: lockedQuotes[0].lockExpiresAt
+  } : 'No locked quotes');
+}, [user, lockedQuotes]);
 
   const handleLockQuote = async (quote) => {
     setQuoteToLock(quote);
@@ -2437,22 +2460,27 @@ function ManagerDashboard() {
     }
   };
 
-  const canDeleteQuote = (quote) => {
-    if (!quote || !user.id) return false;
-    
-    const isLockExpired = quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date();
-    
-    const canDelete = 
-      (quote.lockedById === user.id && quote.status === 'IN_PRICING') ||
-      (quote.status === 'PENDING_PRICING' && (!quote.lockedById || isLockExpired)) ||
-      (quote.managerId === user.id);
-    
-    return canDelete;
-  };
-
- const getQuoteStatus = (quote) => {
+ // Update canDeleteQuote function
+const canDeleteQuote = (quote) => {
+  if (!quote || !user._id) return false;
+  
+  const userIdStr = getUserIdForComparison();
   const lockedByIdStr = quote.lockedById?.toString();
-  const userIdStr = user.id?.toString();
+  const isLockedByMe = lockedByIdStr === userIdStr;
+  
+  const isLockExpired = quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date();
+  
+  const canDelete = 
+    (isLockedByMe && quote.status === 'IN_PRICING') ||
+    (quote.status === 'PENDING_PRICING' && (!quote.lockedById || isLockExpired));
+  
+  return canDelete;
+};
+
+// Update getQuoteStatus function
+const getQuoteStatus = (quote) => {
+  const userIdStr = getUserIdForComparison();
+  const lockedByIdStr = quote.lockedById?.toString();
   const isLockedByMe = lockedByIdStr === userIdStr;
   
   if (quote.status === 'IN_PRICING') {
@@ -2508,20 +2536,30 @@ function ManagerDashboard() {
     };
   };
 
-  const canLockQuote = (quote) => {
-    return (
-      quote.status === 'PENDING_PRICING' && 
-      (!quote.lockedById || 
-       (quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date()))
-    );
-  };
+const canLockQuote = (quote) => {
+  const userIdStr = getUserIdForComparison();
+  const lockedByIdStr = quote.lockedById?.toString();
+  const isLockedByMe = lockedByIdStr === userIdStr;
+  
+  // If already locked by me and not expired, can't lock again
+  if (isLockedByMe) {
+    return false;
+  }
+  
+  return (
+    quote.status === 'PENDING_PRICING' && 
+    (!quote.lockedById || 
+     (quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date()))
+  );
+};
 
-  const canPriceQuote = (quote) => {
-  // Debug logs
+ const canPriceQuote = (quote) => {
   console.log('🔍 Price check for quote:', quote.id);
   console.log('📊 Quote status:', quote.status);
   console.log('🔐 lockedById:', quote.lockedById);
+  console.log('👤 user._id:', user._id);
   console.log('👤 user.id:', user.id);
+  console.log('👤 Full user object:', user);
   
   // Check if quote is in the right status
   const isInPricing = quote.status === 'IN_PRICING';
@@ -2529,19 +2567,19 @@ function ManagerDashboard() {
   // Check if lock has expired
   const isLockExpired = quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date();
   
-  // IMPORTANT FIX: Compare the string representations
-  // Some systems store lockedById as ObjectId, some as string
+  // Use user._id (MongoDB ObjectId) instead of user.id (string)
+  const userMongoId = user._id;
   const lockedByIdStr = quote.lockedById?.toString();
-  const userIdStr = user.id?.toString();
+  const userMongoIdStr = userMongoId?.toString();
   
-  const isLockedByMe = lockedByIdStr === userIdStr;
+  const isLockedByMe = lockedByIdStr === userMongoIdStr;
   
   console.log('✅ Can price conditions:', {
     isInPricing,
     isLockExpired,
     isLockedByMe,
     lockedByIdStr,
-    userIdStr,
+    userMongoIdStr,
     canPrice: isInPricing && !isLockExpired && isLockedByMe
   });
   
