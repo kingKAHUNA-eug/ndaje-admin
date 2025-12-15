@@ -2699,11 +2699,11 @@ function ManagerDashboard() {
         <div className="space-y-6">
           {(() => {
             let filteredQuotes = quotes;
-            if (activeTab === 'available') {
-              filteredQuotes = quotes.filter(q => canLockQuote(q));
-            } else if (activeTab === 'locked') {
-              filteredQuotes = quotes.filter(q => q.lockedById === user.id);
-            }
+if (activeTab === 'available') {
+  filteredQuotes = availableQuotes; // Use the availableQuotes state
+} else if (activeTab === 'locked') {
+  filteredQuotes = lockedQuotes; // Use the lockedQuotes state
+}
 
             return filteredQuotes.length > 0 ? (
               filteredQuotes.map(quote => {
