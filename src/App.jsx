@@ -2133,7 +2133,8 @@ function AdminDashboard({ deleteUser, resetUserPassword, darkMode, setDarkMode }
   )
 }
 
-// Enhanced Manager Dashboard
+// Fixed Manager Dashboard Component - Replace your existing ManagerDashboard
+
 function ManagerDashboard() {
   const [activeTab, setActiveTab] = useState('all');
   const [quotes, setQuotes] = useState([]);
@@ -2176,6 +2177,17 @@ function ManagerDashboard() {
       const available = availableRes.data.data || [];
       const locked = lockedRes.data.data || [];
       const awaitingApproval = approvalRes.data.data || [];
+      
+      console.log('🔍 Manager ID:', user.id);
+      console.log('📦 All quotes:', allQuotes.length);
+      console.log('🔓 Available:', available.length);
+      console.log('🔒 Locked:', locked.length);
+      console.log('⏳ Awaiting approval:', awaitingApproval.length);
+      
+      // Debug locked quotes
+      locked.forEach(q => {
+        console.log(`Quote ${q.id}: status=${q.status}, lockedById=${q.lockedById}, managerId=${user.id}, match=${q.lockedById === user.id}`);
+      });
       
       setQuotes(allQuotes);
       setAvailableQuotes(available);
@@ -2247,6 +2259,15 @@ function ManagerDashboard() {
   };
 
   const handlePriceQuote = (quote) => {
+    console.log('🎯 Opening pricing modal for quote:', quote.id);
+    console.log('📋 Quote details:', {
+      id: quote.id,
+      status: quote.status,
+      lockedById: quote.lockedById,
+      managerId: user.id,
+      itemCount: quote.items?.length
+    });
+    
     setSelectedQuote(quote);
     setShowPricingModal(true);
     
@@ -2430,6 +2451,7 @@ function ManagerDashboard() {
   };
 
   const getQuoteStatus = (quote) => {
+    // FIXED: Check if quote is locked by current user
     if (quote.status === 'IN_PRICING') {
       if (quote.lockedById === user.id) {
         return { 
@@ -2491,17 +2513,28 @@ function ManagerDashboard() {
     );
   };
 
+  // FIXED: Simplified logic for pricing button
   const canPriceQuote = (quote) => {
-  // Check if quote is locked by current user and in IN_PRICING status
-  const isLockedByMe = quote.lockedById === user.id;
-  const isInPricing = quote.status === 'IN_PRICING';
-  
-  // Additional check for lock expiration
-  const isLockExpired = quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date();
-  
-  // Can price if: locked by me AND in pricing AND lock not expired
-  return isLockedByMe && isInPricing && !isLockExpired;
-};
+    // Check if quote is locked by current user
+    const isLockedByMe = quote.lockedById === user.id;
+    
+    // Check if in correct status
+    const isInPricing = quote.status === 'IN_PRICING';
+    
+    // Check lock expiration
+    const isLockExpired = quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date();
+    
+    console.log('🔍 Can price check:', {
+      quoteId: quote.id,
+      isLockedByMe,
+      isInPricing,
+      isLockExpired,
+      canPrice: isLockedByMe && isInPricing && !isLockExpired
+    });
+    
+    // Can price if: locked by me AND in pricing status AND lock not expired
+    return isLockedByMe && isInPricing && !isLockExpired;
+  };
 
   if (loading) {
     return (
@@ -2700,165 +2733,193 @@ function ManagerDashboard() {
     My Locked ({lockedQuotes.length}) {/* FIXED: Use lockedQuotes state */}
   </button>
 </div>
-<div className="space-y-6">
-  {(() => {
-    let filteredQuotes = [];
-    let emptyMessage = "";
-    
-    if (activeTab === 'all') {
-      filteredQuotes = quotes;
-      emptyMessage = 'No quotes available';
-    } else if (activeTab === 'available') {
-      filteredQuotes = availableQuotes;
-      emptyMessage = 'All quotes are currently being priced by managers.';
-    } else if (activeTab === 'locked') {
-      filteredQuotes = lockedQuotes;
-      emptyMessage = 'You don\'t have any locked quotes at the moment.';
-    }
-
-    if (filteredQuotes.length === 0) {
-      return (
-        <div className="text-center py-16">
-          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <DocumentTextIcon className="w-12 h-12 text-gray-400" />
-          </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            {activeTab === 'all' ? 'No quotes available' : 
-             activeTab === 'available' ? 'No available quotes' : 
-             'No locked quotes'}
-          </h3>
-          <p className="text-gray-600 mb-6">{emptyMessage}</p>
-          <button
-            onClick={fetchManagerData}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium inline-flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Refresh
-          </button>
-        </div>
-      );
-    }
-
-    return filteredQuotes.map(quote => {
-      const status = getQuoteStatus(quote);
-      const quoteItems = quote.items || [];
-      const totalEstimate = quoteItems.reduce((sum, item) => sum + (item.unitPrice || item.product?.price || 0) * item.quantity, 0);
-
-      return (
-        <div key={quote.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <h3 className="text-xl font-bold text-gray-900">Quote #{quote.id?.slice(-8)}</h3>
-              <div className="flex items-center gap-4 mt-2">
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${status.color}`}>
-                  {status.text}
-                </span>
-                <span className="text-sm text-gray-500">
-                  {new Date(quote.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-              <p className="text-gray-600 mt-2">
-                Client: <span className="font-semibold">{quote.client?.name || 'Unknown'}</span>
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {canDeleteQuote(quote) && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteQuote(quote);
-                  }}
-                  className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium flex items-center gap-1"
-                  title="Delete this quote"
-                >
-                  <TrashIcon className="w-4 h-4" />
-                  <span className="hidden sm:inline">Delete</span>
-                </button>
-              )}
-              
-              {canLockQuote(quote) && (
-                <button
-                  onClick={() => handleLockQuote(quote)}
-                  className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium flex items-center gap-1"
-                >
-                  <LockClosedIcon className="w-4 h-4" />
-                  <span className="hidden sm:inline">Lock</span>
-                </button>
-              )}
-              
-              {canPriceQuote(quote) && (
-                <button
-                  onClick={() => handlePriceQuote(quote)}
-                  className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium flex items-center gap-1"
-                >
-                  <CurrencyDollarIcon className="w-4 h-4" />
-                  <span className="hidden sm:inline">Price</span>
-                </button>
-              )}
-              
-              {quote.status === 'AWAITING_CLIENT_APPROVAL' && quote.managerId === user.id && (
-                <span className="px-3 py-2 bg-purple-100 text-purple-800 text-sm rounded-lg">
-                  Awaiting Client
-                </span>
-              )}
-            </div>
-          </div>
+ {/* Quote Card Rendering */}
+      <div className="space-y-6">
+        {(() => {
+          let filteredQuotes = [];
+          let emptyMessage = "";
           
-          {quoteItems.length > 0 && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-                {quoteItems.slice(0, 3).map((item, index) => (
-                  <div key={index} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-gray-900 truncate">
-                          {item.product?.name || 'Product'}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          SKU: {item.product?.sku || 'N/A'}
-                        </p>
+          if (activeTab === 'all') {
+            filteredQuotes = quotes;
+            emptyMessage = 'No quotes available';
+          } else if (activeTab === 'available') {
+            filteredQuotes = availableQuotes;
+            emptyMessage = 'All quotes are currently being priced by managers.';
+          } else if (activeTab === 'locked') {
+            filteredQuotes = lockedQuotes;
+            emptyMessage = 'You don\'t have any locked quotes at the moment.';
+          }
+
+          if (filteredQuotes.length === 0) {
+            return (
+              <div className="text-center py-16">
+                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  {/* Icon */}
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  {activeTab === 'all' ? 'No quotes available' : 
+                   activeTab === 'available' ? 'No available quotes' : 
+                   'No locked quotes'}
+                </h3>
+                <p className="text-gray-600 mb-6">{emptyMessage}</p>
+                <button
+                  onClick={fetchManagerData}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium inline-flex items-center gap-2"
+                >
+                  Refresh
+                </button>
+              </div>
+            );
+          }
+
+          return filteredQuotes.map(quote => {
+            const status = getQuoteStatus(quote);
+            const quoteItems = quote.items || [];
+            const totalEstimate = quoteItems.reduce((sum, item) => 
+              sum + (item.unitPrice || item.product?.price || 0) * item.quantity, 0
+            );
+            
+            // FIXED: Better button visibility logic
+            const showLockButton = canLockQuote(quote);
+            const showPriceButton = canPriceQuote(quote);
+            const showDeleteButton = canDeleteQuote(quote);
+            const showAwaitingMessage = quote.status === 'AWAITING_CLIENT_APPROVAL' && quote.managerId === user.id;
+            
+            console.log(`🎨 Rendering quote ${quote.id}:`, {
+              showLockButton,
+              showPriceButton,
+              showDeleteButton,
+              status: quote.status,
+              lockedById: quote.lockedById,
+              managerId: user.id
+            });
+
+            return (
+              <div key={quote.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-gray-900">Quote #{quote.id?.slice(-8)}</h3>
+                    <div className="flex items-center gap-4 mt-2">
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${status.color}`}>
+                        {status.text}
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        {new Date(quote.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="text-gray-600 mt-2">
+                      Client: <span className="font-semibold">{quote.client?.name || 'Unknown'}</span>
+                    </p>
+                    
+                    {/* Show lock expiration for locked quotes */}
+                    {quote.lockedById === user.id && quote.lockExpiresAt && (
+                      <p className="text-sm text-orange-600 mt-1">
+                        ⏰ Lock expires: {new Date(quote.lockExpiresAt).toLocaleTimeString()}
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    {/* Delete Button */}
+                    {showDeleteButton && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteQuote(quote);
+                        }}
+                        className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium flex items-center gap-1"
+                        title="Delete this quote"
+                      >
+                        <span className="hidden sm:inline">Delete</span>
+                      </button>
+                    )}
+                    
+                    {/* Lock Button */}
+                    {showLockButton && (
+                      <button
+                        onClick={() => handleLockQuote(quote)}
+                        className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium flex items-center gap-1"
+                      >
+                        <span className="hidden sm:inline">Lock</span>
+                      </button>
+                    )}
+                    
+                    {/* Price Button - FIXED: Now shows for locked quotes */}
+                    {showPriceButton && (
+                      <button
+                        onClick={() => handlePriceQuote(quote)}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium flex items-center gap-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Price Quote</span>
+                      </button>
+                    )}
+                    
+                    {/* Awaiting Message */}
+                    {showAwaitingMessage && (
+                      <span className="px-3 py-2 bg-purple-100 text-purple-800 text-sm rounded-lg">
+                        Awaiting Client
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Items Display */}
+                {quoteItems.length > 0 && (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                      {quoteItems.slice(0, 3).map((item, index) => (
+                        <div key={index} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm text-gray-900 truncate">
+                                {item.product?.name || 'Product'}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                SKU: {item.product?.sku || 'N/A'}
+                              </p>
+                            </div>
+                            <div className="text-right ml-4">
+                              <p className="text-sm font-semibold text-gray-900">
+                                {item.quantity}x
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                RWF {(item.unitPrice || item.product?.price || 0).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {quoteItems.length > 3 && (
+                        <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 flex items-center justify-center">
+                          <span className="text-sm text-blue-700 font-medium">
+                            +{quoteItems.length - 3} more items
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                      <div className="text-sm text-gray-600">
+                        <span className="font-medium">Client Notes:</span>{' '}
+                        {quote.notes || quote.sourcingNotes || 'No additional notes'}
                       </div>
-                      <div className="text-right ml-4">
-                        <p className="text-sm font-semibold text-gray-900">
-                          {item.quantity}x
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          RWF {(item.unitPrice || item.product?.price || 0).toLocaleString()}
-                        </p>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-500">Estimated Total</div>
+                        <div className="text-xl font-bold text-blue-900">
+                          RWF {totalEstimate.toLocaleString()}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-                {quoteItems.length > 3 && (
-                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 flex items-center justify-center">
-                    <span className="text-sm text-blue-700 font-medium">
-                      +{quoteItems.length - 3} more items
-                    </span>
-                  </div>
+                  </>
                 )}
               </div>
-              
-              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">Client Notes:</span>{' '}
-                  {quote.notes || quote.sourcingNotes || 'No additional notes'}
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-gray-500">Estimated Total</div>
-                  <div className="text-xl font-bold text-blue-900">
-                    RWF {totalEstimate.toLocaleString()}
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      );
-    });
-  })()}
-</div>
+            );
+          });
+        })()}
+      </div>
               
             : (
               <div className="text-center py-16">
