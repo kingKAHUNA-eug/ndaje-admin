@@ -9,7 +9,7 @@ import {
   MapPinIcon, PhoneIcon, EnvelopeIcon, ArrowTrendingUpIcon,
   ClockIcon, CheckCircleIcon, ArrowRightOnRectangleIcon,
   CubeIcon, BuildingStorefrontIcon, DocumentTextIcon,
-  BellIcon, XMarkIcon, SunIcon, MoonIcon, XCircleIcon
+  BellIcon, XMarkIcon, SunIcon, MoonIcon
 } from '@heroicons/react/24/outline'
 
 // FIXED API BASE
@@ -1153,47 +1153,30 @@ function Login() {
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
- const handleLogin = async (e) => {
-  e.preventDefault()
-  setLoading(true)
-  setError('')
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
 
-  try {
-    const res = await axios.post(`${API_BASE}/auth/login`, { email, password })
-    console.log('🔑 Login response:', res.data);
-    
-    const user = res.data.data?.user || res.data.user
-    const token = res.data.data?.token || res.data.token
+    try {
+      const res = await axios.post(`${API_BASE}/auth/login`, { email, password })
+      const user = res.data.data?.user || res.data.user
+      const token = res.data.data?.token || res.data.token
 
-    if (res.data.success && ['ADMIN', 'MANAGER', 'DELIVERY_AGENT'].includes(user.role)) {
-      localStorage.setItem('token', token)
-      localStorage.setItem('user', JSON.stringify(user))
-      
-      // If the backend doesn't include _id in login response, try to fetch it
-      if (user.role === 'MANAGER' && !user._id) {
-        try {
-          const managerRes = await axios.get(`${API_BASE}/managers/me`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (managerRes.data.data?._id) {
-            localStorage.setItem('userWithMongoId', JSON.stringify(managerRes.data.data));
-            console.log('✅ Stored manager MongoDB _id');
-          }
-        } catch (err) {
-          console.log('⚠️ Could not fetch manager MongoDB _id');
-        }
+      if (res.data.success && ['ADMIN', 'MANAGER', 'DELIVERY_AGENT'].includes(user.role)) {
+        localStorage.setItem('token', token)
+        localStorage.setItem('user', JSON.stringify(user))
+        navigate('/dashboard')
+      } else {
+        setError('Access denied. Staff access only.')
       }
-      
-      navigate('/dashboard')
-    } else {
-      setError('Access denied. Staff access only.')
+    } catch (err) {
+      setError(err.response?.data?.message || 'Login failed')
+    } finally {
+      setLoading(false)
     }
-  } catch (err) {
-    setError(err.response?.data?.message || 'Login failed')
-  } finally {
-    setLoading(false)
   }
-}
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full">
@@ -2174,87 +2157,318 @@ function ManagerDashboard() {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-  // Replace the existing isQuoteLockedByMe function in ManagerDashboard with this:
-const isQuoteLockedByMe = (quote) => {
-  console.log('🔐 Lock check for quote:', quote.id, {
-    lockedById: quote.lockedById,
-    userStringId: user.id,
-    storedMongoId: JSON.parse(localStorage.getItem('userWithMongoId') || '{}')._id
-  });
-  
-  // First, try to match by string ID (for backward compatibility)
-  if (quote.managerId === user.id || quote.lockedByManagerId === user.id) {
-    console.log('✅ Matched by string ID');
-    return true;
-  }
-  
-  // Try to get the MongoDB ID from localStorage
-  const userWithMongoId = JSON.parse(localStorage.getItem('userWithMongoId') || 'null');
-  const userMongoId = userWithMongoId?._id;
-  
-  // If we have MongoDB ID, compare with lockedById
-  if (userMongoId && quote.lockedById) {
-    const isLockedByMe = quote.lockedById.toString() === userMongoId.toString();
-    console.log('🔍 MongoDB ID comparison:', {
-      userMongoId: userMongoId?.toString(),
-      lockedById: quote.lockedById?.toString(),
-      match: isLockedByMe
-    });
-    return isLockedByMe;
-  }
-  
-  // Fallback: if quote has lockedById but no managerId field, check if we're the locker
-  // by making an API call to verify ownership
-  if (quote.lockedById && !quote.managerId) {
-    console.log('⚠️ No managerId field, using fallback check');
-    // This would require an API call to verify - for now return false
-    return false;
-  }
-  
-  return false;
-};
+  useEffect(() => {
+    fetchManagerData();
+  }, []);
 
-// Also update the canPriceQuote function to be more flexible:
-const canPriceQuote = (quote) => {
-  console.log('🔍 Price check for quote:', quote.id);
-  console.log('📊 Quote status:', quote.status);
-  
-  // Check if quote is in the right status
-  const isInPricing = quote.status === 'IN_PRICING';
-  
-  // Check if lock has expired (30 minutes lock duration)
-  const lockExpiresAt = quote.lockExpiresAt ? new Date(quote.lockExpiresAt) : null;
-  const isLockExpired = lockExpiresAt ? new Date() > lockExpiresAt : true;
-  
-  // Check if locked by current user
-  const isLockedByMe = isQuoteLockedByMe(quote);
-  
-  console.log('✅ Can price conditions:', {
-    isInPricing,
-    isLockExpired,
-    isLockedByMe,
-    canPrice: isInPricing && !isLockExpired && isLockedByMe
-  });
-  
-  // Can price if: IN_PRICING status + not expired + locked by current user
-  return isInPricing && !isLockExpired && isLockedByMe;
-};
-  const getQuoteStatus = (quote) => {
-    const isLockedByMe = isQuoteLockedByMe(quote);
-    
-    if (quote.status === 'IN_PRICING') {
-      if (isLockedByMe) {
-        return { 
-          text: 'You are pricing this',
-          color: 'bg-yellow-100 text-yellow-800'
-        };
-      } else {
-        return { 
-          text: 'Being priced by another',
-          color: 'bg-red-100 text-red-800'
-        };
-      }
+  const fetchManagerData = async () => {
+    try {
+      setLoading(true);
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      const [quotesRes, availableRes, lockedRes, approvalRes] = await Promise.all([
+        axios.get(`${API_BASE}/quotes/manager/quotes`, { headers }),
+        axios.get(`${API_BASE}/quotes/manager/available`, { headers }),
+        axios.get(`${API_BASE}/quotes/manager/locked`, { headers }),
+        axios.get(`${API_BASE}/quotes/manager/awaiting-approval`, { headers })
+      ]);
+      
+      const allQuotes = quotesRes.data.data || [];
+      const available = availableRes.data.data || [];
+      const locked = lockedRes.data.data || [];
+      const awaitingApproval = approvalRes.data.data || [];
+      
+      console.log('🔍 Manager ID:', user.id);
+      console.log('📦 All quotes:', allQuotes.length);
+      console.log('🔓 Available:', available.length);
+      console.log('🔒 Locked:', locked.length);
+      console.log('⏳ Awaiting approval:', awaitingApproval.length);
+      
+      // Debug locked quotes
+      locked.forEach(q => {
+        console.log(`Quote ${q.id}: status=${q.status}, lockedById=${q.lockedById}, managerId=${user.id}, match=${q.lockedById === user.id}`);
+      });
+      
+      setQuotes(allQuotes);
+      setAvailableQuotes(available);
+      setLockedQuotes(locked);
+      
+      setStats({
+        pending: available.length,
+        active: locked.length,
+        completed: awaitingApproval.length,
+        totalRevenue: allQuotes.reduce((sum, q) => sum + (q.totalAmount || 0), 0)
+      });
+      
+    } catch (err) {
+      console.error('Failed to fetch manager data:', err);
+      setToast({
+        type: 'error',
+        title: 'Connection Error',
+        message: 'Unable to load quotes. Please check your connection.'
+      });
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleLockQuote = async (quote) => {
+    setQuoteToLock(quote);
+    setShowLockModal(true);
+  };
+
+  const confirmLockQuote = async () => {
+    if (!quoteToLock) return;
+    
+    try {
+      const response = await axios.post(`${API_BASE}/quotes/manager/lock`, {
+        quoteId: quoteToLock.id
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setToast({
+        type: 'success',
+        title: 'Quote Locked!',
+        message: `You have locked quote #${quoteToLock.id?.slice(-6)}. You now have 30 minutes to price it.`
+      });
+      
+      setShowLockModal(false);
+      setQuoteToLock(null);
+      
+      setTimeout(() => {
+        fetchManagerData();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Lock error:', error);
+      
+      const errorMessage = error.response?.data?.message || 
+        error.response?.status === 409 ? 'This quote is already locked by another manager.' :
+        'Failed to lock quote. Please try again.';
+      
+      setToast({
+        type: 'error',
+        title: 'Lock Failed',
+        message: errorMessage
+      });
+      
+      setShowLockModal(false);
+      setQuoteToLock(null);
+    }
+  };
+
+  const handlePriceQuote = (quote) => {
+    console.log('🎯 Opening pricing modal for quote:', quote.id);
+    console.log('📋 Quote details:', {
+      id: quote.id,
+      status: quote.status,
+      lockedById: quote.lockedById,
+      managerId: user.id,
+      itemCount: quote.items?.length
+    });
+    
+    setSelectedQuote(quote);
+    setShowPricingModal(true);
+    
+    const initialPricing = {};
+    if (quote.items && Array.isArray(quote.items)) {
+      quote.items.forEach(item => {
+        const productId = item.product?.id || item.productId;
+        if (productId) {
+          initialPricing[productId] = item.unitPrice || item.product?.price || '';
+        }
+      });
+    }
+    setPricing(initialPricing);
+    setSourcingNotes(quote.sourcingNotes || '');
+  };
+
+  const submitPricing = async () => {
+    if (!selectedQuote) return;
+
+    try {
+      if (!selectedQuote.items || !Array.isArray(selectedQuote.items)) {
+        setToast({
+          type: 'error',
+          title: 'Error',
+          message: 'No items found in quote'
+        });
+        return;
+      }
+
+      const items = selectedQuote.items.map(item => {
+        const productId = item.product?.id || item.productId;
+        return {
+          productId: productId,
+          quantity: item.quantity,
+          unitPrice: Number(pricing[productId]) || 0
+        };
+      });
+
+      const missingPrices = items.filter(i => i.unitPrice <= 0);
+      if (missingPrices.length > 0) {
+        setToast({
+          type: 'error',
+          title: 'Invalid Pricing',
+          message: 'Please set a valid price for all items!'
+        });
+        return;
+      }
+
+      const response = await axios.put(
+        `${API_BASE}/quotes/manager/${selectedQuote.id}/update-pricing`,
+        {
+          items,
+          sourcingNotes
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      setToast({
+        type: 'success',
+        title: 'Pricing Submitted!',
+        message: `Quote #${selectedQuote.id?.slice(-6)} has been sent to client for approval.`
+      });
+
+      setShowPricingModal(false);
+      setSelectedQuote(null);
+      setPricing({});
+      setSourcingNotes('');
+      
+      setTimeout(() => {
+        fetchManagerData();
+      }, 1000);
+      
+    } catch (err) {
+      console.error('Pricing error:', err);
+      
+      const errorMessage = err.response?.data?.message || 
+        err.response?.status === 403 ? 'Your lock on this quote has expired.' :
+        'Failed to submit pricing. Please try again.';
+      
+      setToast({
+        type: 'error',
+        title: 'Error',
+        message: errorMessage
+      });
+    }
+  };
+
+  const handleDeleteQuote = async (quote) => {
+    if (!quote || !quote.id) {
+      setToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Invalid quote data'
+      });
+      return;
+    }
+    
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete quote #${quote.id?.slice(-8)}?\n\n` +
+      `Client: ${quote.client?.name || 'Unknown'}\n` +
+      `Items: ${quote.items?.length || 0}\n` +
+      `Status: ${quote.status}\n` +
+      `This action cannot be undone.`
+    );
+    
+    if (!confirmDelete) return;
+    
+    try {
+      const response = await axios.delete(
+        `${API_BASE}/quotes/manager/${quote.id}/delete`,
+        { 
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          } 
+        }
+      );
+      
+      if (response.data.success) {
+        setQuotes(prev => prev.filter(q => q.id !== quote.id));
+        setAvailableQuotes(prev => prev.filter(q => q.id !== quote.id));
+        setLockedQuotes(prev => prev.filter(q => q.id !== quote.id));
+        
+        setToast({
+          type: 'success',
+          title: 'Success!',
+          message: `Quote #${quote.id?.slice(-8)} has been deleted.`
+        });
+      }
+      
+    } catch (err) {
+      console.error('Delete error:', err);
+      
+      let errorMessage = 'Failed to delete quote. Please try again.';
+      
+      if (err.response) {
+        switch (err.response.status) {
+          case 400:
+            errorMessage = 'Invalid request. Please check the quote ID.';
+            break;
+          case 401:
+            errorMessage = 'Your session has expired. Please log in again.';
+            break;
+          case 403:
+            errorMessage = 'You do not have permission to delete this quote.';
+            break;
+          case 404:
+            errorMessage = 'Quote not found. It may have been already deleted.';
+            fetchManagerData();
+            break;
+          case 409:
+            errorMessage = 'This quote cannot be deleted right now. Please try again later.';
+            break;
+          case 500:
+            errorMessage = 'Server error. Please try again later.';
+            break;
+        }
+      }
+      
+      setToast({
+        type: 'error',
+        title: 'Delete Failed',
+        message: errorMessage
+      });
+    }
+  };
+
+  const canDeleteQuote = (quote) => {
+    if (!quote || !user.id) return false;
+    
+    const isLockExpired = quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date();
+    
+    const canDelete = 
+      (quote.lockedById === user.id && quote.status === 'IN_PRICING') ||
+      (quote.status === 'PENDING_PRICING' && (!quote.lockedById || isLockExpired)) ||
+      (quote.managerId === user.id);
+    
+    return canDelete;
+  };
+
+// Update getQuoteStatus function
+const getQuoteStatus = (quote) => {
+  const userIdStr = getUserIdForComparison();
+  const lockedByIdStr = quote.lockedById?.toString();
+  const isLockedByMe = lockedByIdStr === userIdStr;
+  
+  if (quote.status === 'IN_PRICING') {
+    if (isLockedByMe) {
+      return { 
+        text: 'You are pricing this',
+        color: 'bg-yellow-100 text-yellow-800'
+      };
+    } else {
+      return { 
+        text: 'Being priced by another',
+        color: 'bg-red-100 text-red-800'
+      };
+    }
+  }
     
     if (quote.status === 'PENDING_PRICING') {
       if (quote.lockedById) {
@@ -2295,87 +2509,7 @@ const canPriceQuote = (quote) => {
     };
   };
 
-const handleLockQuote = async (quote) => {
-  try {
-    console.log('🔒 Attempting to lock quote:', quote.id);
-    
-    setQuoteToLock(quote);
-    setShowLockModal(true);
-    
-    console.log('✅ Lock response:', response.data);
-    
-    if (response.data.success) {
-      setToast({
-        type: 'success',
-        title: 'Quote Locked',
-        message: 'You now have exclusive access to price this quote for 30 minutes.'
-      });
-      
-      // Refresh quotes to update status
-      fetchManagerData();
-      
-      // Immediately open pricing modal if lock was successful
-      if (response.data.data?.status === 'IN_PRICING') {
-        setSelectedQuote(response.data.data);
-        setPricing({});
-        setSourcingNotes('');
-        setShowPricingModal(true);
-      }
-    }
-  } catch (err) {
-    console.error('❌ Lock failed:', err);
-    setToast({
-      type: 'error',
-      title: 'Lock Failed',
-      message: err.response?.data?.message || 'Could not lock quote. It may already be locked by another manager.'
-    });
-  }
-};
-
-const handlePriceQuote = async (quote) => {
-  console.log('💰 Starting to price quote:', quote.id);
-  
-  // First verify we can price it
-  if (!canPriceQuote(quote)) {
-    console.log('❌ Cannot price quote - checking lock...');
-    
-    // If not locked by us, try to lock it first
-    if (!isQuoteLockedByMe(quote)) {
-      await handleLockQuote(quote);
-      return;
-    }
-    
-    // If lock expired, try to extend lock
-    const lockExpiresAt = quote.lockExpiresAt ? new Date(quote.lockExpiresAt) : null;
-    const isLockExpired = lockExpiresAt ? new Date() > lockExpiresAt : true;
-    
-    if (isLockExpired) {
-      await handleLockQuote(quote);
-      return;
-    }
-    
-    setToast({
-      type: 'error',
-      title: 'Cannot Price',
-      message: 'You do not have permission to price this quote.'
-    });
-    return;
-  }
-  
-  // Set the quote for pricing
-  setSelectedQuote(quote);
-  setPricing({});
-  setSourcingNotes('');
-  setShowPricingModal(true);
-};
   const canLockQuote = (quote) => {
-    const isLockedByMe = isQuoteLockedByMe(quote);
-    
-    // If already locked by me and not expired, can't lock again
-    if (isLockedByMe) {
-      return false;
-    }
-    
     return (
       quote.status === 'PENDING_PRICING' && 
       (!quote.lockedById || 
@@ -2383,198 +2517,38 @@ const handlePriceQuote = async (quote) => {
     );
   };
 
-const handleDeleteQuote = async (quote) => {
-  if (!window.confirm('Are you sure you want to delete this quote? This action cannot be undone.')) {
-    return;
-  }
+ const canPriceQuote = (quote) => {
+  console.log('🔍 Price check for quote:', quote.id);
+  console.log('📊 Quote status:', quote.status);
+  console.log('🔐 lockedById:', quote.lockedById);
+  console.log('👤 user._id:', user._id);
+  console.log('👤 user.id:', user.id);
+  console.log('👤 Full user object:', user);
   
-  try {
-    // Only allow deletion if the quote is not locked by another manager
-    if (quote.lockedById && !isQuoteLockedByMe(quote)) {
-      setToast({
-        type: 'error',
-        title: 'Cannot Delete',
-        message: 'This quote is currently locked by another manager.'
-      });
-      return;
-    }
-    
-    const response = await axios.delete(`${API_BASE}/quotes/${quote.id}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    
-    if (response.data.success) {
-      setToast({
-        type: 'success',
-        title: 'Quote Deleted',
-        message: 'The quote has been deleted successfully.'
-      });
-      fetchManagerData();
-    }
-  } catch (err) {
-    console.error('Delete failed:', err);
-    setToast({
-      type: 'error',
-      title: 'Delete Failed',
-      message: err.response?.data?.message || 'Failed to delete quote.'
-    });
-  }
-};
-
-  const canDeleteQuote = (quote) => {
-    if (!quote) return false;
-    
-    const isLockedByMe = isQuoteLockedByMe(quote);
-    const isLockExpired = quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date();
-    
-    const canDelete = 
-      (isLockedByMe && quote.status === 'IN_PRICING') ||
-      (quote.status === 'PENDING_PRICING' && (!quote.lockedById || isLockExpired));
-    
-    return canDelete;
-  };
-
-// Add these missing functions to your ManagerDashboard component
-
-// Fix 1: Add fetchManagerData function (around line 1379)
-const fetchManagerData = async () => {
-  try {
-    setLoading(true);
-    const headers = { Authorization: `Bearer ${token}` };
-    
-    const [quotesRes, availableRes, lockedRes, approvalRes] = await Promise.all([
-      axios.get(`${API_BASE}/quotes/manager/quotes`, { headers }),
-      axios.get(`${API_BASE}/quotes/manager/available`, { headers }),
-      axios.get(`${API_BASE}/quotes/manager/locked`, { headers }),
-      axios.get(`${API_BASE}/quotes/manager/awaiting-approval`, { headers })
-    ]);
-    
-    const allQuotes = quotesRes.data.data || [];
-    const available = availableRes.data.data || [];
-    const locked = lockedRes.data.data || [];
-    const awaitingApproval = approvalRes.data.data || [];
-    
-    console.log('🔍 Manager ID:', user.id);
-    console.log('📦 All quotes:', allQuotes.length);
-    console.log('🔓 Available:', available.length);
-    console.log('🔒 Locked:', locked.length);
-    console.log('⏳ Awaiting approval:', awaitingApproval.length);
-    
-    setQuotes(allQuotes);
-    setAvailableQuotes(available);
-    setLockedQuotes(locked);
-    
-    setStats({
-      pending: available.length,
-      active: locked.length,
-      completed: awaitingApproval.length,
-      totalRevenue: allQuotes.reduce((sum, q) => sum + (q.totalAmount || 0), 0)
-    });
-    
-  } catch (err) {
-    console.error('Failed to fetch manager data:', err);
-    setToast({
-      type: 'error',
-      title: 'Connection Error',
-      message: 'Unable to load quotes. Please check your connection.'
-    });
-  } finally {
-    setLoading(false);
-  }
-};
-
-// Fix 2: Add confirmLockQuote function (called in Lock modal)
-const confirmLockQuote = async () => {
-  if (!quoteToLock) return;
+  // Check if quote is in the right status
+  const isInPricing = quote.status === 'IN_PRICING';
   
-  try {
-    const response = await axios.post(
-      `${API_BASE}/quotes/${quoteToLock.id}/lock`,
-      {},
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    
-    if (response.data.success) {
-      setToast({
-        type: 'success',
-        title: 'Quote Locked',
-        message: 'You now have exclusive access to price this quote for 30 minutes.'
-      });
-      
-      // Close the lock modal
-      setShowLockModal(false);
-      setQuoteToLock(null);
-      
-      // Refresh the data
-      await fetchManagerData();
-      
-      // If the quote is now IN_PRICING and locked by current user, open pricing modal
-      const lockedQuote = response.data.data;
-      if (lockedQuote.status === 'IN_PRICING' && isQuoteLockedByMe(lockedQuote)) {
-        setSelectedQuote(lockedQuote);
-        setPricing({});
-        setSourcingNotes('');
-        setShowPricingModal(true);
-      }
-    }
-  } catch (err) {
-    console.error('Lock failed:', err);
-    setToast({
-      type: 'error',
-      title: 'Lock Failed',
-      message: err.response?.data?.message || 'Failed to lock quote'
-    });
-    setShowLockModal(false);
-    setQuoteToLock(null);
-  }
-};
-
-// Fix 3: Add submitPricing function (called in Pricing modal)
-const submitPricing = async () => {
-  if (!selectedQuote) return;
+  // Check if lock has expired
+  const isLockExpired = quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date();
   
-  try {
-    // Prepare the pricing data
-    const pricingData = {
-      sourcingNotes: sourcingNotes,
-      pricedItems: Object.entries(pricing).map(([productId, price]) => ({
-        productId,
-        price: Number(price)
-      }))
-    };
-    
-    console.log('Submitting pricing:', pricingData);
-    
-    const response = await axios.post(
-      `${API_BASE}/quotes/${selectedQuote.id}/submit-pricing`,
-      pricingData,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    
-    if (response.data.success) {
-      setToast({
-        type: 'success',
-        title: 'Quote Submitted',
-        message: 'Quote has been sent to client for approval.'
-      });
-      
-      // Close the pricing modal
-      setShowPricingModal(false);
-      setSelectedQuote(null);
-      setPricing({});
-      setSourcingNotes('');
-      
-      // Refresh the data
-      await fetchManagerData();
-    }
-  } catch (err) {
-    console.error('Pricing submission failed:', err);
-    setToast({
-      type: 'error',
-      title: 'Submission Failed',
-      message: err.response?.data?.message || 'Failed to submit pricing'
-    });
-  }
+  // Use user._id (MongoDB ObjectId) instead of user.id (string)
+  const userMongoId = user._id;
+  const lockedByIdStr = quote.lockedById?.toString();
+  const userMongoIdStr = userMongoId?.toString();
+  
+  const isLockedByMe = lockedByIdStr === userMongoIdStr;
+  
+  console.log('✅ Can price conditions:', {
+    isInPricing,
+    isLockExpired,
+    isLockedByMe,
+    lockedByIdStr,
+    userMongoIdStr,
+    canPrice: isInPricing && !isLockExpired && isLockedByMe
+  });
+  
+  // Can price if: IN_PRICING status + not expired + locked by current user
+  return isInPricing && !isLockExpired && isLockedByMe;
 };
 
   if (loading) {
