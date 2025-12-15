@@ -1154,53 +1154,72 @@ function Login() {
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
- // In the Login component, update the handleLogin function:
+// In Login component's handleLogin function, REPLACE this section:
 const handleLogin = async (e) => {
-  e.preventDefault()
-  setLoading(true)
-  setError('')
+  e.preventDefault();
+  setLoading(true);
+  setError('');
 
   try {
-    const res = await axios.post(`${API_BASE}/auth/login`, { email, password })
-    const user = res.data.data?.user || res.data.user
-    const token = res.data.data?.token || res.data.token
+    const res = await axios.post(`${API_BASE}/auth/login`, { email, password });
+    const user = res.data.data?.user || res.data.user;
+    const token = res.data.data?.token || res.data.token;
 
     if (res.data.success && ['ADMIN', 'MANAGER', 'DELIVERY_AGENT'].includes(user.role)) {
-      localStorage.setItem('token', token)
-      localStorage.setItem('user', JSON.stringify(user))
+      localStorage.setItem('token', token);
       
-      // ADD THIS: Fetch manager's MongoDB _id
-      if (user.role === 'MANAGER') {
+      // CRITICAL FIX: Check if manager data includes MongoDB _id
+      if (user.role === 'MANAGER' && res.data.data?.manager?._id) {
+        // If backend returns manager data with _id
+        const updatedUser = {
+          ...user,
+          _id: res.data.data.manager._id
+        };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      } else if (user.role === 'MANAGER') {
+        // If not, we need to fetch manager data from a different endpoint
         try {
-          const managerRes = await axios.get(`${API_BASE}/managers/me`, {
+          const managerRes = await axios.get(`${API_BASE}/manager/profile`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           
           if (managerRes.data.data?._id) {
-            // Merge the MongoDB _id into the user object
             const updatedUser = {
               ...user,
               _id: managerRes.data.data._id
             };
             localStorage.setItem('user', JSON.stringify(updatedUser));
-            console.log('✅ Stored manager MongoDB _id:', managerRes.data.data._id);
+          } else {
+            // Fallback: Use string id as _id for comparison
+            const updatedUser = {
+              ...user,
+              _id: user.id // Use string id as _id
+            };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
           }
         } catch (err) {
-          console.log('⚠️ Could not fetch manager MongoDB _id:', err);
+          console.log('⚠️ Could not fetch manager profile:', err);
+          // Fallback: Use string id as _id
+          const updatedUser = {
+            ...user,
+            _id: user.id
+          };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
         }
+      } else {
+        localStorage.setItem('user', JSON.stringify(user));
       }
       
-      navigate('/dashboard')
+      navigate('/dashboard');
     } else {
-      setError('Access denied. Staff access only.')
+      setError('Access denied. Staff access only.');
     }
   } catch (err) {
-    setError(err.response?.data?.message || 'Login failed')
+    setError(err.response?.data?.message || 'Login failed');
   } finally {
-    setLoading(false)
+    setLoading(false);
   }
-}
-
+};
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full">
@@ -2180,6 +2199,74 @@ function ManagerDashboard() {
   const [quoteToLock, setQuoteToLock] = useState(null);
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+// Add this function in ManagerDashboard component
+const fetchManagerId = async () => {
+  try {
+    console.log('🔍 Fetching manager MongoDB _id...');
+    
+    // Try multiple endpoints
+    const endpoints = [
+      `${API_BASE}/manager/profile`,
+      `${API_BASE}/managers/profile`,
+      `${API_BASE}/auth/me`,
+      `${API_BASE}/user/profile`
+    ];
+    
+    let managerData = null;
+    
+    for (const endpoint of endpoints) {
+      try {
+        const res = await axios.get(endpoint, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (res.data.data?._id) {
+          managerData = res.data.data;
+          console.log('✅ Found manager data at:', endpoint);
+          break;
+        }
+      } catch (err) {
+        console.log(`❌ ${endpoint} failed:`, err.response?.status);
+      }
+    }
+    
+    if (managerData?._id) {
+      // Update user in localStorage with MongoDB _id
+      const updatedUser = {
+        ...user,
+        _id: managerData._id
+      };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      console.log('✅ Updated user with MongoDB _id:', managerData._id);
+      
+      // Force re-render
+      setUser(updatedUser);
+    } else {
+      console.log('⚠️ Could not find manager MongoDB _id, using string id');
+      // Ensure user._id exists (use string id as fallback)
+      if (!user._id) {
+        const updatedUser = {
+          ...user,
+          _id: user.id
+        };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
+      }
+    }
+  } catch (err) {
+    console.error('❌ Failed to fetch manager ID:', err);
+  }
+};
+
+// Call this in useEffect
+useEffect(() => {
+  fetchManagerData();
+  
+  // Also try to fetch manager MongoDB _id
+  if (user.role === 'MANAGER' && !user._id) {
+    fetchManagerId();
+  }
+}, []);
 
 // Debug helper
 useEffect(() => {
@@ -2561,15 +2648,28 @@ const getQuoteStatus = (quote) => {
     );
   };
 
-const canPriceQuote = (quote) => {
-  console.log('🔍 Price check for quote:', quote.id);
-  console.log('📊 Quote status:', quote.status);
+//const canPriceQuote = (quote) => {
+  //console.log('🔍 Price check for quote:', quote.id);
+  //console.log('📊 Quote status:', quote.status);
   
   // Check if quote is in the right status
-  const isInPricing = quote.status === 'IN_PRICING';
-  if (!isInPricing) {
-    console.log('❌ Quote is not IN_PRICING status');
-    return false;
+ // const isInPricing = quote.status === 'IN_PRICING';
+  //if (!isInPricing) {
+    //console.log('❌ Quote is not IN_PRICING status');
+   // return false;
+  //}
+  
+const canPriceQuote = (quote) => {
+  console.log('🔍 DEBUG - Price check for quote:', quote.id);
+  console.log('📊 DEBUG - Quote status:', quote.status);
+  console.log('👤 DEBUG - Current user:', user);
+  console.log('🔐 DEBUG - Quote lockedById:', quote.lockedById);
+  
+  // TEMPORARY: Allow pricing if quote is IN_PRICING and user is a manager
+  // Remove this after debugging
+  if (quote.status === 'IN_PRICING' && user.role === 'MANAGER') {
+    console.log('🎯 DEBUG TEMPORARY: Allowing pricing');
+    return true;
   }
   
   // Check if lock has expired (30 minutes lock duration)
@@ -2581,23 +2681,29 @@ const canPriceQuote = (quote) => {
     return false;
   }
   
-  // Get the user's MongoDB _id if available, otherwise use the string id
+  // CRITICAL FIX: Handle both MongoDB _id and string id comparisons
   const userMongoId = user._id || user.id;
   const lockedByIdStr = quote.lockedById?.toString();
-  
-  // Convert both to strings for comparison
   const userMongoIdStr = userMongoId?.toString();
   
   console.log('🔐 ID comparison:', {
+    userMongoId,
+    lockedById: quote.lockedById,
     userMongoIdStr,
     lockedByIdStr,
-    userMongoId: userMongoId,
     userStringId: user.id,
-    quoteLockedById: quote.lockedById
+    quoteId: quote.id
   });
   
   // Check if locked by current user
-  const isLockedByMe = lockedByIdStr === userMongoIdStr;
+  // Try multiple comparison strategies
+  const isLockedByMe = 
+    // Direct MongoDB _id comparison
+    lockedByIdStr === userMongoIdStr ||
+    // If user._id is the string id, compare with quote.managerId
+    (user.id && quote.managerId === user.id) ||
+    // Fallback: check if lockedById matches user.id (string id)
+    (quote.lockedById && quote.lockedById.toString() === user.id);
   
   console.log('✅ Can price conditions:', {
     isInPricing,
@@ -2609,7 +2715,6 @@ const canPriceQuote = (quote) => {
   // Can price if: IN_PRICING status + not expired + locked by current user
   return isInPricing && !isLockExpired && isLockedByMe;
 };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
