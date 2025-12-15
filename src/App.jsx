@@ -1155,6 +1155,7 @@ function Login() {
   const navigate = useNavigate()
 
 // In Login component's handleLogin function, REPLACE this section:
+// In Login component's handleLogin function:
 const handleLogin = async (e) => {
   e.preventDefault();
   setLoading(true);
@@ -1162,54 +1163,27 @@ const handleLogin = async (e) => {
 
   try {
     const res = await axios.post(`${API_BASE}/auth/login`, { email, password });
-    const user = res.data.data?.user || res.data.user;
+    const userData = res.data.data?.user || res.data.user;
     const token = res.data.data?.token || res.data.token;
 
-    if (res.data.success && ['ADMIN', 'MANAGER', 'DELIVERY_AGENT'].includes(user.role)) {
+    if (res.data.success && ['ADMIN', 'MANAGER', 'DELIVERY_AGENT'].includes(userData.role)) {
       localStorage.setItem('token', token);
       
-      // CRITICAL FIX: Check if manager data includes MongoDB _id
-      if (user.role === 'MANAGER' && res.data.data?.manager?._id) {
-        // If backend returns manager data with _id
-        const updatedUser = {
-          ...user,
-          _id: res.data.data.manager._id
-        };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-      } else if (user.role === 'MANAGER') {
-        // If not, we need to fetch manager data from a different endpoint
-        try {
-          const managerRes = await axios.get(`${API_BASE}/manager/profile`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          
-          if (managerRes.data.data?._id) {
-            const updatedUser = {
-              ...user,
-              _id: managerRes.data.data._id
-            };
-            localStorage.setItem('user', JSON.stringify(updatedUser));
-          } else {
-            // Fallback: Use string id as _id for comparison
-            const updatedUser = {
-              ...user,
-              _id: user.id // Use string id as _id
-            };
-            localStorage.setItem('user', JSON.stringify(updatedUser));
-          }
-        } catch (err) {
-          console.log('⚠️ Could not fetch manager profile:', err);
-          // Fallback: Use string id as _id
-          const updatedUser = {
-            ...user,
-            _id: user.id
-          };
-          localStorage.setItem('user', JSON.stringify(updatedUser));
+      // CRITICAL: Extract MongoDB _id from string id for managers
+      if (userData.role === 'MANAGER' && userData.id) {
+        // Pattern: mgr_[random]_[mongodbId]
+        const parts = userData.id.split('_');
+        if (parts.length >= 3) {
+          const mongoId = parts[parts.length - 1];
+          userData._id = mongoId;
+          console.log('✅ Extracted MongoDB _id for manager:', mongoId);
+        } else {
+          // Fallback: use string id as _id
+          userData._id = userData.id;
         }
-      } else {
-        localStorage.setItem('user', JSON.stringify(user));
       }
       
+      localStorage.setItem('user', JSON.stringify(userData));
       navigate('/dashboard');
     } else {
       setError('Access denied. Staff access only.');
@@ -1220,6 +1194,8 @@ const handleLogin = async (e) => {
     setLoading(false);
   }
 };
+
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full">
@@ -2199,69 +2175,63 @@ function ManagerDashboard() {
   const [quoteToLock, setQuoteToLock] = useState(null);
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-// Add this function in ManagerDashboard component
+
+  
+const debugUserIds = () => {
+  console.log('🔍 DEBUG USER IDs:');
+  console.log('User object:', user);
+  console.log('User.id:', user.id);
+  console.log('User._id:', user._id);
+  
+  if (user.id && user.id.startsWith('mgr_')) {
+    const parts = user.id.split('_');
+    console.log('Split parts:', parts);
+    console.log('Extracted MongoDB _id:', parts.length >= 3 ? parts[2] : 'N/A');
+  }
+  
+  if (user._id && user._id.startsWith('mgr_')) {
+    const parts = user._id.split('_');
+    console.log('Split parts from _id:', parts);
+    console.log('Extracted MongoDB _id from _id:', parts.length >= 3 ? parts[2] : 'N/A');
+  }
+};
+
+// Call this in useEffect or add a debug button
+useEffect(() => {
+  debugUserIds();
+}, [user]);
+
 const fetchManagerId = async () => {
   try {
     console.log('🔍 Fetching manager MongoDB _id...');
     
-    // Use the correct endpoint based on your backend
-    const endpoints = [
-      `${API_BASE}/managers/profile`, // Try with 's' first
-      `${API_BASE}/manager/profile`,  // Then without 's'
-      `${API_BASE}/auth/me`,
-    ];
+    // First, try to extract MongoDB _id from the string ID pattern
+    // Pattern: mgr_[random]_[mongodbId]
+    const stringId = user.id || user._id;
     
-    let managerData = null;
-    
-    for (const endpoint of endpoints) {
-      try {
-        const res = await axios.get(endpoint, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+    if (stringId && stringId.startsWith('mgr_')) {
+      const parts = stringId.split('_');
+      if (parts.length >= 3) {
+        // The last part should be the MongoDB _id
+        const mongoId = parts[parts.length - 1];
+        console.log('✅ Extracted MongoDB _id from string id:', mongoId);
         
-        // Try different response structures
-        const data = res.data.data || res.data;
-        if (data?._id) {
-          managerData = data;
-          console.log('✅ Found manager data at:', endpoint);
-          break;
-        }
-      } catch (err) {
-        console.log(`❌ ${endpoint} failed:`, err.response?.status);
-      }
-    }
-    
-    if (managerData?._id) {
-      // Update user in localStorage with MongoDB _id
-      const updatedUser = {
-        ...user,
-        _id: managerData._id
-      };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      console.log('✅ Updated user with MongoDB _id:', managerData._id);
-      
-      // Force re-render by updating state
-      setUser(updatedUser);
-      return true;
-    } else {
-      console.log('⚠️ Could not find manager MongoDB _id');
-      
-      // Try to extract MongoDB _id from the string id
-      // Some systems use pattern: mgr_[random]_[mongodbId]
-      const match = user.id?.match(/mgr_[^_]+_(.+)/);
-      if (match && match[1]) {
+        // Update user object
         const updatedUser = {
           ...user,
-          _id: match[1] // This might be the MongoDB _id
+          _id: mongoId
         };
         localStorage.setItem('user', JSON.stringify(updatedUser));
+        
+        // Force re-render
         setUser(updatedUser);
-        console.log('✅ Extracted MongoDB _id from string id:', match[1]);
         return true;
       }
-      
-      return false;
     }
+    
+    console.log('⚠️ Could not extract MongoDB _id from string id format');
+    return false;
+    
   } catch (err) {
     console.error('❌ Failed to fetch manager ID:', err);
     return false;
@@ -2683,9 +2653,28 @@ const canPriceQuote = (quote) => {
     return false;
   }
   
-  // CRITICAL: Check if current user holds the lock
-  // We need to handle both string and ObjectId comparisons
-  const userMongoId = user._id || user.id;
+  // CRITICAL: Extract MongoDB _id from user string ID if needed
+  let userMongoId = user._id;
+  
+  // If user._id is the full string pattern, extract MongoDB _id
+  if (user._id && user._id.startsWith('mgr_')) {
+    const parts = user._id.split('_');
+    if (parts.length >= 3) {
+      userMongoId = parts[parts.length - 1];
+      console.log('✅ Extracted MongoDB _id for comparison:', userMongoId);
+    }
+  }
+  
+  // If user._id is not set, try to extract from user.id
+  if (!userMongoId && user.id && user.id.startsWith('mgr_')) {
+    const parts = user.id.split('_');
+    if (parts.length >= 3) {
+      userMongoId = parts[parts.length - 1];
+      console.log('✅ Extracted MongoDB _id from user.id:', userMongoId);
+    }
+  }
+  
+  // Convert both IDs to strings for comparison
   const lockedByIdStr = quote.lockedById?.toString();
   const userMongoIdStr = userMongoId?.toString();
   
@@ -2708,6 +2697,7 @@ const canPriceQuote = (quote) => {
   console.log('✅ Can price: User holds valid lock');
   return true;
 };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
@@ -2940,6 +2930,16 @@ const canPriceQuote = (quote) => {
                 >
                   Refresh
                 </button>
+               
+{quote.lockedById && (
+  <div className="text-xs text-gray-500 mt-1">
+    Locked by ID: {quote.lockedById}
+    <br />
+    Your MongoDB _id: {user._id}
+    <br />
+    Your extracted _id: {user._id && user._id.startsWith('mgr_') ? user._id.split('_')[2] : 'N/A'}
+  </div>
+)}
               </div>
             );
           }
