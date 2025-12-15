@@ -2450,21 +2450,24 @@ function ManagerDashboard() {
     return canDelete;
   };
 
-  const getQuoteStatus = (quote) => {
-    // FIXED: Check if quote is locked by current user
-    if (quote.status === 'IN_PRICING') {
-      if (quote.lockedById === user.id) {
-        return { 
-          text: 'You are pricing this',
-          color: 'bg-yellow-100 text-yellow-800'
-        };
-      } else {
-        return { 
-          text: 'Being priced by another',
-          color: 'bg-red-100 text-red-800'
-        };
-      }
+ const getQuoteStatus = (quote) => {
+  const lockedByIdStr = quote.lockedById?.toString();
+  const userIdStr = user.id?.toString();
+  const isLockedByMe = lockedByIdStr === userIdStr;
+  
+  if (quote.status === 'IN_PRICING') {
+    if (isLockedByMe) {
+      return { 
+        text: 'You are pricing this',
+        color: 'bg-yellow-100 text-yellow-800'
+      };
+    } else {
+      return { 
+        text: 'Being priced by another',
+        color: 'bg-red-100 text-red-800'
+      };
     }
+  }
     
     if (quote.status === 'PENDING_PRICING') {
       if (quote.lockedById) {
@@ -2513,28 +2516,38 @@ function ManagerDashboard() {
     );
   };
 
-  // FIXED: Simplified logic for pricing button
   const canPriceQuote = (quote) => {
-    // Check if quote is locked by current user
-    const isLockedByMe = quote.lockedById === user.id;
-    
-    // Check if in correct status
-    const isInPricing = quote.status === 'IN_PRICING';
-    
-    // Check lock expiration
-    const isLockExpired = quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date();
-    
-    console.log('🔍 Can price check:', {
-      quoteId: quote.id,
-      isLockedByMe,
-      isInPricing,
-      isLockExpired,
-      canPrice: isLockedByMe && isInPricing && !isLockExpired
-    });
-    
-    // Can price if: locked by me AND in pricing status AND lock not expired
-    return isLockedByMe && isInPricing && !isLockExpired;
-  };
+  // Debug logs
+  console.log('🔍 Price check for quote:', quote.id);
+  console.log('📊 Quote status:', quote.status);
+  console.log('🔐 lockedById:', quote.lockedById);
+  console.log('👤 user.id:', user.id);
+  
+  // Check if quote is in the right status
+  const isInPricing = quote.status === 'IN_PRICING';
+  
+  // Check if lock has expired
+  const isLockExpired = quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date();
+  
+  // IMPORTANT FIX: Compare the string representations
+  // Some systems store lockedById as ObjectId, some as string
+  const lockedByIdStr = quote.lockedById?.toString();
+  const userIdStr = user.id?.toString();
+  
+  const isLockedByMe = lockedByIdStr === userIdStr;
+  
+  console.log('✅ Can price conditions:', {
+    isInPricing,
+    isLockExpired,
+    isLockedByMe,
+    lockedByIdStr,
+    userIdStr,
+    canPrice: isInPricing && !isLockExpired && isLockedByMe
+  });
+  
+  // Can price if: IN_PRICING status + not expired + locked by current user
+  return isInPricing && !isLockExpired && isLockedByMe;
+};
 
   if (loading) {
     return (
