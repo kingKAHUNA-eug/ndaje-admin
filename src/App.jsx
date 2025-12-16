@@ -2661,75 +2661,51 @@ function ManagerDashboard() {
     );
   };
 
+
+  
   const canPriceQuote = (quote) => {
-    console.log('🔍 SECURE DEBUG - Price check for quote:', quote.id);
-    console.log('📊 Quote status:', quote.status);
-    console.log('👤 Current user:', {
-      _id: user._id,
-      id: user.id,
-      managerId: user.managerId
-    });
-    console.log('🔐 Quote lockedById:', quote.lockedById);
-    
-    if (!quote || !user) {
-      console.log('❌ Missing quote or user data');
-      return false;
-    }
-    
-    // Only allow pricing if quote is IN_PRICING status
-    if (quote.status !== 'IN_PRICING') {
-      console.log('❌ Quote is not IN_PRICING status');
-      return false;
-    }
-    
-    // Check lock expiration
-    const lockExpiresAt = quote.lockExpiresAt ? new Date(quote.lockExpiresAt) : null;
-    const isLockExpired = lockExpiresAt ? new Date() > lockExpiresAt : true;
-    
-    if (isLockExpired) {
-      console.log('❌ Lock has expired');
-      return false;
-    }
-    
-    // CRITICAL FIX: Check if current user is the one who locked it
-    // Try multiple ways to match IDs
-    
-    // 1. Direct MongoDB _id comparison
-    const userMongoId = user._id || user.mongoId || user.managerMongoId;
-    if (userMongoId && userMongoId === quote.lockedById) {
-      console.log('✅ User matches by MongoDB _id');
-      return true;
-    }
-    
-    // 2. Check if user.id contains the lockedById
-    if (user.id && user.id.includes(quote.lockedById)) {
-      console.log('✅ User matches by ID inclusion');
-      return true;
-    }
-    
-    // 3. Check if lockedById is in user's composite ID
-    if (user.id && user.id.includes('_') && quote.lockedById) {
-      const parts = user.id.split('_');
-      const extractedMongoId = parts[parts.length - 1];
-      if (extractedMongoId === quote.lockedById) {
-        console.log('✅ User matches by extracted MongoDB _id');
-        return true;
-      }
-    }
-    
-    // 4. Check backend managerId field if exists
-    if (user.managerId === quote.lockedById) {
-      console.log('✅ User matches by managerId');
-      return true;
-    }
-    
-    console.log('❌ User does not hold the lock');
-    console.log('User MongoDB _id:', user._id);
-    console.log('User extracted ID:', user.id?.split('_').pop());
-    console.log('Quote lockedById:', quote.lockedById);
-    
+  console.log('🔍 Checking if user can price quote:', quote.id);
+  console.log('📊 Quote status:', quote.status);
+  console.log('👤 Current user ID:', user.id);
+  console.log('🔐 Quote lockedById:', quote.lockedById);
+  
+  // Basic validation
+  if (!quote || !user) return false;
+  
+  // Only allow pricing if quote is IN_PRICING status
+  if (quote.status !== 'IN_PRICING') {
+    console.log('❌ Quote is not IN_PRICING status');
     return false;
-  };
+  }
+  
+  // Check if lock has expired
+  const lockExpiresAt = quote.lockExpiresAt ? new Date(quote.lockExpiresAt) : null;
+  const isLockExpired = lockExpiresAt ? new Date() > lockExpiresAt : true;
+  
+  if (isLockExpired) {
+    console.log('❌ Lock has expired');
+    return false;
+  }
+  
+  // SIMPLE FIX: Use any ID that matches
+  // Check multiple possible user ID fields
+  const possibleUserIds = [
+    user._id,                    // MongoDB ObjectId
+    user.id,                     // String ID from localStorage
+    user.managerId,              // Manager-specific ID
+    user.userId,                 // User ID
+  ].filter(Boolean);            // Remove undefined/null
+  
+  console.log('🔍 Possible user IDs:', possibleUserIds);
+  
+  // Check if any of our IDs match the lockedById
+  const canPrice = possibleUserIds.some(userId => 
+    String(userId) === String(quote.lockedById)
+  );
+  
+  console.log(canPrice ? '✅ User can price this quote' : '❌ User cannot price this quote');
+  return canPrice;
+};
 
   if (loading) {
     return (
