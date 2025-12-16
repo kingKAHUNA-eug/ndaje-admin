@@ -2554,11 +2554,18 @@ const handlePriceQuote = async (quote) => {
   };
 
 const getQuoteStatus = (quote) => {
-  // Get the user's MongoDB _id if available, otherwise use the string id
-  const userMongoId = user._id || user.id;
-  const lockedByIdStr = quote.lockedById?.toString();
-  const userMongoIdStr = userMongoId?.toString();
-  const isLockedByMe = lockedByIdStr === userMongoIdStr;
+  // CRITICAL FIX: Same ID comparison logic as canPriceQuote
+  const userStringId = user.id || '';
+  const userMongoId = user._id || '';
+  
+  let isLockedByMe = false;
+  if (quote.lockedById && quote.lockedById.length === 24) {
+    isLockedByMe = userStringId.includes(quote.lockedById) || 
+                   userMongoId === quote.lockedById;
+  } else {
+    isLockedByMe = userStringId === quote.lockedById || 
+                   userMongoId === quote.lockedById;
+  }
   
   if (quote.status === 'IN_PRICING') {
     if (isLockedByMe) {
@@ -2572,6 +2579,7 @@ const getQuoteStatus = (quote) => {
         color: 'bg-red-100 text-red-800'
       };
     }
+  
   }
   
   if (quote.status === 'PENDING_PRICING') {
@@ -2653,52 +2661,42 @@ const canPriceQuote = (quote) => {
     return false;
   }
   
-  // FIXED: Extract MongoDB _id from EITHER user._id OR user.id
-  let userMongoId = null;
+  // CRITICAL FIX: Compare using the user's string ID, not MongoDB _id
+  // The user.id is in format: mgr_miaav9ez_f38f37fe1faa7ed7f20aea0529ea6222
+  // But we need to check against quote.lockedById which is a MongoDB ObjectId
   
-  // Try user._id first
-  if (user._id) {
-    if (user._id.startsWith('mgr_')) {
-      const parts = user._id.split('_');
-      userMongoId = parts.length >= 3 ? parts[parts.length - 1] : user._id;
-    } else {
-      userMongoId = user._id;
-    }
-  }
+  // First, let's check if we can match any of the user's IDs
+  const userStringId = user.id || '';
+  const userMongoId = user._id || '';
   
-  // Fallback to user.id
-  if (!userMongoId && user.id) {
-    if (user.id.startsWith('mgr_')) {
-      const parts = user.id.split('_');
-      userMongoId = parts.length >= 3 ? parts[parts.length - 1] : user.id;
-    } else {
-      userMongoId = user.id;
-    }
-  }
-  
-  if (!userMongoId) {
-    console.log('❌ Could not extract user MongoDB ID');
-    return false;
-  }
-  
-  // Convert both IDs to strings for comparison
-  const lockedByIdStr = quote.lockedById?.toString().trim().toLowerCase();
-  const userMongoIdStr = userMongoId?.toString().trim().toLowerCase();
-  
-  console.log('🔐 ID comparison:', {
+  console.log('🔐 ID Comparison check:', {
+    userStringId,
     userMongoId,
     lockedById: quote.lockedById,
-    userMongoIdStr,
-    lockedByIdStr,
-    match: lockedByIdStr === userMongoIdStr
+    userStringIdIncludesLocked: userStringId.includes(quote.lockedById),
+    userMongoIdMatchesLocked: userMongoId === quote.lockedById
   });
   
-  // Check if locked by current user
-  const isLockedByMe = lockedByIdStr === userMongoIdStr;
-  
-  if (!isLockedByMe) {
-    console.log('❌ Quote is locked by another manager:', quote.lockedById);
-    return false;
+  // If quote.lockedById is a short MongoDB ObjectId (24 chars), 
+  // check if it's part of the user's string ID
+  if (quote.lockedById && quote.lockedById.length === 24) {
+    // Check if the MongoDB ObjectId appears in the user's string ID
+    const isLockedByMe = userStringId.includes(quote.lockedById) || 
+                        userMongoId === quote.lockedById;
+    
+    if (!isLockedByMe) {
+      console.log('❌ Quote is locked by another manager:', quote.lockedById);
+      return false;
+    }
+  } else {
+    // If lockedById is longer or different format, do direct comparison
+    const isLockedByMe = userStringId === quote.lockedById || 
+                        userMongoId === quote.lockedById;
+    
+    if (!isLockedByMe) {
+      console.log('❌ Quote is locked by another manager:', quote.lockedById);
+      return false;
+    }
   }
   
   console.log('✅ Can price: User holds valid lock');
