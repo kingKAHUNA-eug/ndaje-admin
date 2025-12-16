@@ -1155,7 +1155,6 @@ function Login() {
   const navigate = useNavigate()
 
 // In Login component's handleLogin function, REPLACE this section:
-// In Login component's handleLogin function:
 const handleLogin = async (e) => {
   e.preventDefault();
   setLoading(true);
@@ -1169,17 +1168,21 @@ const handleLogin = async (e) => {
     if (res.data.success && ['ADMIN', 'MANAGER', 'DELIVERY_AGENT'].includes(userData.role)) {
       localStorage.setItem('token', token);
       
-      // CRITICAL: Extract MongoDB _id from string id for managers
-      if (userData.role === 'MANAGER' && userData.id) {
-        // Pattern: mgr_[random]_[mongodbId]
-        const parts = userData.id.split('_');
-        if (parts.length >= 3) {
-          const mongoId = parts[parts.length - 1];
-          userData._id = mongoId;
-          console.log('✅ Extracted MongoDB _id for manager:', mongoId);
-        } else {
-          // Fallback: use string id as _id
-          userData._id = userData.id;
+      // CRITICAL: For managers, ensure we have the correct MongoDB _id
+      if (userData.role === 'MANAGER') {
+        // Try to get MongoDB _id from backend response
+        if (!userData._id || userData._id.length !== 24) {
+          // If _id is not a valid MongoDB ObjectId (24 chars), try to fetch it
+          try {
+            const managerRes = await axios.get(`${API_BASE}/managers/me`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (managerRes.data.data?._id) {
+              userData._id = managerRes.data.data._id;
+            }
+          } catch (fetchErr) {
+            console.warn('Could not fetch manager details:', fetchErr);
+          }
         }
       }
       
@@ -1194,7 +1197,6 @@ const handleLogin = async (e) => {
     setLoading(false);
   }
 };
-
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -2175,7 +2177,27 @@ function ManagerDashboard() {
   const [quoteToLock, setQuoteToLock] = useState(null);
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-
+// Helper function to compare IDs (handles different formats)
+const compareIds = (id1, id2) => {
+  if (!id1 || !id2) return false;
+  
+  // Convert to string and trim
+  const str1 = String(id1).trim().toLowerCase();
+  const str2 = String(id2).trim().toLowerCase();
+  
+  // Direct comparison
+  if (str1 === str2) return true;
+  
+  // Check if one is contained within the other (for compound IDs)
+  if (str1.includes(str2) || str2.includes(str1)) return true;
+  
+  // Check if they're the same MongoDB ObjectId in different formats
+  // Sometimes IDs might be ObjectId("6921b4a0bd4576fc2f26b3cb") vs just 6921b4a0bd4576fc2f26b3cb
+  const cleanStr1 = str1.replace('objectid("', '').replace('")', '');
+  const cleanStr2 = str2.replace('objectid("', '').replace('")', '');
+  
+  return cleanStr1 === cleanStr2;
+};
   
 const debugUserIds = () => {
   console.log('🔍 DEBUG USER IDs:');
@@ -2195,6 +2217,30 @@ const debugUserIds = () => {
     console.log('Extracted MongoDB _id from _id:', parts.length >= 3 ? parts[2] : 'N/A');
   }
 };
+
+useEffect(() => {
+  console.log('🔐 SECURITY: Manager session initialized');
+  console.log('User:', {
+    id: user.id,
+    _id: user._id,
+    _id_type: typeof user._id,
+    _id_length: user._id?.length,
+    name: user.name,
+    role: user.role
+  });
+  
+  // Log all quotes with lock info
+  quotes.forEach((q, i) => {
+    console.log(`Quote ${i}:`, {
+      id: q.id,
+      status: q.status,
+      lockedById: q.lockedById,
+      lockedById_length: q.lockedById?.length,
+      lockExpiresAt: q.lockExpiresAt,
+      canPrice: canPriceQuote(q)
+    });
+  });
+}, [quotes, user]);
 
 // Call this in useEffect or add a debug button
 useEffect(() => {
@@ -2554,49 +2600,39 @@ const handlePriceQuote = async (quote) => {
   };
 
 const getQuoteStatus = (quote) => {
-  // CRITICAL FIX: Same ID comparison logic as canPriceQuote
-  const userStringId = user.id || '';
-  const userMongoId = user._id || '';
-  
-  let isLockedByMe = false;
-  if (quote.lockedById && quote.lockedById.length === 24) {
-    isLockedByMe = userStringId.includes(quote.lockedById) || 
-                   userMongoId === quote.lockedById;
-  } else {
-    isLockedByMe = userStringId === quote.lockedById || 
-                   userMongoId === quote.lockedById;
-  }
+  // Use the same comparison logic
+  const userHasLock = compareIds(user._id, quote.lockedById) || 
+                     compareIds(user.id, quote.lockedById);
   
   if (quote.status === 'IN_PRICING') {
-    if (isLockedByMe) {
+    if (userHasLock) {
       return { 
         text: 'You are pricing this',
         color: 'bg-yellow-100 text-yellow-800'
       };
     } else {
       return { 
-        text: 'Being priced by another',
+        text: 'Being priced by another manager',
         color: 'bg-red-100 text-red-800'
       };
     }
-  
   }
   
   if (quote.status === 'PENDING_PRICING') {
     if (quote.lockedById) {
       if (quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date()) {
         return { 
-          text: 'Lock expired',
+          text: 'Lock expired - Available',
           color: 'bg-green-100 text-green-800'
         };
       }
       return { 
-        text: 'Locked by another',
+        text: 'Locked by another manager',
         color: 'bg-gray-100 text-gray-800'
       };
     }
     return { 
-      text: 'Available',
+      text: 'Available for pricing',
       color: 'bg-blue-100 text-blue-800'
     };
   }
@@ -2641,10 +2677,16 @@ const getQuoteStatus = (quote) => {
   //}
   
 const canPriceQuote = (quote) => {
-  console.log('🔍 DEBUG - Price check for quote:', quote.id);
-  console.log('📊 DEBUG - Quote status:', quote.status);
-  console.log('👤 DEBUG - Current user:', user);
-  console.log('🔐 DEBUG - Quote lockedById:', quote.lockedById);
+  console.log('🔍 SECURE DEBUG - Price check for quote:', quote.id);
+  console.log('📊 Quote status:', quote.status);
+  console.log('👤 Current user ID:', user._id);
+  console.log('🔐 Quote lockedById:', quote.lockedById);
+  
+  // Basic validation
+  if (!quote || !user) {
+    console.log('❌ Missing quote or user data');
+    return false;
+  }
   
   // Only allow pricing if quote is IN_PRICING status
   if (quote.status !== 'IN_PRICING') {
@@ -2661,47 +2703,33 @@ const canPriceQuote = (quote) => {
     return false;
   }
   
-  // CRITICAL FIX: Compare using the user's string ID, not MongoDB _id
-  // The user.id is in format: mgr_miaav9ez_f38f37fe1faa7ed7f20aea0529ea6222
-  // But we need to check against quote.lockedById which is a MongoDB ObjectId
+  // SECURE: Check if user is the one who locked the quote
+  const userHasLock = compareIds(user._id, quote.lockedById);
   
-  // First, let's check if we can match any of the user's IDs
-  const userStringId = user.id || '';
-  const userMongoId = user._id || '';
-  
-  console.log('🔐 ID Comparison check:', {
-    userStringId,
-    userMongoId,
-    lockedById: quote.lockedById,
-    userStringIdIncludesLocked: userStringId.includes(quote.lockedById),
-    userMongoIdMatchesLocked: userMongoId === quote.lockedById
-  });
-  
-  // If quote.lockedById is a short MongoDB ObjectId (24 chars), 
-  // check if it's part of the user's string ID
-  if (quote.lockedById && quote.lockedById.length === 24) {
-    // Check if the MongoDB ObjectId appears in the user's string ID
-    const isLockedByMe = userStringId.includes(quote.lockedById) || 
-                        userMongoId === quote.lockedById;
+  if (!userHasLock) {
+    console.log('❌ User does not hold the lock');
     
-    if (!isLockedByMe) {
-      console.log('❌ Quote is locked by another manager:', quote.lockedById);
-      return false;
-    }
-  } else {
-    // If lockedById is longer or different format, do direct comparison
-    const isLockedByMe = userStringId === quote.lockedById || 
-                        userMongoId === quote.lockedById;
+    // Additional check: Maybe the user ID is in a different format
+    console.log('🔍 Additional ID checks:');
+    console.log('- User._id:', user._id);
+    console.log('- User.id:', user.id);
+    console.log('- Quote.lockedById:', quote.lockedById);
     
-    if (!isLockedByMe) {
-      console.log('❌ Quote is locked by another manager:', quote.lockedById);
+    // Check all possible user ID fields
+    const allUserIds = [user._id, user.id, user.managerId].filter(Boolean);
+    const anyMatch = allUserIds.some(userId => compareIds(userId, quote.lockedById));
+    
+    if (!anyMatch) {
+      console.log('❌ No matching ID found');
       return false;
     }
   }
   
-  console.log('✅ Can price: User holds valid lock');
+  console.log('✅ SECURE: User can price this quote');
   return true;
 };
+
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
@@ -2934,6 +2962,32 @@ const canPriceQuote = (quote) => {
                 >
                   Refresh
                 </button>
+              
+<button
+  onClick={() => {
+    console.log('🔍 SECURITY DEBUG - ID COMPARISON');
+    console.log('User object:', user);
+    
+    // Test current quote
+    if (quotes.length > 0) {
+      const testQuote = quotes[0];
+      console.log('Test Quote:', testQuote);
+      console.log('Can price?', canPriceQuote(testQuote));
+      console.log('ID Comparison:', {
+        user_id: user._id,
+        user_id_type: typeof user._id,
+        user_id_length: user._id?.length,
+        lockedById: testQuote.lockedById,
+        lockedById_type: typeof testQuote.lockedById,
+        lockedById_length: testQuote.lockedById?.length,
+        match: compareIds(user._id, testQuote.lockedById)
+      });
+    }
+  }}
+  className="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm"
+>
+  🔍 Debug IDs
+</button>
                
 {quote.lockedById && (
   <div className="text-xs text-gray-500 mt-1">
