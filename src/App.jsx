@@ -1649,6 +1649,7 @@ function AdminDashboard({ deleteUser, resetUserPassword, darkMode, setDarkMode }
     pendingQuotes: 0,
     completedDeliveries: 0 
   })
+  
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [showAddManager, setShowAddManager] = useState(false)
@@ -2172,11 +2173,67 @@ function ManagerDashboard() {
     completed: 0,
     totalRevenue: 0
   });
+
+{/* ENHANCED DEBUG SECTION */}
+<div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+  <div className="flex items-center justify-between mb-3">
+    <h3 className="text-sm font-bold text-yellow-800">🔍 DEBUG: ID MATCHING ISSUE</h3>
+    <button
+      onClick={() => {
+        console.log('=== ID MATCHING DEBUG ===');
+        console.log('Current User:', user);
+        console.log('Locked Quotes:', lockedQuotes);
+        console.log('All Quotes:', quotes.map(q => ({
+          id: q.id,
+          status: q.status,
+          lockedById: q.lockedById,
+          canPrice: canPriceQuote(q)
+        })));
+      }}
+      className="px-3 py-1 bg-yellow-600 text-white text-xs rounded-lg"
+    >
+      Console Log
+    </button>
+  </div>
+  
+  <div className="grid grid-cols-2 gap-4 text-xs">
+    <div>
+      <p className="font-semibold">Your IDs:</p>
+      <p>ID: <code className="bg-gray-100 px-1">{user.id}</code></p>
+      <p>_id: <code className="bg-gray-100 px-1">{user._id || 'undefined'}</code></p>
+      <p>Extracted: <code className="bg-gray-100 px-1">
+        {user.id?.includes('_') ? user.id.split('_').pop() : 'N/A'}
+      </code></p>
+    </div>
+    
+    <div>
+      <p className="font-semibold">Quote Locks:</p>
+      {quotes.filter(q => q.lockedById).slice(0, 2).map((q, i) => (
+        <div key={i} className="mb-1">
+          <p>Quote #{q.id?.slice(-6)}:</p>
+          <p>Locked by: <code className="bg-gray-100 px-1">{q.lockedById}</code></p>
+          <p>Can price? <span className={canPriceQuote(q) ? 'text-green-600' : 'text-red-600'}>
+            {canPriceQuote(q) ? 'YES' : 'NO'}
+          </span></p>
+        </div>
+      ))}
+    </div>
+  </div>
+  
+  <div className="mt-3 pt-3 border-t border-yellow-300">
+    <p className="text-xs text-yellow-700">
+      <strong>Issue:</strong> Your MongoDB _id ({user._id || 'undefined'}) doesn't match any quote's lockedById.
+      The quote was locked by a different manager ({lockedQuotes[0]?.lockedById || 'unknown'}).
+    </p>
+  </div>
+</div>
   const [toast, setToast] = useState(null);
   const [showLockModal, setShowLockModal] = useState(false);
   const [quoteToLock, setQuoteToLock] = useState(null);
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+
 // Helper function to compare IDs (handles different formats)
 const compareIds = (id1, id2) => {
   if (!id1 || !id2) return false;
@@ -2251,45 +2308,45 @@ const fetchManagerId = async () => {
   try {
     console.log('🔍 Fetching manager MongoDB _id...');
     
-    // First, try to extract MongoDB _id from the string ID pattern
-    // Pattern: mgr_[random]_[mongodbId]
-    const stringId = user.id || user._id;
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const stringId = currentUser.id || currentUser._id;
     
     if (stringId && stringId.startsWith('mgr_')) {
       const parts = stringId.split('_');
       if (parts.length >= 3) {
-        // The last part should be the MongoDB _id
         const mongoId = parts[parts.length - 1];
         console.log('✅ Extracted MongoDB _id from string id:', mongoId);
         
-        // Update user object
         const updatedUser = {
-          ...user,
-          _id: mongoId
+          ...currentUser,
+          _id: mongoId,
+          mongoId: mongoId, // Add this for backup
+          managerMongoId: mongoId // Add this too
         };
-        localStorage.setItem('user', JSON.stringify(updatedUser));
         
-        // Force re-render
-        setUser(updatedUser);
-        return true;
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        console.log('✅ Updated user in localStorage');
+        
+        // Don't reload immediately - let the component update
+        // Instead, trigger a re-render by updating state if you have one
+        return mongoId;
       }
     }
     
     console.log('⚠️ Could not extract MongoDB _id from string id format');
-    return false;
+    return null;
     
   } catch (err) {
     console.error('❌ Failed to fetch manager ID:', err);
-    return false;
+    return null;
   }
 };
 
-// Call this in useEffect
 useEffect(() => {
   fetchManagerData();
   
   // Also try to fetch manager MongoDB _id
-  if (user.role === 'MANAGER' && !user._id) {
+  if (user.role === 'MANAGER' && (!user._id || user._id.length !== 24)) {
     fetchManagerId();
   }
 }, []);
@@ -2679,10 +2736,13 @@ const getQuoteStatus = (quote) => {
 const canPriceQuote = (quote) => {
   console.log('🔍 SECURE DEBUG - Price check for quote:', quote.id);
   console.log('📊 Quote status:', quote.status);
-  console.log('👤 Current user ID:', user._id);
+  console.log('👤 Current user:', {
+    _id: user._id,
+    id: user.id,
+    managerId: user.managerId
+  });
   console.log('🔐 Quote lockedById:', quote.lockedById);
   
-  // Basic validation
   if (!quote || !user) {
     console.log('❌ Missing quote or user data');
     return false;
@@ -2694,7 +2754,7 @@ const canPriceQuote = (quote) => {
     return false;
   }
   
-  // Check if lock has expired (30 minutes lock duration)
+  // Check lock expiration
   const lockExpiresAt = quote.lockExpiresAt ? new Date(quote.lockExpiresAt) : null;
   const isLockExpired = lockExpiresAt ? new Date() > lockExpiresAt : true;
   
@@ -2703,33 +2763,45 @@ const canPriceQuote = (quote) => {
     return false;
   }
   
-  // SECURE: Check if user is the one who locked the quote
-  const userHasLock = compareIds(user._id, quote.lockedById);
+  // CRITICAL FIX: Check if current user is the one who locked it
+  // Try multiple ways to match IDs
   
-  if (!userHasLock) {
-    console.log('❌ User does not hold the lock');
-    
-    // Additional check: Maybe the user ID is in a different format
-    console.log('🔍 Additional ID checks:');
-    console.log('- User._id:', user._id);
-    console.log('- User.id:', user.id);
-    console.log('- Quote.lockedById:', quote.lockedById);
-    
-    // Check all possible user ID fields
-    const allUserIds = [user._id, user.id, user.managerId].filter(Boolean);
-    const anyMatch = allUserIds.some(userId => compareIds(userId, quote.lockedById));
-    
-    if (!anyMatch) {
-      console.log('❌ No matching ID found');
-      return false;
+  // 1. Direct MongoDB _id comparison
+  const userMongoId = user._id || user.mongoId || user.managerMongoId;
+  if (userMongoId && userMongoId === quote.lockedById) {
+    console.log('✅ User matches by MongoDB _id');
+    return true;
+  }
+  
+  // 2. Check if user.id contains the lockedById
+  if (user.id && user.id.includes(quote.lockedById)) {
+    console.log('✅ User matches by ID inclusion');
+    return true;
+  }
+  
+  // 3. Check if lockedById is in user's composite ID
+  if (user.id && user.id.includes('_') && quote.lockedById) {
+    const parts = user.id.split('_');
+    const extractedMongoId = parts[parts.length - 1];
+    if (extractedMongoId === quote.lockedById) {
+      console.log('✅ User matches by extracted MongoDB _id');
+      return true;
     }
   }
   
-  console.log('✅ SECURE: User can price this quote');
-  return true;
+  // 4. Check backend managerId field if exists
+  if (user.managerId === quote.lockedById) {
+    console.log('✅ User matches by managerId');
+    return true;
+  }
+  
+  console.log('❌ User does not hold the lock');
+  console.log('User MongoDB _id:', user._id);
+  console.log('User extracted ID:', user.id?.split('_').pop());
+  console.log('Quote lockedById:', quote.lockedById);
+  
+  return false;
 };
-
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
