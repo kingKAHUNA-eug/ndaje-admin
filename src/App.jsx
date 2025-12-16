@@ -2174,193 +2174,132 @@ function ManagerDashboard() {
     totalRevenue: 0
   });
 
-{/* ENHANCED DEBUG SECTION */}
-<div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
-  <div className="flex items-center justify-between mb-3">
-    <h3 className="text-sm font-bold text-yellow-800">🔍 DEBUG: ID MATCHING ISSUE</h3>
-    <button
-      onClick={() => {
-        console.log('=== ID MATCHING DEBUG ===');
-        console.log('Current User:', user);
-        console.log('Locked Quotes:', lockedQuotes);
-        console.log('All Quotes:', quotes.map(q => ({
-          id: q.id,
-          status: q.status,
-          lockedById: q.lockedById,
-          canPrice: canPriceQuote(q)
-        })));
-      }}
-      className="px-3 py-1 bg-yellow-600 text-white text-xs rounded-lg"
-    >
-      Console Log
-    </button>
-  </div>
-  
-  <div className="grid grid-cols-2 gap-4 text-xs">
-    <div>
-      <p className="font-semibold">Your IDs:</p>
-      <p>ID: <code className="bg-gray-100 px-1">{user.id}</code></p>
-      <p>_id: <code className="bg-gray-100 px-1">{user._id || 'undefined'}</code></p>
-      <p>Extracted: <code className="bg-gray-100 px-1">
-        {user.id?.includes('_') ? user.id.split('_').pop() : 'N/A'}
-      </code></p>
-    </div>
-    
-    <div>
-      <p className="font-semibold">Quote Locks:</p>
-      {quotes.filter(q => q.lockedById).slice(0, 2).map((q, i) => (
-        <div key={i} className="mb-1">
-          <p>Quote #{q.id?.slice(-6)}:</p>
-          <p>Locked by: <code className="bg-gray-100 px-1">{q.lockedById}</code></p>
-          <p>Can price? <span className={canPriceQuote(q) ? 'text-green-600' : 'text-red-600'}>
-            {canPriceQuote(q) ? 'YES' : 'NO'}
-          </span></p>
-        </div>
-      ))}
-    </div>
-  </div>
-  
-  <div className="mt-3 pt-3 border-t border-yellow-300">
-    <p className="text-xs text-yellow-700">
-      <strong>Issue:</strong> Your MongoDB _id ({user._id || 'undefined'}) doesn't match any quote's lockedById.
-      The quote was locked by a different manager ({lockedQuotes[0]?.lockedById || 'unknown'}).
-    </p>
-  </div>
-</div>
   const [toast, setToast] = useState(null);
   const [showLockModal, setShowLockModal] = useState(false);
   const [quoteToLock, setQuoteToLock] = useState(null);
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-
-// Helper function to compare IDs (handles different formats)
-const compareIds = (id1, id2) => {
-  if (!id1 || !id2) return false;
-  
-  // Convert to string and trim
-  const str1 = String(id1).trim().toLowerCase();
-  const str2 = String(id2).trim().toLowerCase();
-  
-  // Direct comparison
-  if (str1 === str2) return true;
-  
-  // Check if one is contained within the other (for compound IDs)
-  if (str1.includes(str2) || str2.includes(str1)) return true;
-  
-  // Check if they're the same MongoDB ObjectId in different formats
-  // Sometimes IDs might be ObjectId("6921b4a0bd4576fc2f26b3cb") vs just 6921b4a0bd4576fc2f26b3cb
-  const cleanStr1 = str1.replace('objectid("', '').replace('")', '');
-  const cleanStr2 = str2.replace('objectid("', '').replace('")', '');
-  
-  return cleanStr1 === cleanStr2;
-};
-  
-const debugUserIds = () => {
-  console.log('🔍 DEBUG USER IDs:');
-  console.log('User object:', user);
-  console.log('User.id:', user.id);
-  console.log('User._id:', user._id);
-  
-  if (user.id && user.id.startsWith('mgr_')) {
-    const parts = user.id.split('_');
-    console.log('Split parts:', parts);
-    console.log('Extracted MongoDB _id:', parts.length >= 3 ? parts[2] : 'N/A');
-  }
-  
-  if (user._id && user._id.startsWith('mgr_')) {
-    const parts = user._id.split('_');
-    console.log('Split parts from _id:', parts);
-    console.log('Extracted MongoDB _id from _id:', parts.length >= 3 ? parts[2] : 'N/A');
-  }
-};
-
-useEffect(() => {
-  console.log('🔐 SECURITY: Manager session initialized');
-  console.log('User:', {
-    id: user.id,
-    _id: user._id,
-    _id_type: typeof user._id,
-    _id_length: user._id?.length,
-    name: user.name,
-    role: user.role
-  });
-  
-  // Log all quotes with lock info
-  quotes.forEach((q, i) => {
-    console.log(`Quote ${i}:`, {
-      id: q.id,
-      status: q.status,
-      lockedById: q.lockedById,
-      lockedById_length: q.lockedById?.length,
-      lockExpiresAt: q.lockExpiresAt,
-      canPrice: canPriceQuote(q)
-    });
-  });
-}, [quotes, user]);
-
-// Call this in useEffect or add a debug button
-useEffect(() => {
-  debugUserIds();
-}, [user]);
-
-const fetchManagerId = async () => {
-  try {
-    console.log('🔍 Fetching manager MongoDB _id...');
+  // Helper function to compare IDs (handles different formats)
+  const compareIds = (id1, id2) => {
+    if (!id1 || !id2) return false;
     
-    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const stringId = currentUser.id || currentUser._id;
+    // Convert to string and trim
+    const str1 = String(id1).trim().toLowerCase();
+    const str2 = String(id2).trim().toLowerCase();
     
-    if (stringId && stringId.startsWith('mgr_')) {
-      const parts = stringId.split('_');
-      if (parts.length >= 3) {
-        const mongoId = parts[parts.length - 1];
-        console.log('✅ Extracted MongoDB _id from string id:', mongoId);
-        
-        const updatedUser = {
-          ...currentUser,
-          _id: mongoId,
-          mongoId: mongoId, // Add this for backup
-          managerMongoId: mongoId // Add this too
-        };
-        
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        console.log('✅ Updated user in localStorage');
-        
-        // Don't reload immediately - let the component update
-        // Instead, trigger a re-render by updating state if you have one
-        return mongoId;
-      }
+    // Direct comparison
+    if (str1 === str2) return true;
+    
+    // Check if one is contained within the other (for compound IDs)
+    if (str1.includes(str2) || str2.includes(str1)) return true;
+    
+    // Check if they're the same MongoDB ObjectId in different formats
+    const cleanStr1 = str1.replace('objectid("', '').replace('")', '');
+    const cleanStr2 = str2.replace('objectid("', '').replace('")', '');
+    
+    return cleanStr1 === cleanStr2;
+  };
+    
+  const debugUserIds = () => {
+    console.log('🔍 DEBUG USER IDs:');
+    console.log('User object:', user);
+    console.log('User.id:', user.id);
+    console.log('User._id:', user._id);
+    
+    if (user.id && user.id.startsWith('mgr_')) {
+      const parts = user.id.split('_');
+      console.log('Split parts:', parts);
+      console.log('Extracted MongoDB _id:', parts.length >= 3 ? parts[2] : 'N/A');
     }
     
-    console.log('⚠️ Could not extract MongoDB _id from string id format');
-    return null;
+    if (user._id && user._id.startsWith('mgr_')) {
+      const parts = user._id.split('_');
+      console.log('Split parts from _id:', parts);
+      console.log('Extracted MongoDB _id from _id:', parts.length >= 3 ? parts[2] : 'N/A');
+    }
+  };
+
+  useEffect(() => {
+    console.log('🔐 SECURITY: Manager session initialized');
+    console.log('User:', {
+      id: user.id,
+      _id: user._id,
+      _id_type: typeof user._id,
+      _id_length: user._id?.length,
+      name: user.name,
+      role: user.role
+    });
     
-  } catch (err) {
-    console.error('❌ Failed to fetch manager ID:', err);
-    return null;
-  }
-};
+    // Log all quotes with lock info
+    quotes.forEach((q, i) => {
+      console.log(`Quote ${i}:`, {
+        id: q.id,
+        status: q.status,
+        lockedById: q.lockedById,
+        lockedById_length: q.lockedById?.length,
+        lockExpiresAt: q.lockExpiresAt,
+        canPrice: canPriceQuote(q)
+      });
+    });
+  }, [quotes, user]);
 
-useEffect(() => {
-  fetchManagerData();
-  
-  // Also try to fetch manager MongoDB _id
-  if (user.role === 'MANAGER' && (!user._id || user._id.length !== 24)) {
-    fetchManagerId();
-  }
-}, []);
+  // Call this in useEffect or add a debug button
+  useEffect(() => {
+    debugUserIds();
+  }, [user]);
 
-// Debug helper
-useEffect(() => {
-  console.log('👤 Current user object:', user);
-  console.log('🔑 User MongoDB _id:', user._id);
-  console.log('🔑 User string id:', user.id);
-}, [user]);
+  const fetchManagerId = async () => {
+    try {
+      console.log('🔍 Fetching manager MongoDB _id...');
+      
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const stringId = currentUser.id || currentUser._id;
+      
+      if (stringId && stringId.startsWith('mgr_')) {
+        const parts = stringId.split('_');
+        if (parts.length >= 3) {
+          const mongoId = parts[parts.length - 1];
+          console.log('✅ Extracted MongoDB _id from string id:', mongoId);
+          
+          const updatedUser = {
+            ...currentUser,
+            _id: mongoId,
+            mongoId: mongoId,
+            managerMongoId: mongoId
+          };
+          
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          console.log('✅ Updated user in localStorage');
+          
+          return mongoId;
+        }
+      }
+      
+      console.log('⚠️ Could not extract MongoDB _id from string id format');
+      return null;
+      
+    } catch (err) {
+      console.error('❌ Failed to fetch manager ID:', err);
+      return null;
+    }
+  };
 
   useEffect(() => {
     fetchManagerData();
+    
+    // Also try to fetch manager MongoDB _id
+    if (user.role === 'MANAGER' && (!user._id || user._id.length !== 24)) {
+      fetchManagerId();
+    }
   }, []);
+
+  // Debug helper
+  useEffect(() => {
+    console.log('👤 Current user object:', user);
+    console.log('🔑 User MongoDB _id:', user._id);
+    console.log('🔑 User string id:', user.id);
+  }, [user]);
 
   const fetchManagerData = async () => {
     try {
@@ -2459,36 +2398,36 @@ useEffect(() => {
     }
   };
 
-const handlePriceQuote = async (quote) => {
-  console.log('🎯 Opening pricing modal for quote:', quote.id);
-  
-  // First check if we can price this quote
-  if (!canPriceQuote(quote)) {
-    console.log('❌ Cannot price this quote - permission denied');
-    setToast({
-      type: 'error',
-      title: 'Cannot Price Quote',
-      message: 'This quote is currently locked by another manager or your lock has expired.'
-    });
-    return;
-  }
-  
-  setSelectedQuote(quote);
-  setShowPricingModal(true);
-  
-  // Initialize pricing data...  
-  const initialPricing = {};
-  if (quote.items && Array.isArray(quote.items)) {
-    quote.items.forEach(item => {
-      const productId = item.product?.id || item.productId;
-      if (productId) {
-        initialPricing[productId] = item.unitPrice || item.product?.price || '';
-      }
-    });
-  }
-  setPricing(initialPricing);
-  setSourcingNotes(quote.sourcingNotes || '');
-};
+  const handlePriceQuote = async (quote) => {
+    console.log('🎯 Opening pricing modal for quote:', quote.id);
+    
+    // First check if we can price this quote
+    if (!canPriceQuote(quote)) {
+      console.log('❌ Cannot price this quote - permission denied');
+      setToast({
+        type: 'error',
+        title: 'Cannot Price Quote',
+        message: 'This quote is currently locked by another manager or your lock has expired.'
+      });
+      return;
+    }
+    
+    setSelectedQuote(quote);
+    setShowPricingModal(true);
+    
+    // Initialize pricing data...  
+    const initialPricing = {};
+    if (quote.items && Array.isArray(quote.items)) {
+      quote.items.forEach(item => {
+        const productId = item.product?.id || item.productId;
+        if (productId) {
+          initialPricing[productId] = item.unitPrice || item.product?.price || '';
+        }
+      });
+    }
+    setPricing(initialPricing);
+    setSourcingNotes(quote.sourcingNotes || '');
+  };
 
   const submitPricing = async () => {
     if (!selectedQuote) return;
@@ -2656,63 +2595,63 @@ const handlePriceQuote = async (quote) => {
     return canDelete;
   };
 
-const getQuoteStatus = (quote) => {
-  // Use the same comparison logic
-  const userHasLock = compareIds(user._id, quote.lockedById) || 
-                     compareIds(user.id, quote.lockedById);
-  
-  if (quote.status === 'IN_PRICING') {
-    if (userHasLock) {
-      return { 
-        text: 'You are pricing this',
-        color: 'bg-yellow-100 text-yellow-800'
-      };
-    } else {
-      return { 
-        text: 'Being priced by another manager',
-        color: 'bg-red-100 text-red-800'
-      };
-    }
-  }
-  
-  if (quote.status === 'PENDING_PRICING') {
-    if (quote.lockedById) {
-      if (quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date()) {
+  const getQuoteStatus = (quote) => {
+    // Use the same comparison logic
+    const userHasLock = compareIds(user._id, quote.lockedById) || 
+                       compareIds(user.id, quote.lockedById);
+    
+    if (quote.status === 'IN_PRICING') {
+      if (userHasLock) {
         return { 
-          text: 'Lock expired - Available',
-          color: 'bg-green-100 text-green-800'
+          text: 'You are pricing this',
+          color: 'bg-yellow-100 text-yellow-800'
+        };
+      } else {
+        return { 
+          text: 'Being priced by another manager',
+          color: 'bg-red-100 text-red-800'
+        };
+      }
+    }
+    
+    if (quote.status === 'PENDING_PRICING') {
+      if (quote.lockedById) {
+        if (quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date()) {
+          return { 
+            text: 'Lock expired - Available',
+            color: 'bg-green-100 text-green-800'
+          };
+        }
+        return { 
+          text: 'Locked by another manager',
+          color: 'bg-gray-100 text-gray-800'
         };
       }
       return { 
-        text: 'Locked by another manager',
-        color: 'bg-gray-100 text-gray-800'
+        text: 'Available for pricing',
+        color: 'bg-blue-100 text-blue-800'
       };
     }
+    
+    if (quote.status === 'AWAITING_CLIENT_APPROVAL') {
+      return { 
+        text: 'Waiting client approval',
+        color: 'bg-purple-100 text-purple-800'
+      };
+    }
+    
+    if (quote.status === 'APPROVED') {
+      return { 
+        text: 'Approved',
+        color: 'bg-green-100 text-green-800'
+      };
+    }
+    
     return { 
-      text: 'Available for pricing',
-      color: 'bg-blue-100 text-blue-800'
+      text: quote.status?.replace(/_/g, ' ') || 'Unknown',
+      color: 'bg-gray-100 text-gray-800'
     };
-  }
-  
-  if (quote.status === 'AWAITING_CLIENT_APPROVAL') {
-    return { 
-      text: 'Waiting client approval',
-      color: 'bg-purple-100 text-purple-800'
-    };
-  }
-  
-  if (quote.status === 'APPROVED') {
-    return { 
-      text: 'Approved',
-      color: 'bg-green-100 text-green-800'
-    };
-  }
-  
-  return { 
-    text: quote.status?.replace(/_/g, ' ') || 'Unknown',
-    color: 'bg-gray-100 text-gray-800'
   };
-};
 
   const canLockQuote = (quote) => {
     return (
@@ -2722,86 +2661,76 @@ const getQuoteStatus = (quote) => {
     );
   };
 
-//const canPriceQuote = (quote) => {
-  //console.log('🔍 Price check for quote:', quote.id);
-  //console.log('📊 Quote status:', quote.status);
-  
-  // Check if quote is in the right status
- // const isInPricing = quote.status === 'IN_PRICING';
-  //if (!isInPricing) {
-    //console.log('❌ Quote is not IN_PRICING status');
-   // return false;
-  //}
-  
-const canPriceQuote = (quote) => {
-  console.log('🔍 SECURE DEBUG - Price check for quote:', quote.id);
-  console.log('📊 Quote status:', quote.status);
-  console.log('👤 Current user:', {
-    _id: user._id,
-    id: user.id,
-    managerId: user.managerId
-  });
-  console.log('🔐 Quote lockedById:', quote.lockedById);
-  
-  if (!quote || !user) {
-    console.log('❌ Missing quote or user data');
-    return false;
-  }
-  
-  // Only allow pricing if quote is IN_PRICING status
-  if (quote.status !== 'IN_PRICING') {
-    console.log('❌ Quote is not IN_PRICING status');
-    return false;
-  }
-  
-  // Check lock expiration
-  const lockExpiresAt = quote.lockExpiresAt ? new Date(quote.lockExpiresAt) : null;
-  const isLockExpired = lockExpiresAt ? new Date() > lockExpiresAt : true;
-  
-  if (isLockExpired) {
-    console.log('❌ Lock has expired');
-    return false;
-  }
-  
-  // CRITICAL FIX: Check if current user is the one who locked it
-  // Try multiple ways to match IDs
-  
-  // 1. Direct MongoDB _id comparison
-  const userMongoId = user._id || user.mongoId || user.managerMongoId;
-  if (userMongoId && userMongoId === quote.lockedById) {
-    console.log('✅ User matches by MongoDB _id');
-    return true;
-  }
-  
-  // 2. Check if user.id contains the lockedById
-  if (user.id && user.id.includes(quote.lockedById)) {
-    console.log('✅ User matches by ID inclusion');
-    return true;
-  }
-  
-  // 3. Check if lockedById is in user's composite ID
-  if (user.id && user.id.includes('_') && quote.lockedById) {
-    const parts = user.id.split('_');
-    const extractedMongoId = parts[parts.length - 1];
-    if (extractedMongoId === quote.lockedById) {
-      console.log('✅ User matches by extracted MongoDB _id');
+  const canPriceQuote = (quote) => {
+    console.log('🔍 SECURE DEBUG - Price check for quote:', quote.id);
+    console.log('📊 Quote status:', quote.status);
+    console.log('👤 Current user:', {
+      _id: user._id,
+      id: user.id,
+      managerId: user.managerId
+    });
+    console.log('🔐 Quote lockedById:', quote.lockedById);
+    
+    if (!quote || !user) {
+      console.log('❌ Missing quote or user data');
+      return false;
+    }
+    
+    // Only allow pricing if quote is IN_PRICING status
+    if (quote.status !== 'IN_PRICING') {
+      console.log('❌ Quote is not IN_PRICING status');
+      return false;
+    }
+    
+    // Check lock expiration
+    const lockExpiresAt = quote.lockExpiresAt ? new Date(quote.lockExpiresAt) : null;
+    const isLockExpired = lockExpiresAt ? new Date() > lockExpiresAt : true;
+    
+    if (isLockExpired) {
+      console.log('❌ Lock has expired');
+      return false;
+    }
+    
+    // CRITICAL FIX: Check if current user is the one who locked it
+    // Try multiple ways to match IDs
+    
+    // 1. Direct MongoDB _id comparison
+    const userMongoId = user._id || user.mongoId || user.managerMongoId;
+    if (userMongoId && userMongoId === quote.lockedById) {
+      console.log('✅ User matches by MongoDB _id');
       return true;
     }
-  }
-  
-  // 4. Check backend managerId field if exists
-  if (user.managerId === quote.lockedById) {
-    console.log('✅ User matches by managerId');
-    return true;
-  }
-  
-  console.log('❌ User does not hold the lock');
-  console.log('User MongoDB _id:', user._id);
-  console.log('User extracted ID:', user.id?.split('_').pop());
-  console.log('Quote lockedById:', quote.lockedById);
-  
-  return false;
-};
+    
+    // 2. Check if user.id contains the lockedById
+    if (user.id && user.id.includes(quote.lockedById)) {
+      console.log('✅ User matches by ID inclusion');
+      return true;
+    }
+    
+    // 3. Check if lockedById is in user's composite ID
+    if (user.id && user.id.includes('_') && quote.lockedById) {
+      const parts = user.id.split('_');
+      const extractedMongoId = parts[parts.length - 1];
+      if (extractedMongoId === quote.lockedById) {
+        console.log('✅ User matches by extracted MongoDB _id');
+        return true;
+      }
+    }
+    
+    // 4. Check backend managerId field if exists
+    if (user.managerId === quote.lockedById) {
+      console.log('✅ User matches by managerId');
+      return true;
+    }
+    
+    console.log('❌ User does not hold the lock');
+    console.log('User MongoDB _id:', user._id);
+    console.log('User extracted ID:', user.id?.split('_').pop());
+    console.log('Quote lockedById:', quote.lockedById);
+    
+    return false;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
@@ -2913,6 +2842,60 @@ const canPriceQuote = (quote) => {
       </div>
 
       <div className="max-w-7xl mx-auto px-8 py-6">
+        {/* ENHANCED DEBUG SECTION - MOVE THIS HERE */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-yellow-800">🔍 DEBUG: ID MATCHING ISSUE</h3>
+            <button
+              onClick={() => {
+                console.log('=== ID MATCHING DEBUG ===');
+                console.log('Current User:', user);
+                console.log('Locked Quotes:', lockedQuotes);
+                console.log('All Quotes:', quotes.map(q => ({
+                  id: q.id,
+                  status: q.status,
+                  lockedById: q.lockedById,
+                  canPrice: canPriceQuote(q)
+                })));
+              }}
+              className="px-3 py-1 bg-yellow-600 text-white text-xs rounded-lg"
+            >
+              Console Log
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4 text-xs">
+            <div>
+              <p className="font-semibold">Your IDs:</p>
+              <p>ID: <code className="bg-gray-100 px-1">{user.id}</code></p>
+              <p>_id: <code className="bg-gray-100 px-1">{user._id || 'undefined'}</code></p>
+              <p>Extracted: <code className="bg-gray-100 px-1">
+                {user.id?.includes('_') ? user.id.split('_').pop() : 'N/A'}
+              </code></p>
+            </div>
+            
+            <div>
+              <p className="font-semibold">Quote Locks:</p>
+              {quotes.filter(q => q.lockedById).slice(0, 2).map((q, i) => (
+                <div key={i} className="mb-1">
+                  <p>Quote #{q.id?.slice(-6)}:</p>
+                  <p>Locked by: <code className="bg-gray-100 px-1">{q.lockedById}</code></p>
+                  <p>Can price? <span className={canPriceQuote(q) ? 'text-green-600' : 'text-red-600'}>
+                    {canPriceQuote(q) ? 'YES' : 'NO'}
+                  </span></p>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="mt-3 pt-3 border-t border-yellow-300">
+            <p className="text-xs text-yellow-700">
+              <strong>Issue:</strong> Your MongoDB _id ({user._id || 'undefined'}) doesn't match any quote's lockedById.
+              The quote was locked by a different manager ({lockedQuotes[0]?.lockedById || 'unknown'}).
+            </p>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
@@ -2938,319 +2921,259 @@ const canPriceQuote = (quote) => {
             </div>
           </div>
 
-  <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
-  <div className="flex items-center justify-between">
-    <div>
-      <p className="text-sm text-gray-600">Total Revenue</p>
-      <p className="text-2xl font-bold text-gray-900 mt-1">
-        RWF {stats.totalRevenue.toLocaleString()}
-      </p>
-       </div>
-    <div className="p-3 bg-green-50 rounded-xl">
-      <CurrencyDollarIcon className="w-6 h-6 text-green-600" />
-    </div>
-  </div>
-</div>
-<div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
-  <div className="flex items-center justify-between">
-    <div>
-      <p className="text-sm text-gray-600">Completed Quotes</p>
-      <p className="text-3xl font-bold text-gray-900 mt-1">
-        {stats?.completed || 0}
-      </p>
-    </div>
-    <div className="p-3 bg-emerald-50 rounded-xl">
-      <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    </div>
-  </div>
-</div>
-        </div>
-       <div className="flex space-x-1 bg-white p-1 rounded-xl border border-gray-200 mb-6">
-  <button
-    onClick={() => setActiveTab('all')}
-    className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition ${
-      activeTab === 'all' 
-        ? 'bg-blue-600 text-white' 
-        : 'text-gray-600 hover:text-gray-900'
-    }`}
-  >
-    All Quotes ({quotes.length})
-  </button>
-  <button
-    onClick={() => setActiveTab('available')}
-    className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition ${
-      activeTab === 'available' 
-        ? 'bg-blue-600 text-white' 
-        : 'text-gray-600 hover:text-gray-900'
-    }`}
-  >
-    Available ({availableQuotes.length}) {/* FIXED: Use availableQuotes state */}
-  </button>
-  <button
-    onClick={() => setActiveTab('locked')}
-    className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition ${
-      activeTab === 'locked' 
-        ? 'bg-blue-600 text-white' 
-        : 'text-gray-600 hover:text-gray-900'
-    }`}
-  >
-    My Locked ({lockedQuotes.length}) {/* FIXED: Use lockedQuotes state */}
-  </button>
-</div>
- {/* Quote Card Rendering */}
-      <div className="space-y-6">
-        {(() => {
-          let filteredQuotes = [];
-          let emptyMessage = "";
-          
-          if (activeTab === 'all') {
-            filteredQuotes = quotes;
-            emptyMessage = 'No quotes available';
-          } else if (activeTab === 'available') {
-            filteredQuotes = availableQuotes;
-            emptyMessage = 'All quotes are currently being priced by managers.';
-          } else if (activeTab === 'locked') {
-            filteredQuotes = lockedQuotes;
-            emptyMessage = 'You don\'t have any locked quotes at the moment.';
-          }
-
-          if (filteredQuotes.length === 0) {
-            return (
-              <div className="text-center py-16">
-                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  {/* Icon */}
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  {activeTab === 'all' ? 'No quotes available' : 
-                   activeTab === 'available' ? 'No available quotes' : 
-                   'No locked quotes'}
-                </h3>
-                <p className="text-gray-600 mb-6">{emptyMessage}</p>
-                <button
-                  onClick={fetchManagerData}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium inline-flex items-center gap-2"
-                >
-                  Refresh
-                </button>
-              
-<button
-  onClick={() => {
-    console.log('🔍 SECURITY DEBUG - ID COMPARISON');
-    console.log('User object:', user);
-    
-    // Test current quote
-    if (quotes.length > 0) {
-      const testQuote = quotes[0];
-      console.log('Test Quote:', testQuote);
-      console.log('Can price?', canPriceQuote(testQuote));
-      console.log('ID Comparison:', {
-        user_id: user._id,
-        user_id_type: typeof user._id,
-        user_id_length: user._id?.length,
-        lockedById: testQuote.lockedById,
-        lockedById_type: typeof testQuote.lockedById,
-        lockedById_length: testQuote.lockedById?.length,
-        match: compareIds(user._id, testQuote.lockedById)
-      });
-    }
-  }}
-  className="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm"
->
-  🔍 Debug IDs
-</button>
-               
-{quote.lockedById && (
-  <div className="text-xs text-gray-500 mt-1">
-    Locked by ID: {quote.lockedById}
-    <br />
-    Your MongoDB _id: {user._id}
-    <br />
-    Your extracted _id: {user._id && user._id.startsWith('mgr_') ? user._id.split('_')[2] : 'N/A'}
-  </div>
-)}
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Revenue</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  RWF {stats.totalRevenue.toLocaleString()}
+                </p>
               </div>
-            );
-          }
+              <div className="p-3 bg-green-50 rounded-xl">
+                <CurrencyDollarIcon className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </div>
 
-          return filteredQuotes.map(quote => {
-            const status = getQuoteStatus(quote);
-            const quoteItems = quote.items || [];
-            const totalEstimate = quoteItems.reduce((sum, item) => 
-              sum + (item.unitPrice || item.product?.price || 0) * item.quantity, 0
-            );
-            
-            // FIXED: Better button visibility logic
-            const showLockButton = canLockQuote(quote);
-            const showPriceButton = canPriceQuote(quote);
-            const showDeleteButton = canDeleteQuote(quote);
-            const showAwaitingMessage = quote.status === 'AWAITING_CLIENT_APPROVAL' && quote.managerId === user.id;
-            
-            console.log(`🎨 Rendering quote ${quote.id}:`, {
-              showLockButton,
-              showPriceButton,
-              showDeleteButton,
-              status: quote.status,
-              lockedById: quote.lockedById,
-              managerId: user.id
-            });
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Completed Quotes</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">
+                  {stats?.completed || 0}
+                </p>
+              </div>
+              <div className="p-3 bg-emerald-50 rounded-xl">
+                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
 
-            return (
-              <div key={quote.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-900">Quote #{quote.id?.slice(-8)}</h3>
-                    <div className="flex items-center gap-4 mt-2">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${status.color}`}>
-                        {status.text}
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        {new Date(quote.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-gray-600 mt-2">
-                      Client: <span className="font-semibold">{quote.client?.name || 'Unknown'}</span>
-                    </p>
-                    
-                    {/* Show lock expiration for locked quotes */}
-                    {quote.lockedById === user.id && quote.lockExpiresAt && (
-                      <p className="text-sm text-orange-600 mt-1">
-                        ⏰ Lock expires: {new Date(quote.lockExpiresAt).toLocaleTimeString()}
-                      </p>
-                    )}
+        <div className="flex space-x-1 bg-white p-1 rounded-xl border border-gray-200 mb-6">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition ${
+              activeTab === 'all' 
+                ? 'bg-blue-600 text-white' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            All Quotes ({quotes.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('available')}
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition ${
+              activeTab === 'available' 
+                ? 'bg-blue-600 text-white' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Available ({availableQuotes.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('locked')}
+            className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition ${
+              activeTab === 'locked' 
+                ? 'bg-blue-600 text-white' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            My Locked ({lockedQuotes.length})
+          </button>
+        </div>
+
+        {/* Quote Card Rendering */}
+        <div className="space-y-6">
+          {(() => {
+            let filteredQuotes = [];
+            let emptyMessage = "";
+            
+            if (activeTab === 'all') {
+              filteredQuotes = quotes;
+              emptyMessage = 'No quotes available';
+            } else if (activeTab === 'available') {
+              filteredQuotes = availableQuotes;
+              emptyMessage = 'All quotes are currently being priced by managers.';
+            } else if (activeTab === 'locked') {
+              filteredQuotes = lockedQuotes;
+              emptyMessage = 'You don\'t have any locked quotes at the moment.';
+            }
+
+            if (filteredQuotes.length === 0) {
+              return (
+                <div className="text-center py-16">
+                  <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    {/* Icon */}
                   </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {/* Delete Button */}
-                    {showDeleteButton && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteQuote(quote);
-                        }}
-                        className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium flex items-center gap-1"
-                        title="Delete this quote"
-                      >
-                        <span className="hidden sm:inline">Delete</span>
-                      </button>
-                    )}
-                    
-                    {/* Lock Button */}
-                    {showLockButton && (
-                      <button
-                        onClick={() => handleLockQuote(quote)}
-                        className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium flex items-center gap-1"
-                      >
-                        <span className="hidden sm:inline">Lock</span>
-                      </button>
-                    )}
-                    
-                    {/* Price Button - FIXED: Now shows for locked quotes */}
-                    {showPriceButton && (
-                      <button
-                        onClick={() => handlePriceQuote(quote)}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium flex items-center gap-2"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span>Price Quote</span>
-                      </button>
-                    )}
-                    
-                    {/* Awaiting Message */}
-                    {showAwaitingMessage && (
-                      <span className="px-3 py-2 bg-purple-100 text-purple-800 text-sm rounded-lg">
-                        Awaiting Client
-                      </span>
-                    )}
-                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    {activeTab === 'all' ? 'No quotes available' : 
+                     activeTab === 'available' ? 'No available quotes' : 
+                     'No locked quotes'}
+                  </h3>
+                  <p className="text-gray-600 mb-6">{emptyMessage}</p>
+                  <button
+                    onClick={fetchManagerData}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium inline-flex items-center gap-2"
+                  >
+                    Refresh
+                  </button>
                 </div>
-                
-                {/* Items Display */}
-                {quoteItems.length > 0 && (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-                      {quoteItems.slice(0, 3).map((item, index) => (
-                        <div key={index} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm text-gray-900 truncate">
-                                {item.product?.name || 'Product'}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                SKU: {item.product?.sku || 'N/A'}
-                              </p>
-                            </div>
-                            <div className="text-right ml-4">
-                              <p className="text-sm font-semibold text-gray-900">
-                                {item.quantity}x
-                              </p>
-                              <p className="text-xs text-gray-600">
-                                RWF {(item.unitPrice || item.product?.price || 0).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      {quoteItems.length > 3 && (
-                        <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 flex items-center justify-center">
-                          <span className="text-sm text-blue-700 font-medium">
-                            +{quoteItems.length - 3} more items
-                          </span>
-                        </div>
+              );
+            }
+
+            return filteredQuotes.map(quote => {
+              const status = getQuoteStatus(quote);
+              const quoteItems = quote.items || [];
+              const totalEstimate = quoteItems.reduce((sum, item) => 
+                sum + (item.unitPrice || item.product?.price || 0) * item.quantity, 0
+              );
+              
+              // FIXED: Better button visibility logic
+              const showLockButton = canLockQuote(quote);
+              const showPriceButton = canPriceQuote(quote);
+              const showDeleteButton = canDeleteQuote(quote);
+              const showAwaitingMessage = quote.status === 'AWAITING_CLIENT_APPROVAL' && quote.managerId === user.id;
+              
+              console.log(`🎨 Rendering quote ${quote.id}:`, {
+                showLockButton,
+                showPriceButton,
+                showDeleteButton,
+                status: quote.status,
+                lockedById: quote.lockedById,
+                managerId: user.id
+              });
+
+              return (
+                <div key={quote.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-gray-900">Quote #{quote.id?.slice(-8)}</h3>
+                      <div className="flex items-center gap-4 mt-2">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${status.color}`}>
+                          {status.text}
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          {new Date(quote.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-gray-600 mt-2">
+                        Client: <span className="font-semibold">{quote.client?.name || 'Unknown'}</span>
+                      </p>
+                      
+                      {/* Show lock expiration for locked quotes */}
+                      {quote.lockedById === user.id && quote.lockExpiresAt && (
+                        <p className="text-sm text-orange-600 mt-1">
+                          ⏰ Lock expires: {new Date(quote.lockExpiresAt).toLocaleTimeString()}
+                        </p>
                       )}
                     </div>
                     
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                      <div className="text-sm text-gray-600">
-                        <span className="font-medium">Client Notes:</span>{' '}
-                        {quote.notes || quote.sourcingNotes || 'No additional notes'}
+                    <div className="flex items-center gap-2">
+                      {/* Delete Button */}
+                      {showDeleteButton && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteQuote(quote);
+                          }}
+                          className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium flex items-center gap-1"
+                          title="Delete this quote"
+                        >
+                          <span className="hidden sm:inline">Delete</span>
+                        </button>
+                      )}
+                      
+                      {/* Lock Button */}
+                      {showLockButton && (
+                        <button
+                          onClick={() => handleLockQuote(quote)}
+                          className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium flex items-center gap-1"
+                        >
+                          <span className="hidden sm:inline">Lock</span>
+                        </button>
+                      )}
+                      
+                      {/* Price Button - FIXED: Now shows for locked quotes */}
+                      {showPriceButton && (
+                        <button
+                          onClick={() => handlePriceQuote(quote)}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium flex items-center gap-2"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span>Price Quote</span>
+                        </button>
+                      )}
+                      
+                      {/* Awaiting Message */}
+                      {showAwaitingMessage && (
+                        <span className="px-3 py-2 bg-purple-100 text-purple-800 text-sm rounded-lg">
+                          Awaiting Client
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Items Display */}
+                  {quoteItems.length > 0 && (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                        {quoteItems.slice(0, 3).map((item, index) => (
+                          <div key={index} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm text-gray-900 truncate">
+                                  {item.product?.name || 'Product'}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  SKU: {item.product?.sku || 'N/A'}
+                                </p>
+                              </div>
+                              <div className="text-right ml-4">
+                                <p className="text-sm font-semibold text-gray-900">
+                                  {item.quantity}x
+                                </p>
+                                <p className="text-xs text-gray-600">
+                                  RWF {(item.unitPrice || item.product?.price || 0).toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {quoteItems.length > 3 && (
+                          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 flex items-center justify-center">
+                            <span className="text-sm text-blue-700 font-medium">
+                              +{quoteItems.length - 3} more items
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm text-gray-500">Estimated Total</div>
-                        <div className="text-xl font-bold text-blue-900">
-                          RWF {totalEstimate.toLocaleString()}
+                      
+                      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                        <div className="text-sm text-gray-600">
+                          <span className="font-medium">Client Notes:</span>{' '}
+                          {quote.notes || quote.sourcingNotes || 'No additional notes'}
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm text-gray-500">Estimated Total</div>
+                          <div className="text-xl font-bold text-blue-900">
+                            RWF {totalEstimate.toLocaleString()}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            );
-          });
-        })()}
-      </div>
-              
-            : (
-              <div className="text-center py-16">
-                <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <DocumentTextIcon className="w-12 h-12 text-gray-400" />
+                    </>
+                  )}
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  {activeTab === 'all' ? 'No quotes available' : 
-                   activeTab === 'available' ? 'No available quotes' : 
-                   'No locked quotes'}
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  {activeTab === 'available' 
-                    ? 'All quotes are currently being priced by managers.' 
-                    : 'New quotes will appear here automatically.'}
-                </p>
-                <button
-                  onClick={fetchManagerData}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium inline-flex items-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  Refresh
-                </button>
-              </div>
-            );
-          
+              );
+            });
+          })()}
         </div>
+      </div>
+
       {showPricingModal && selectedQuote && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl w-full max-w-4xl my-8 shadow-2xl">
