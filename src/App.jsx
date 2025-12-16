@@ -2662,7 +2662,6 @@ function ManagerDashboard() {
   };
 
 
-  
  const canPriceQuote = (quote) => {
   console.log('🔍 Price check:', {
     quoteId: quote.id,
@@ -2683,8 +2682,21 @@ function ManagerDashboard() {
     return false;
   }
   
-  // ✅ Simple direct comparison
-  return String(user._id) === String(quote.lockedById);
+  // ✅ Extract the last part of user._id if it's a composite ID
+  let userMongoId = user._id;
+  
+  // If user._id is the composite string, extract the last part
+  if (user._id && user._id.includes('_')) {
+    const parts = user._id.split('_');
+    userMongoId = parts[parts.length - 1];
+    console.log('✅ Extracted user ID from composite:', userMongoId);
+  }
+  
+  // Compare with quote.lockedById
+  const canPrice = String(userMongoId) === String(quote.lockedById);
+  
+  console.log(canPrice ? '✅ User can price' : '❌ User cannot price');
+  return canPrice;
 };
 
 function ManagerIdDebug() {
@@ -3015,6 +3027,7 @@ ManagerIdDebug()
       </div>
 
       <div className="max-w-7xl mx-auto px-8 py-6">
+
         {/* ENHANCED DEBUG SECTION - MOVE THIS HERE */}
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
           <div className="flex items-center justify-between mb-3">
@@ -3035,6 +3048,36 @@ ManagerIdDebug()
             >
               Console Log
             </button>
+            <button
+  onClick={() => {
+    console.log('=== ID DEBUG ===');
+    console.log('Full user object:', user);
+    console.log('User._id:', user._id);
+    console.log('User._id length:', user._id?.length);
+    console.log('Is 24-char MongoDB?', user._id?.length === 24 && /^[0-9a-fA-F]{24}$/.test(user._id));
+    console.log('Is 32-char UUID?', user._id?.length === 32 && /^[0-9a-fA-F]{32}$/.test(user._id));
+    
+    if (quotes.length > 0) {
+      const testQuote = quotes.find(q => q.status === 'IN_PRICING');
+      if (testQuote) {
+        console.log('Test quote lockedById:', testQuote.lockedById);
+        console.log('Test quote lockedById length:', testQuote.lockedById?.length);
+        console.log('Direct comparison:', user._id === testQuote.lockedById);
+        
+        // Extract and compare
+        let extractedId = user._id;
+        if (user._id && user._id.includes('_')) {
+          extractedId = user._id.split('_').pop();
+        }
+        console.log('Extracted ID:', extractedId);
+        console.log('Extracted comparison:', extractedId === testQuote.lockedById);
+      }
+    }
+  }}
+  className="px-4 py-2 bg-purple-600 text-white rounded-lg"
+>
+  🔍 Debug IDs
+</button>
           </div>
           
           <div className="grid grid-cols-2 gap-4 text-xs">
