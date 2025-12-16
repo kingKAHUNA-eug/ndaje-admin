@@ -2653,37 +2653,44 @@ const canPriceQuote = (quote) => {
     return false;
   }
   
-  // CRITICAL: Extract MongoDB _id from user string ID if needed
-  let userMongoId = user._id;
+  // FIXED: Extract MongoDB _id from EITHER user._id OR user.id
+  let userMongoId = null;
   
-  // If user._id is the full string pattern, extract MongoDB _id
-  if (user._id && user._id.startsWith('mgr_')) {
-    const parts = user._id.split('_');
-    if (parts.length >= 3) {
-      userMongoId = parts[parts.length - 1];
-      console.log('✅ Extracted MongoDB _id for comparison:', userMongoId);
+  // Try user._id first
+  if (user._id) {
+    if (user._id.startsWith('mgr_')) {
+      const parts = user._id.split('_');
+      userMongoId = parts.length >= 3 ? parts[parts.length - 1] : user._id;
+    } else {
+      userMongoId = user._id;
     }
   }
   
-  // If user._id is not set, try to extract from user.id
-  if (!userMongoId && user.id && user.id.startsWith('mgr_')) {
-    const parts = user.id.split('_');
-    if (parts.length >= 3) {
-      userMongoId = parts[parts.length - 1];
-      console.log('✅ Extracted MongoDB _id from user.id:', userMongoId);
+  // Fallback to user.id
+  if (!userMongoId && user.id) {
+    if (user.id.startsWith('mgr_')) {
+      const parts = user.id.split('_');
+      userMongoId = parts.length >= 3 ? parts[parts.length - 1] : user.id;
+    } else {
+      userMongoId = user.id;
     }
+  }
+  
+  if (!userMongoId) {
+    console.log('❌ Could not extract user MongoDB ID');
+    return false;
   }
   
   // Convert both IDs to strings for comparison
-  const lockedByIdStr = quote.lockedById?.toString();
-  const userMongoIdStr = userMongoId?.toString();
+  const lockedByIdStr = quote.lockedById?.toString().trim().toLowerCase();
+  const userMongoIdStr = userMongoId?.toString().trim().toLowerCase();
   
   console.log('🔐 ID comparison:', {
     userMongoId,
     lockedById: quote.lockedById,
     userMongoIdStr,
     lockedByIdStr,
-    userStringId: user.id
+    match: lockedByIdStr === userMongoIdStr
   });
   
   // Check if locked by current user
@@ -2697,7 +2704,6 @@ const canPriceQuote = (quote) => {
   console.log('✅ Can price: User holds valid lock');
   return true;
 };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
