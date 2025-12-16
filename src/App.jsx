@@ -2663,49 +2663,246 @@ function ManagerDashboard() {
 
 
   
-  const canPriceQuote = (quote) => {
-  console.log('🔍 Checking if user can price quote:', quote.id);
-  console.log('📊 Quote status:', quote.status);
-  console.log('👤 Current user ID:', user.id);
-  console.log('🔐 Quote lockedById:', quote.lockedById);
+ const canPriceQuote = (quote) => {
+  console.log('🔍 Price check:', {
+    quoteId: quote.id,
+    quoteStatus: quote.status,
+    quoteLockedById: quote.lockedById,
+    user_id: user._id,
+    user_id_length: user._id?.length,
+    user_id_type: typeof user._id,
+    match: user._id === quote.lockedById
+  });
   
-  // Basic validation
+  // Basic checks
   if (!quote || !user) return false;
+  if (quote.status !== 'IN_PRICING') return false;
   
-  // Only allow pricing if quote is IN_PRICING status
-  if (quote.status !== 'IN_PRICING') {
-    console.log('❌ Quote is not IN_PRICING status');
+  // Check lock expiration
+  if (quote.lockExpiresAt && new Date(quote.lockExpiresAt) < new Date()) {
     return false;
   }
   
-  // Check if lock has expired
-  const lockExpiresAt = quote.lockExpiresAt ? new Date(quote.lockExpiresAt) : null;
-  const isLockExpired = lockExpiresAt ? new Date() > lockExpiresAt : true;
-  
-  if (isLockExpired) {
-    console.log('❌ Lock has expired');
-    return false;
-  }
-  
-  // SIMPLE FIX: Use any ID that matches
-  // Check multiple possible user ID fields
-  const possibleUserIds = [
-    user._id,                    // MongoDB ObjectId
-    user.id,                     // String ID from localStorage
-    user.managerId,              // Manager-specific ID
-    user.userId,                 // User ID
-  ].filter(Boolean);            // Remove undefined/null
-  
-  console.log('🔍 Possible user IDs:', possibleUserIds);
-  
-  // Check if any of our IDs match the lockedById
-  const canPrice = possibleUserIds.some(userId => 
-    String(userId) === String(quote.lockedById)
-  );
-  
-  console.log(canPrice ? '✅ User can price this quote' : '❌ User cannot price this quote');
-  return canPrice;
+  // ✅ Simple direct comparison
+  return String(user._id) === String(quote.lockedById);
 };
+
+function ManagerIdDebug() {
+  const [debugInfo, setDebugInfo] = useState(null);
+  const [checking, setChecking] = useState(false);
+
+  const checkIds = async () => {
+    setChecking(true);
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const token = localStorage.getItem('token');
+      const API_BASE = 'https://ndaje-hotel-supply-backend.onrender.com/api';
+
+      // Get current user info from backend
+      const userInfoRes = await fetch(`${API_BASE}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const userInfo = await userInfoRes.json();
+
+      // Get quotes to see what lockedById values exist
+      const quotesRes = await fetch(`${API_BASE}/quotes/manager/locked`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const quotes = await quotesRes.json();
+
+      setDebugInfo({
+        localStorage: {
+          userId: user.id,
+          user_id: user._id,
+          fullUser: user
+        },
+        backendUser: userInfo.data || userInfo,
+        lockedQuotes: quotes.data || [],
+        comparison: {
+          frontendId: user._id || user.id,
+          backendIds: (quotes.data || []).map(q => q.lockedById)
+        }
+      });
+    } catch (err) {
+      console.error('Debug error:', err);
+      setDebugInfo({ error: err.message });
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  useEffect(() => {
+    checkIds();
+  }, []);
+
+  if (checking) {
+    return (
+      <div className="p-8 bg-white rounded-xl shadow-lg">
+        <div className="animate-pulse">Checking IDs...</div>
+      </div>
+    );
+  }
+
+  if (!debugInfo) return null;
+
+  return (
+    <div className="p-8 bg-gradient-to-br from-orange-50 to-red-50 rounded-xl shadow-lg max-w-4xl mx-auto my-8">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center">
+          <span className="text-white text-2xl">🐛</span>
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Manager ID Debug Report</h2>
+          <p className="text-gray-600">Finding the ID mismatch problem</p>
+        </div>
+      </div>
+
+      {debugInfo.error ? (
+        <div className="bg-red-100 border border-red-400 text-red-700 p-4 rounded-lg">
+          <strong>Error:</strong> {debugInfo.error}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Frontend IDs */}
+          <div className="bg-white rounded-lg p-6 shadow-sm">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">🖥️ Frontend (localStorage)</h3>
+            <div className="space-y-2 font-mono text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">user.id:</span>
+                <span className="font-bold text-blue-900">{debugInfo.localStorage.userId}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">user._id:</span>
+                <span className="font-bold text-blue-900">{debugInfo.localStorage.user_id}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Extracted MongoDB ID:</span>
+                <span className="font-bold text-green-700">
+                  {debugInfo.localStorage.userId?.includes('_') 
+                    ? debugInfo.localStorage.userId.split('_').pop()
+                    : debugInfo.localStorage.user_id}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Backend User */}
+          <div className="bg-white rounded-lg p-6 shadow-sm">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">🖧 Backend (/auth/me)</h3>
+            <div className="space-y-2 font-mono text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">id:</span>
+                <span className="font-bold text-purple-900">{debugInfo.backendUser?.user?.id || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">_id:</span>
+                <span className="font-bold text-purple-900">{debugInfo.backendUser?.user?._id || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">name:</span>
+                <span className="font-bold text-gray-900">{debugInfo.backendUser?.user?.name || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">role:</span>
+                <span className="font-bold text-gray-900">{debugInfo.backendUser?.user?.role || 'N/A'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Locked Quotes */}
+          <div className="bg-white rounded-lg p-6 shadow-sm">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">🔒 Locked Quotes</h3>
+            {debugInfo.lockedQuotes.length === 0 ? (
+              <p className="text-gray-500 italic">No locked quotes found</p>
+            ) : (
+              <div className="space-y-3">
+                {debugInfo.lockedQuotes.map((quote, idx) => (
+                  <div key={idx} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex justify-between mb-2">
+                      <span className="font-semibold">Quote #{quote.id?.slice(-8)}</span>
+                      <span className="text-sm text-gray-500">{quote.status}</span>
+                    </div>
+                    <div className="space-y-1 font-mono text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">lockedById:</span>
+                        <span className="font-bold text-red-700">{quote.lockedById}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Match?</span>
+                        <span className={`font-bold ${
+                          String(quote.lockedById) === String(debugInfo.localStorage.user_id)
+                            ? 'text-green-700'
+                            : 'text-red-700'
+                        }`}>
+                          {String(quote.lockedById) === String(debugInfo.localStorage.user_id) ? '✅ YES' : '❌ NO'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Issue Summary */}
+          <div className="bg-red-50 border-2 border-red-500 rounded-lg p-6">
+            <h3 className="text-lg font-bold text-red-900 mb-3">🚨 THE PROBLEM</h3>
+            <div className="space-y-2 text-sm">
+              <p className="text-gray-800">
+                <strong>Your Frontend ID:</strong>{' '}
+                <code className="bg-green-100 px-2 py-1 rounded">{debugInfo.localStorage.user_id}</code>
+              </p>
+              <p className="text-gray-800">
+                <strong>Backend lockedById:</strong>{' '}
+                <code className="bg-red-100 px-2 py-1 rounded">
+                  {debugInfo.lockedQuotes[0]?.lockedById || 'No locked quotes'}
+                </code>
+              </p>
+              <p className="text-red-700 font-bold mt-3">
+                ❌ These IDs DO NOT MATCH!
+              </p>
+              <p className="text-gray-700 mt-3">
+                <strong>Root Cause:</strong> When you lock a quote, the backend is using a DIFFERENT manager ID 
+                than what's stored in your localStorage. This means the lock endpoint is either:
+              </p>
+              <ul className="list-disc ml-6 mt-2 space-y-1 text-gray-700">
+                <li>Using the wrong user ID from the JWT token</li>
+                <li>Not extracting the MongoDB _id correctly on the backend</li>
+                <li>Using a different manager record than expected</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Backend Fix Needed */}
+          <div className="bg-yellow-50 border-2 border-yellow-500 rounded-lg p-6">
+            <h3 className="text-lg font-bold text-yellow-900 mb-3">🔧 BACKEND FIX REQUIRED</h3>
+            <p className="text-gray-800 mb-3">
+              Check your backend quote locking endpoint (<code>/quotes/manager/lock</code>):
+            </p>
+            <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-xs">
+{`// ❌ WRONG: Using string ID
+quote.lockedById = req.user.id;  // mgr_xxx_mongoId
+
+// ✅ CORRECT: Extract MongoDB ObjectId
+const managerId = req.user._id || 
+                  req.user.id.split('_').pop();
+quote.lockedById = managerId;  // Just the MongoDB ID`}
+            </pre>
+          </div>
+
+          <button
+            onClick={checkIds}
+            className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          >
+            🔄 Refresh Debug Info
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ManagerIdDebug()
 
   if (loading) {
     return (
