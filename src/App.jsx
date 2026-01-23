@@ -1,45 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom"
 import axios from 'axios'
-
-// Simple logo fallback solution
-const useNdajeLogo = () => {
-  // Try multiple approaches to load the logo
-  const [logoPath, setLogoPath] = useState(null);
-  
-  useEffect(() => {
-    // Try different paths and methods
-    const tryLoadLogo = async () => {
-      // Method 1: Direct import (if webpack supports it)
-      try {
-        const logo = await import('./assets/Ndaje_logo.svg');
-        if (logo.default) {
-          setLogoPath(logo.default);
-          return;
-        }
-      } catch (e) {
-        console.log('SVG import failed, trying alternative methods...');
-      }
-      
-      // Method 2: Check public folder
-      const publicPath = '/Ndaje_logo.svg';
-      const img = new Image();
-      img.onload = () => {
-        setLogoPath(publicPath);
-      };
-      img.onerror = () => {
-        // Method 3: Use base64 fallback
-        setLogoPath(null);
-      };
-      img.src = publicPath;
-    };
-    
-    tryLoadLogo();
-  }, []);
-  
-  return logoPath;
-};
-
 import {
   ChartBarIcon, UsersIcon, TruckIcon, Cog6ToothIcon, PlusIcon,
   MagnifyingGlassIcon, EyeIcon, PencilSquareIcon, TrashIcon,
@@ -50,6 +11,18 @@ import {
   CubeIcon, BuildingStorefrontIcon, DocumentTextIcon,
   BellIcon, XMarkIcon, SunIcon, MoonIcon
 } from '@heroicons/react/24/outline'
+
+<div className="mb-8">
+  <div className="flex items-center gap-4">
+    <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-emerald-800 rounded-full flex items-center justify-center shadow-2xl">
+      <span className="text-white text-2xl font-black">N</span>
+    </div>
+    <div>
+      <h1 className="text-4xl font-bold text-green-400 tracking-widest">NDAJE</h1>
+      <p className="text-sm text-gray-400 tracking-wider">SUPPLY CHAIN SYSTEM</p>
+    </div>
+  </div>
+</div>
 
 // FIXED API BASE
 const API_BASE = import.meta.env.VITE_API_URL
