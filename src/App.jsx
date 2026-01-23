@@ -20,6 +20,39 @@ const API_BASE = import.meta.env.VITE_API_URL
       .replace(/\/\/auth/, '/auth')
   : 'http://localhost:10000/api';
 
+  // ==============================
+// ENHANCED DARK MODE THEME
+// ==============================
+const useDarkMode = () => {
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      document.documentElement.style.setProperty('--primary-color', '#1e40af');
+      document.documentElement.style.setProperty('--secondary-color', '#3b82f6');
+      document.documentElement.style.setProperty('--bg-primary', '#0f172a');
+      document.documentElement.style.setProperty('--bg-secondary', '#1e293b');
+      document.documentElement.style.setProperty('--text-primary', '#f8fafc');
+      document.documentElement.style.setProperty('--text-secondary', '#cbd5e1');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.style.removeProperty('--primary-color');
+      document.documentElement.style.removeProperty('--secondary-color');
+      document.documentElement.style.removeProperty('--bg-primary');
+      document.documentElement.style.removeProperty('--bg-secondary');
+      document.documentElement.style.removeProperty('--text-primary');
+      document.documentElement.style.removeProperty('--text-secondary');
+    }
+    localStorage.setItem('darkMode', JSON.stringify(darkMode));
+  }, [darkMode]);
+
+  return [darkMode, setDarkMode];
+};
+
 // Enhanced Toast Notification Component
 const EnhancedToast = ({ toast, onClose }) => {
   if (!toast) return null;
@@ -1199,47 +1232,52 @@ const handleLogin = async (e) => {
 };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900 flex items-center justify-center px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-900 rounded-2xl mb-6 shadow-2xl">
-            <span className="text-white text-4xl font-black">N</span>
+          {/* NDAJE Logo - White on Blue Background */}
+          <div className="inline-flex items-center justify-center w-24 h-24 bg-white rounded-3xl mb-6 shadow-2xl">
+            <div className="text-center">
+              <span className="text-blue-900 text-4xl font-black tracking-wider">N</span>
+              <div className="w-16 h-2 bg-blue-900 mx-auto mt-1 rounded-full"></div>
+              <span className="text-blue-900 text-sm font-bold tracking-widest mt-1 block">DAJE</span>
+            </div>
           </div>
-          <h1 className="text-4xl font-black text-gray-900">NDAJE</h1>
-          <p className="text-xl text-gray-600 mt-2">Hotel Supply Command Center</p>
-          <p className="text-sm text-gray-500 mt-4">Staff Access Only</p>
+          <h1 className="text-4xl font-black text-white">NDAJE</h1>
+          <p className="text-xl text-blue-100 mt-2">Hotel Supply Command Center</p>
+          <p className="text-sm text-blue-200 mt-4">Staff Access Only</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">Staff Sign In</h2>
+        <div className="bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl p-8 border border-white/20">
+          <h2 className="text-2xl font-bold text-white mb-8 text-center">Staff Sign In</h2>
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+              <label className="block text-sm font-semibold text-blue-100 mb-2">Email Address</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-xl focus:ring-2 focus:ring-white focus:border-white text-white placeholder-blue-200 transition backdrop-blur-sm"
                 placeholder="staff@ndaje.rw"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+              <label className="block text-sm font-semibold text-blue-100 mb-2">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                className="w-full px-4 py-3 bg-white/10 border border-white/30 rounded-xl focus:ring-2 focus:ring-white focus:border-white text-white placeholder-blue-200 transition backdrop-blur-sm"
                 placeholder="Enter your password"
               />
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm font-medium">
+              <div className="bg-red-500/20 border border-red-500/30 text-red-100 px-4 py-3 rounded-lg text-sm font-medium backdrop-blur-sm">
                 {error}
               </div>
             )}
@@ -1247,21 +1285,30 @@ const handleLogin = async (e) => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-blue-900 hover:bg-blue-800 text-white font-bold text-lg rounded-xl transition disabled:opacity-60 shadow-lg"
+              className="w-full py-4 bg-white text-blue-900 hover:bg-blue-50 text-white font-bold text-lg rounded-xl transition disabled:opacity-60 shadow-lg transform hover:scale-[1.02] active:scale-[0.98]"
             >
-              {loading ? 'Authenticating...' : 'Enter Command Center'}
+              {loading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Authenticating...
+                </div>
+              ) : 'Enter Command Center'}
             </button>
           </form>
 
-          <div className="mt-8 text-center text-xs text-gray-500">
+          <div className="mt-8 text-center text-xs text-blue-200">
             <p>© 2025 NDAJE Supply Chain • Rwanda</p>
-            <p className="mt-1 font-medium text-gray-700">All hotels will be supplied. All will comply.</p>
+            <p className="mt-1 font-medium text-blue-100">All hotels will be supplied. All will comply.</p>
           </div>
         </div>
       </div>
     </div>
   )
 }
+
 
 function DashboardLayout({ children, darkMode, setDarkMode }) {
   const navigate = useNavigate()
@@ -1384,6 +1431,10 @@ function DashboardLayout({ children, darkMode, setDarkMode }) {
   )
 }
 
+
+// ==============================
+// FIXED: Products Panel Component
+// ==============================
 function ProductsPanel() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -1391,8 +1442,9 @@ function ProductsPanel() {
   const [editing, setEditing] = useState(null)
   const token = localStorage.getItem('token')
   const [form, setForm] = useState({
-    name: '', sku: '', price: '', icon: '', image: '', reference: '', description: '', category: '', active: true
+    name: '', sku: '', price: '', icon: 'cube', image: '', reference: '', description: '', category: '', active: true
   })
+  const [toast, setToast] = useState(null)
 
   useEffect(() => {
     fetchProducts()
@@ -1408,6 +1460,11 @@ function ProductsPanel() {
       setProducts(res.data.data || [])
     } catch (err) {
       console.error('❌ Failed to fetch products:', err)
+      setToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to load products'
+      })
     } finally {
       setLoading(false)
     }
@@ -1417,12 +1474,31 @@ function ProductsPanel() {
     console.log('🚀 Submitting product form...')
     console.log('📝 Form data:', form)
     
+    // Validation
+    if (!form.name || !form.sku || !form.price) {
+      setToast({
+        type: 'error',
+        title: 'Validation Error',
+        message: 'Name, SKU and Price are required!'
+      })
+      return
+    }
+
+    if (isNaN(form.price) || Number(form.price) <= 0) {
+      setToast({
+        type: 'error',
+        title: 'Validation Error',
+        message: 'Price must be a valid number greater than 0!'
+      })
+      return
+    }
+    
     try {
       const payload = {
         name: form.name.trim(),
         sku: form.sku.trim(),
-        price: Number(form.price) || 0,
-        icon: form.icon.trim() || "box",
+        price: Number(form.price),
+        icon: form.icon.trim() || "cube",
         image: form.image.trim() || null,
         reference: form.reference.trim() || null,
         description: form.description.trim() || null,
@@ -1432,41 +1508,62 @@ function ProductsPanel() {
 
       console.log('📤 Payload to send:', payload)
 
-      if (!payload.name || !payload.sku || !payload.price) {
-        alert("Name, SKU and Price are required!")
-        return
-      }
-
       let response;
       if (editing) {
         console.log('✏️ Updating product:', editing.id)
         response = await axios.put(`${API_BASE}/products/${editing.id}`, payload, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         })
         console.log('✅ Product updated:', response.data)
       } else {
         console.log('🆕 Creating new product')
         response = await axios.post(`${API_BASE}/products`, payload, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         })
         console.log('✅ Product created:', response.data)
       }
 
       setShowAdd(false)
       setEditing(null)
-      setForm({ name: '', sku: '', price: '', icon: '', image: '', reference: '', description: '', category: '', active: true })
+      setForm({ name: '', sku: '', price: '', icon: 'cube', image: '', reference: '', description: '', category: '', active: true })
       fetchProducts()
       
-      alert(editing ? "Product updated!" : "Product created successfully!")
+      setToast({
+        type: 'success',
+        title: 'Success!',
+        message: editing ? 'Product updated successfully!' : 'Product created successfully!'
+      })
     } catch (err) {
       console.error('❌ Product submission failed:', err)
-      console.error('🔍 Error response:', err.response?.data)
-      alert(err.response?.data?.message || "Failed to save product")
+      console.error('🔍 Error details:', err.response?.data)
+      
+      let errorMessage = "Failed to save product"
+      if (err.response?.status === 409) {
+        errorMessage = "Product with this SKU already exists!"
+      } else if (err.response?.status === 400) {
+        errorMessage = "Invalid product data. Please check all fields."
+      } else if (err.response?.status === 401) {
+        errorMessage = "Session expired. Please login again."
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message
+      }
+      
+      setToast({
+        type: 'error',
+        title: 'Error',
+        message: errorMessage
+      })
     }
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this product?')) return
+    if (!confirm('Are you sure you want to delete this product?')) return
     console.log('🗑️ Deleting product:', id)
     try {
       await axios.delete(`${API_BASE}/products/${id}`, {
@@ -1474,43 +1571,139 @@ function ProductsPanel() {
       })
       console.log('✅ Product deleted')
       fetchProducts()
+      setToast({
+        type: 'success',
+        title: 'Success',
+        message: 'Product deleted successfully!'
+      })
     } catch (err) {
       console.error('❌ Delete failed:', err)
-      alert('Failed to delete')
+      setToast({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to delete product'
+      })
     }
   }
 
-  if (loading) return <div className="text-center py-20 text-3xl font-black text-blue-900">Loading Products...</div>
+  const handleImageUpload = async (file) => {
+    if (!file) return;
+    
+    try {
+      setForm(f => ({ ...f, image: 'uploading' }));
+      
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const res = await axios.post(
+        `${API_BASE}/admin/upload/product-image`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      if (res.data.success && res.data.data?.url) {
+        setForm(f => ({ ...f, image: res.data.data.url }));
+        setToast({
+          type: 'success',
+          title: 'Success',
+          message: 'Image uploaded successfully!'
+        });
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (err) {
+      console.error('Upload failed:', err.response?.data || err);
+      setForm(f => ({ ...f, image: '' }));
+      setToast({
+        type: 'error',
+        title: 'Upload Failed',
+        message: err.response?.data?.message || 'Failed to upload image. Try again.'
+      });
+    }
+  };
+
+  if (loading) return (
+    <div className="text-center py-20">
+      <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 dark:border-blue-400 mb-4"></div>
+      <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">Loading Products...</div>
+    </div>
+  )
 
   return (
     <div className="space-y-8">
+      <EnhancedToast toast={toast} onClose={() => setToast(null)} />
+      
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-blue-900">Product Catalog</h1>
-        <button onClick={() => setShowAdd(true)} className="inline-flex items-center gap-2 px-6 py-3 bg-blue-900 text-white rounded-xl hover:bg-blue-800 font-bold">
+        <div>
+          <h1 className="text-3xl font-bold text-blue-900 dark:text-white">Product Catalog</h1>
+          <p className="text-gray-600 dark:text-gray-300 mt-1">Manage your product inventory</p>
+        </div>
+        <button 
+          onClick={() => setShowAdd(true)} 
+          className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-xl font-bold transition transform hover:scale-105"
+        >
           <PlusIcon className="w-5 h-5" /> Add Product
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {products.map(p => (
-          <div key={p.id} className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
-            {p.image ? (
-              <img src={p.image} alt={p.name} className="w-full h-48 object-cover" />
-            ) : (
-              <div className="w-full h-48 bg-gray-100 flex items-center justify-center text-6xl">
-                {p.icon}
+          <div key={p.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
+            <div className="h-48 overflow-hidden bg-gray-100 dark:bg-gray-900 relative">
+              {p.image ? (
+                <img 
+                  src={p.image} 
+                  alt={p.name} 
+                  className="w-full h-full object-cover transition-transform hover:scale-105 duration-300"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.parentElement.innerHTML = `
+                      <div class="w-full h-full flex items-center justify-center">
+                        <div class="text-4xl">${p.icon || '📦'}</div>
+                      </div>
+                    `;
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="text-6xl">{p.icon || '📦'}</div>
+                </div>
+              )}
+              <div className="absolute top-4 right-4">
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                  p.active ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                }`}>
+                  {p.active ? 'Active' : 'Inactive'}
+                </span>
               </div>
-            )}
+            </div>
             <div className="p-6">
-              <h3 className="text-xl font-bold text-gray-900">{p.name}</h3>
-              <p className="text-sm text-gray-500 mt-1">Ref: {p.reference || '—'}</p>
-              <p className="text-2xl font-bold text-blue-900 mt-3">RWF {Number(p.price).toLocaleString()}</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white truncate">{p.name}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">SKU: {p.sku || '—'}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Ref: {p.reference || '—'}</p>
+              <p className="text-2xl font-bold text-blue-900 dark:text-blue-300 mt-3">RWF {Number(p.price).toLocaleString()}</p>
+              {p.category && (
+                <span className="inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 text-xs rounded-full">
+                  {p.category}
+                </span>
+              )}
               <div className="flex gap-2 mt-4">
-                <button onClick={() => { setEditing(p); setForm(p); setShowAdd(true) }} className="flex-1 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">
-                  <PencilSquareIcon className="w-5 h-5 mx-auto" />
+                <button 
+                  onClick={() => { setEditing(p); setForm(p); setShowAdd(true) }} 
+                  className="flex-1 py-2 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg transition flex items-center justify-center gap-1"
+                >
+                  <PencilSquareIcon className="w-4 h-4" /> Edit
                 </button>
-                <button onClick={() => handleDelete(p.id)} className="flex-1 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200">
-                  <TrashIcon className="w-5 h-5 mx-auto" />
+                <button 
+                  onClick={() => handleDelete(p.id)} 
+                  className="flex-1 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900 text-red-700 dark:text-red-300 rounded-lg transition flex items-center justify-center gap-1"
+                >
+                  <TrashIcon className="w-4 h-4" /> Delete
                 </button>
               </div>
             </div>
@@ -1518,115 +1711,229 @@ function ProductsPanel() {
         ))}
       </div>
 
-      {showAdd && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-2xl max-h-screen overflow-y-auto">
-            <h2 className="text-2xl font-bold mb-6">{editing ? 'Edit' : 'Add'} Product</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <input placeholder="Name" value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} className="px-4 py-3 border rounded-xl" />
-              <input placeholder="SKU (unique)" value={form.sku} onChange={e => setForm(f => ({...f, sku: e.target.value}))} className="px-4 py-3 border rounded-xl" />
-              <input placeholder="Price (RWF)" type="number" value={form.price} onChange={e => setForm(f => ({...f, price: e.target.value}))} className="px-4 py-3 border rounded-xl" />
-              <input placeholder="Icon (e.g. beer, water)" value={form.icon} onChange={e => setForm(f => ({...f, icon: e.target.value}))} className="px-4 py-3 border rounded-xl" />
-              
-              <div className="col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Product Image
-                </label>
+      {products.length === 0 && (
+        <div className="text-center py-12">
+          <div className="w-24 h-24 mx-auto mb-6 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-full">
+            <CubeIcon className="w-12 h-12 text-gray-400 dark:text-gray-600" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No products yet</h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">Get started by adding your first product</p>
+          <button 
+            onClick={() => setShowAdd(true)} 
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-lg font-medium"
+          >
+            Add First Product
+          </button>
+        </div>
+      )}
 
-                {/* SUCCESS: IMAGE UPLOADED */}
-                {form.image && form.image !== 'uploading' && form.image !== '' ? (
-                  <div className="relative rounded-xl overflow-hidden border-4 border-green-500 bg-green-50 shadow-2xl">
-                    <img
-                      src={form.image}
-                      alt="Product preview"
-                      className="w-full h-80 object-cover bg-gray-100"
-                      onError={(e) => {
-                        e.target.src = `${API_BASE}/admin/upload/product-image`;
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setForm(f => ({ ...f, image: '' }))}
-                      className="absolute top-4 right-4 bg-red-600 hover:bg-red-700 text-white w-12 h-12 rounded-full text-3xl font-black shadow-2xl transition transform hover:scale-110"
-                    >
-                      X
-                    </button>
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6">
-                      <div className="flex items-center gap-3 text-white">
-                        <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                        </svg>
-                        <span className="text-xl font-bold">REAL PHOTO UPLOADED — NDAJE IS ALIVE</span>
-                      </div>
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-2xl max-h-screen overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{editing ? 'Edit' : 'Add'} Product</h2>
+              <button
+                onClick={() => { setShowAdd(false); setEditing(null); setForm({name:'',sku:'',price:'',icon:'cube',image:'',reference:'',description:'',category:'',active:true}) }}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+              >
+                <XMarkIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Product Name *
+                </label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={e => setForm(f => ({...f, name: e.target.value}))}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="Enter product name"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  SKU (Stock Keeping Unit) *
+                </label>
+                <input
+                  type="text"
+                  value={form.sku}
+                  onChange={e => setForm(f => ({...f, sku: e.target.value}))}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="Enter unique SKU"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Price (RWF) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.price}
+                  onChange={e => setForm(f => ({...f, price: e.target.value}))}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Category
+                </label>
+                <select
+                  value={form.category}
+                  onChange={e => setForm(f => ({...f, category: e.target.value}))}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="">Select category</option>
+                  <option value="Beverages">Beverages</option>
+                  <option value="Food">Food</option>
+                  <option value="Cleaning Supplies">Cleaning Supplies</option>
+                  <option value="Amenities">Amenities</option>
+                  <option value="Furniture">Furniture</option>
+                  <option value="Electronics">Electronics</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Reference Code
+                </label>
+                <input
+                  type="text"
+                  value={form.reference}
+                  onChange={e => setForm(f => ({...f, reference: e.target.value}))}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="Internal reference code"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Icon
+                </label>
+                <select
+                  value={form.icon}
+                  onChange={e => setForm(f => ({...f, icon: e.target.value}))}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="cube">📦 Cube</option>
+                  <option value="beer">🍺 Beer</option>
+                  <option value="wine">🍷 Wine</option>
+                  <option value="coffee">☕ Coffee</option>
+                  <option value="food">🍕 Food</option>
+                  <option value="cleaning">🧼 Cleaning</option>
+                  <option value="towel">🧺 Towel</option>
+                  <option value="electronic">🔌 Electronic</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Description
+              </label>
+              <textarea
+                value={form.description}
+                onChange={e => setForm(f => ({...f, description: e.target.value}))}
+                rows={3}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                placeholder="Enter product description"
+              />
+            </div>
+            
+            <div className="mb-8">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Product Image
+              </label>
+              
+              {form.image === 'uploading' ? (
+                <div className="w-full h-64 border-2 border-dashed border-blue-500 rounded-2xl flex flex-col items-center justify-center bg-blue-50 dark:bg-blue-900/20">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-800 rounded-full animate-pulse mb-4">
+                    <svg className="w-8 h-8 text-blue-600 dark:text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                    </svg>
+                  </div>
+                  <p className="text-lg font-medium text-blue-900 dark:text-blue-300">Uploading...</p>
+                </div>
+              ) : form.image ? (
+                <div className="relative rounded-xl overflow-hidden border-2 border-green-500 dark:border-green-600 bg-green-50 dark:bg-green-900/20">
+                  <img
+                    src={form.image}
+                    alt="Product preview"
+                    className="w-full h-64 object-cover bg-gray-100 dark:bg-gray-800"
+                    onError={(e) => {
+                      e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="%23f3f4f6"/><text x="200" y="150" font-family="Arial" font-size="20" text-anchor="middle" fill="%236b7280">Image failed to load</text></svg>';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, image: '' }))}
+                    className="absolute top-4 right-4 bg-red-600 hover:bg-red-700 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition"
+                  >
+                    <XMarkIcon className="w-5 h-5" />
+                  </button>
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                    <div className="flex items-center gap-2 text-white">
+                      <CheckCircleIcon className="w-5 h-5" />
+                      <span className="text-sm font-medium">Image uploaded successfully</span>
                     </div>
                   </div>
-                ) : form.image === 'uploading' ? (
-                  /* UPLOADING STATE */
-                  <div className="w-full h-80 border-4 border-dashed border-blue-600 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white">
-                    <div className="inline-flex items-center justify-center w-24 h-24 bg-blue-100 rounded-full animate-pulse mb-6">
-                      <svg className="w-12 h-12 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                </div>
+              ) : (
+                <label className="w-full h-64 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return;
+                      handleImageUpload(file);
+                    }}
+                  />
+                  <div className="text-center p-6">
+                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                     </div>
-                    <p className="text-4xl font-black text-blue-900">Uploading…</p>
-                    <p className="text-xl text-blue-700 mt-2">Real photo for Rwanda's finest</p>
+                    <p className="text-lg font-medium text-gray-900 dark:text-gray-300 mb-2">Upload product image</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Click to browse or drag & drop</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">PNG, JPG, GIF up to 5MB</p>
                   </div>
-                ) : (
-                  /* DEFAULT UPLOAD ZONE */
-                  <label className="w-full h-80 border-4 border-dashed border-blue-600 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-white hover:from-blue-100 transition-all cursor-pointer text-blue-900 font-bold text-2xl shadow-2xl group">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0]
-                        if (!file) return
-
-                        setForm(f => ({ ...f, image: 'uploading' }))
-
-                        const formData = new FormData()
-                        formData.append('image', file)
-
-                        try {
-                          const token = localStorage.getItem('token')
-                          const res = await axios.post(
-                            `${API_BASE}/admin/upload/product-image`,
-                            formData,
-                            {
-                              headers: {
-                                Authorization: `Bearer ${token}`,
-                                'Content-Type': 'multipart/form-data'
-                              }
-                            }
-                          )
-
-                          setForm(f => ({ ...f, image: res.data.data.url }))
-                          console.log('IMAGE UPLOADED:', res.data.data.url)
-
-                        } catch (err) {
-                          console.error('Upload failed:', err.response?.data || err)
-                          alert('Upload failed: ' + (err.response?.data?.message || 'Try again'))
-                          setForm(f => ({ ...f, image: '' }))
-                        }
-                      }}
-                    />
-                    <div className="text-center">
-                      <div className="text-7xl mb-4 group-hover:scale-110 transition-transform">Upload Photo</div>
-                      <div className="text-2xl text-blue-700 font-bold">Click • Drag & Drop • Camera</div>
-                      <div className="text-lg text-blue-600 mt-4 font-medium">
-                        Real photos for Rwanda's finest hotels
-                      </div>
-                    </div>
-                  </label>
-                )}
-              </div>
-              <input placeholder="Reference (e.g. BEER-001)" value={form.reference} onChange={e => setForm(f => ({...f, reference: e.target.value}))} className="px-4 py-3 border rounded-xl" />
-              <input placeholder="Category" value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value}))} className="px-4 py-3 border rounded-xl" />
+                </label>
+              )}
             </div>
+            
             <div className="flex gap-4 mt-8">
-              <button onClick={() => { setShowAdd(false); setEditing(null); setForm({name:'',sku:'',price:'',icon:'',image:'',reference:'',description:'',category:'',active:true}) }} className="flex-1 py-3 border rounded-xl">Cancel</button>
-              <button onClick={handleSubmit} className="flex-1 py-3 bg-blue-900 text-white rounded-xl font-bold">{editing ? 'Update' : 'Create'} Product</button>
+              <button 
+                onClick={() => { 
+                  setShowAdd(false); 
+                  setEditing(null); 
+                  setForm({name:'',sku:'',price:'',icon:'cube',image:'',reference:'',description:'',category:'',active:true}) 
+                }} 
+                className="flex-1 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSubmit} 
+                className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-xl font-bold transition"
+              >
+                {editing ? 'Update Product' : 'Create Product'}
+              </button>
             </div>
           </div>
         </div>
@@ -1634,522 +1941,155 @@ function ProductsPanel() {
     </div>
   )
 }
-
-// Enhanced Admin Dashboard with Analytics
-function AdminDashboard({ deleteUser, resetUserPassword, darkMode, setDarkMode }) {
-  const [activeTab, setActiveTab] = useState('overview')
-  const [managers, setManagers] = useState([])
-  const [drivers, setDrivers] = useState([])
-  const [orders, setOrders] = useState([])
-  const [stats, setStats] = useState({ 
-    totalRevenue: 0, 
-    totalOrders: 0, 
-    activeManagers: 0, 
-    activeDrivers: 0,
-    pendingQuotes: 0,
-    completedDeliveries: 0 
-  })
-  
-  const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showAddManager, setShowAddManager] = useState(false)
-  const [showAddDriver, setShowAddDriver] = useState(false)
-  const [newManager, setNewManager] = useState({ name: '', email: '', phone: '', password: '' })
-  const [newDriver, setNewDriver] = useState({ name: '', email: '', phone: '', password: '', vehicle: '' })
-  const [topProducts, setTopProducts] = useState([])
-
+function DashboardLayout({ children, darkMode, setDarkMode }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const user = JSON.parse(localStorage.getItem('user') || 'null')
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [notifications, setNotifications] = useState([])
   const token = localStorage.getItem('token')
 
   useEffect(() => {
-    fetchAllData()
-  }, [token])
+    fetchNotifications()
+  }, [])
 
-  const fetchAllData = async () => {
-    if (!token) return
+  const fetchNotifications = async () => {
     try {
-      const headers = { Authorization: `Bearer ${token}` }
-
-      const [manRes, driRes, ordRes, quotesRes, productsRes] = await Promise.all([
-        axios.get(`${API_BASE}/admin/managers`, { headers }),
-        axios.get(`${API_BASE}/admin/drivers`, { headers }),
-        axios.get(`${API_BASE}/admin/orders`, { headers }),
-        axios.get(`${API_BASE}/admin/quotes`, { headers }),
-        axios.get(`${API_BASE}/products`, { headers })
-      ])
-
-      setManagers(manRes.data.data || [])
-      setDrivers(driRes.data.data || [])
-      setOrders(ordRes.data.data || [])
-
-      const quotes = quotesRes.data.data || []
-      const products = productsRes.data.data || []
-
-      // Calculate top products
-      const productSales = {}
-      orders.forEach(order => {
-        order.items?.forEach(item => {
-          if (item.productId) {
-            if (!productSales[item.productId]) {
-              productSales[item.productId] = { id: item.productId, name: 'Unknown', sales: 0 }
-            }
-            productSales[item.productId].sales += item.quantity
-          }
-        })
-      })
-
-      // Match with product names
-      Object.keys(productSales).forEach(productId => {
-        const product = products.find(p => p.id === productId)
-        if (product) {
-          productSales[productId].name = product.name
-        }
-      })
-
-      const topProductsList = Object.values(productSales)
-        .sort((a, b) => b.sales - a.sales)
-        .slice(0, 5)
-
-      setTopProducts(topProductsList)
-
-      const revenue = orders.reduce((sum, o) => sum + (o.total || 0), 0) || 0
-      const pendingQuotes = quotes.filter(q => 
-        q.status === 'PENDING_PRICING' || q.status === 'IN_PRICING'
-      ).length
-
-      setStats({
-        totalRevenue: revenue,
-        totalOrders: orders.length,
-        activeManagers: manRes.data.data?.filter(m => m.isActive).length || 0,
-        activeDrivers: driRes.data.data?.filter(d => d.isActive).length || 0,
-        pendingQuotes,
-        completedDeliveries: orders.filter(o => o.status === 'DELIVERED').length
-      })
-    } catch (err) {
-      console.error('Failed to load data', err)
-      if (err.response?.status === 401) localStorage.clear()
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const createManager = async () => {
-    try {
-      const res = await axios.post(`${API_BASE}/admin/managers`, newManager, {
+      const res = await axios.get(`${API_BASE}/notifications`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      setManagers(prev => [...prev, res.data.data.manager])
-      setShowAddManager(false)
-      setNewManager({ name: '', email: '', phone: '', password: '' })
-      fetchAllData()
+      setNotifications(res.data.data || [])
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to create manager')
+      console.error('Failed to fetch notifications:', err)
     }
   }
 
-  const createDriver = async () => {
-    try {
-      const res = await axios.post(`${API_BASE}/admin/drivers`, newDriver, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setDrivers(prev => [...prev, res.data.data.driver])
-      setShowAddDriver(false)
-      setNewDriver({ name: '', email: '', phone: '', password: '', vehicle: '' })
-      fetchAllData()
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed to create driver')
-    }
-  }
+  const menuItems = user?.role === 'ADMIN' ? [
+    { name: 'Overview', path: '/dashboard/overview', icon: ChartBarIcon },
+    { name: 'Products', path: '/dashboard/products', icon: CubeIcon },
+    { name: 'Managers', path: '/dashboard/managers', icon: UsersIcon },
+    { name: 'Drivers', path: '/dashboard/drivers', icon: TruckIcon },
+    { name: 'Quotes', path: '/dashboard/quotes', icon: DocumentTextIcon },
+    { name: 'Orders', path: '/dashboard/orders', icon: ClipboardDocumentListIcon },
+    { name: 'Settings', path: '/dashboard/settings', icon: Cog6ToothIcon }
+  ] : user?.role === 'MANAGER' ? [
+    { name: 'Pricing Dashboard', path: '/dashboard/manager', icon: CurrencyDollarIcon },
+    { name: 'My Orders', path: '/dashboard/my-orders', icon: CheckCircleIcon }
+  ] : user?.role === 'DELIVERY_AGENT' ? [
+    { name: 'My Deliveries', path: '/dashboard/driver', icon: TruckIcon },
+    { name: 'Delivery History', path: '/dashboard/delivery-history', icon: ClipboardDocumentListIcon }
+  ] : [];
 
-  const filteredManagers = managers.filter(m => 
-    m.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.email?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
-  const filteredDrivers = drivers.filter(d => 
-    d.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    d.email?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
-  const filteredOrders = orders.filter(o => 
-    o.id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    o.client?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center">
-        <div className="text-3xl font-black text-blue-900">NDAJE IS RISING...</div>
-      </div>
-    )
+  const logout = () => {
+    localStorage.clear()
+    navigate('/')
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
-      <div className="fixed inset-y-0 left-0 w-64 bg-white shadow-lg">
-        <div className="p-6 border-b border-blue-100">
+    <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex ${darkMode ? 'dark' : ''}`}>
+      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white dark:bg-gray-800 shadow-lg transition-all duration-300 flex flex-col border-r border-gray-200 dark:border-gray-700`}>
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-900 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">N</span>
+            <div className="w-12 h-12 bg-blue-600 dark:bg-blue-700 rounded-xl flex items-center justify-center">
+              <span className="text-white text-2xl font-black">N</span>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-blue-900">NDAJE Admin</h1>
-              <p className="text-xs text-gray-500">Command Center</p>
-            </div>
+            {sidebarOpen && (
+              <div>
+                <h1 className="text-xl font-bold text-blue-900 dark:text-white">NDAJE</h1>
+                <p className="text-xs text-gray-600 dark:text-gray-300">{user?.role} Portal</p>
+              </div>
+            )}
           </div>
         </div>
 
-        <nav className="p-4 space-y-2">
-          {[
-            { id: 'overview', name: 'Overview', icon: ChartBarIcon },
-            { id: 'products', name: 'Products', icon: CubeIcon },
-            { id: 'managers', name: 'Managers', icon: UsersIcon },
-            { id: 'drivers', name: 'Drivers', icon: TruckIcon },
-            { id: 'quotes', name: 'Quotes', icon: DocumentTextIcon },
-            { id: 'orders', name: 'Orders', icon: ClipboardDocumentListIcon },
-            { id: 'settings', name: 'Settings', icon: Cog6ToothIcon }
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${
-                activeTab === item.id
-                  ? 'bg-blue-900 text-white shadow-lg'
-                  : 'text-gray-700 hover:bg-blue-50 hover:text-blue-900'
-              }`}
-            >
-              <item.icon className="w-5 h-5" />
-              <span className="font-medium">{item.name}</span>
-            </button>
-          ))}
+        <nav className="flex-1 p-4 space-y-2">
+          {menuItems.map(item => {
+            const Icon = item.icon
+            const active = location.pathname.startsWith(item.path)
+            return (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  active 
+                    ? 'bg-blue-600 text-white shadow-lg' 
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                {sidebarOpen && <span className="font-medium">{item.name}</span>}
+              </button>
+            )
+          })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-blue-100">
-          <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
-            <div className="w-8 h-8 bg-blue-900 rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-bold">A</span>
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-3 mb-4 px-2">
+            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+              <span className="text-blue-600 dark:text-blue-300 text-sm font-bold">
+                {user?.name?.charAt(0) || 'U'}
+              </span>
             </div>
-            <div>
-              <p className="text-sm font-medium text-blue-900">Administrator</p>
-              <p className="text-xs text-blue-600">King of Rwanda</p>
-            </div>
+            {sidebarOpen && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user?.name}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{user?.role}</p>
+              </div>
+            )}
           </div>
+          
+          <button 
+            onClick={() => setDarkMode(!darkMode)} 
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 mb-2"
+          >
+            {darkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
+            {sidebarOpen && <span className="font-medium">{darkMode ? 'Light Mode' : 'Dark Mode'}</span>}
+          </button>
+          
+          <button 
+            onClick={logout} 
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400"
+          >
+            <ArrowRightOnRectangleIcon className="w-5 h-5" />
+            {sidebarOpen && <span className="font-medium">Logout</span>}
+          </button>
         </div>
       </div>
 
-      <div className="ml-64 p-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-blue-900 capitalize">
-              {activeTab === 'overview' ? 'Dashboard Overview' : 
-               activeTab === 'products' ? 'Product Catalog' :
-               activeTab === 'managers' ? 'Operations Managers' :
-               activeTab === 'drivers' ? 'Delivery Drivers' :
-               activeTab === 'orders' ? 'Order Management' :
-               activeTab === 'quotes' ? 'Quote Management' : 'Settings'}
-            </h1>
-          </div>
-          <div className="relative">
-            <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200 focus:border-blue-500 w-64"
-            />
+      <div className="flex-1 flex flex-col">
+        <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-8 py-4 flex items-center justify-between">
+          <button 
+            onClick={() => setSidebarOpen(!sidebarOpen)} 
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+          >
+            <svg className="w-6 h-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 relative">
+                <BellIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                {notifications.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    {notifications.length}
+                  </span>
+                )}
+              </button>
+            </div>
+            
+            <div className="hidden md:block">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {user?.name || 'Staff'} • <span className="text-blue-600 dark:text-blue-400 font-bold">{user?.role}</span>
+              </span>
+            </div>
           </div>
         </div>
-
-        {activeTab === 'products' && <ProductsPanel />}
-
-        {activeTab === 'overview' && (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[
-                { title: 'Total Revenue', value: `RWF ${stats.totalRevenue.toLocaleString()}`, icon: CurrencyDollarIcon, color: 'green' },
-                { title: 'Total Orders', value: stats.totalOrders, icon: ShoppingCartIcon, color: 'blue' },
-                { title: 'Active Managers', value: stats.activeManagers, icon: UserGroupIcon, color: 'purple' },
-                { title: 'Active Drivers', value: stats.activeDrivers, icon: TruckIcon, color: 'orange' }
-              ].map((stat) => (
-                <div key={stat.title} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">{stat.title}</p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-                    </div>
-                    <div className={`p-3 rounded-xl ${stat.color === 'green' ? 'bg-green-50' : stat.color === 'blue' ? 'bg-blue-50' : stat.color === 'purple' ? 'bg-purple-50' : 'bg-orange-50'}`}>
-                      <stat.icon className={`w-6 h-6 ${stat.color === 'green' ? 'text-green-600' : stat.color === 'blue' ? 'text-blue-600' : stat.color === 'purple' ? 'text-purple-600' : 'text-orange-600'}`} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                <h3 className="text-lg font-semibold text-gray-900 mb-6">Top Products</h3>
-                <div className="space-y-4">
-                  {topProducts.length > 0 ? (
-                    topProducts.map((product, index) => (
-                      <div key={product.id} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-medium text-gray-500">#{index + 1}</span>
-                          <div>
-                            <p className="font-medium text-gray-900">{product.name}</p>
-                            <p className="text-sm text-gray-500">{product.sales} units sold</p>
-                          </div>
-                        </div>
-                        <div className="w-32 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full" 
-                            style={{ width: `${(product.sales / Math.max(...topProducts.map(p => p.sales)) * 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500 text-center">No sales data available</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                <h3 className="text-lg font-semibold text-gray-900 mb-6">Recent Orders</h3>
-                <div className="space-y-4">
-                  {orders.slice(0, 5).map((order) => (
-                    <div key={order.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <ClipboardDocumentListIcon className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">Order #{order.id?.slice(-8) || 'N/A'}</p>
-                          <p className="text-sm text-gray-500">{order.client?.name || 'Unknown Client'}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-gray-900">RWF {order.total?.toLocaleString() || 0}</p>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          order.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
-                          order.status === 'PROCESSING' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
-                          {order.status || 'pending'}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'quotes' && <AdminQuotesPanel />}
-
-        {activeTab === 'managers' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">Operations Managers</h2>
-              <button onClick={() => setShowAddManager(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-900 text-white rounded-xl hover:bg-blue-800">
-                <PlusIcon className="w-4 h-4" /> Add Manager
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredManagers.map((manager) => (
-                <div key={manager.id} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 relative group">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                      <UsersIcon className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition">
-                      <button
-                        onClick={() => resetUserPassword(manager.id, manager.name, manager.email)}
-                        className="p-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition"
-                        title="Reset Password"
-                      >
-                        <LockOpenIcon className="w-5 h-5 text-blue-700" />
-                      </button>
-                      <button
-                        onClick={() => deleteUser(manager.id, manager.name, 'manager')}
-                        className="p-2 bg-red-100 hover:bg-red-200 rounded-lg transition"
-                        title="Delete Manager"
-                      >
-                        <TrashIcon className="w-5 h-5 text-red-700" />
-                      </button>
-                    </div>
-                  </div>
-                  <h3 className="font-semibold text-gray-900 text-lg">{manager.name}</h3>
-                  <div className="space-y-2 mt-3 text-sm text-gray-600">
-                    <div className="flex items-center gap-2"><EnvelopeIcon className="w-4 h-4" /> {manager.email}</div>
-                    <div className="flex items-center gap-2"><PhoneIcon className="w-4 h-4" /> {manager.phone}</div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                      manager.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {manager.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                    <span className="text-xs text-gray-500">Manager</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'drivers' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-900">Delivery Drivers</h2>
-              <button onClick={() => setShowAddDriver(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-900 text-white rounded-xl hover:bg-blue-800">
-                <PlusIcon className="w-4 h-4" /> Add Driver
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredDrivers.map((driver) => (
-                <div key={driver.id} className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 relative group">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-                      <TruckIcon className="w-6 h-6 text-orange-600" />
-                    </div>
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition">
-                      <button
-                        onClick={() => resetUserPassword(driver.id, driver.name, driver.email)}
-                        className="p-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition"
-                        title="Reset Password"
-                      >
-                        <LockOpenIcon className="w-5 h-5 text-blue-700" />
-                      </button>
-                      <button
-                        onClick={() => deleteUser(driver.id, driver.name, 'driver')}
-                        className="p-2 bg-red-100 hover:bg-red-200 rounded-lg transition"
-                        title="Delete Driver"
-                      >
-                        <TrashIcon className="w-5 h-5 text-red-700" />
-                      </button>
-                    </div>
-                  </div>
-                  <h3 className="font-semibold text-gray-900 text-lg">{driver.name}</h3>
-                  <div className="space-y-2 mt-3 text-sm text-gray-600">
-                    <div className="flex items-center gap-2"><EnvelopeIcon className="w-4 h-4" /> {driver.email}</div>
-                    <div className="flex items-center gap-2"><PhoneIcon className="w-4 h-4" /> {driver.phone}</div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                      driver.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {driver.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                    <span className="text-xs text-gray-500">Driver</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'orders' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm font-medium text-blue-900">#{order.id?.slice(-8)}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{order.client?.name || '—'}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">RWF {order.total?.toLocaleString() || 0}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          order.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
-                          order.status === 'PROCESSING' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
-                          {order.status || 'pending'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        <button className="text-blue-600 hover:text-blue-900"><EyeIcon className="w-5 h-5" /></button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'settings' && (
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">System Settings</h2>
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Appearance</h3>
-                <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl">
-                  <div>
-                    <p className="font-medium">Dark Mode</p>
-                    <p className="text-sm text-gray-500">Toggle dark/light theme</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setDarkMode(!darkMode)
-                      localStorage.setItem('darkMode', !darkMode)
-                    }}
-                    className={`w-12 h-6 flex items-center rounded-full p-1 ${darkMode ? 'bg-blue-600' : 'bg-gray-300'}`}
-                  >
-                    <div className={`bg-white w-4 h-4 rounded-full transform transition ${darkMode ? 'translate-x-6' : ''}`} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showAddManager && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-              <h3 className="text-xl font-semibold mb-4">Add New Manager</h3>
-              <div className="space-y-4">
-                <input placeholder="Name" value={newManager.name} onChange={e => setNewManager(prev => ({...prev, name: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-                <input placeholder="Email" value={newManager.email} onChange={e => setNewManager(prev => ({...prev, email: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-                <input placeholder="Phone" value={newManager.phone} onChange={e => setNewManager(prev => ({...prev, phone: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-                <input type="password" placeholder="Password" value={newManager.password} onChange={e => setNewManager(prev => ({...prev, password: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button onClick={() => setShowAddManager(false)} className="flex-1 px-4 py-2 border rounded-xl">Cancel</button>
-                <button onClick={createManager} className="flex-1 px-4 py-2 bg-blue-900 text-white rounded-xl">Create</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showAddDriver && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-              <h3 className="text-xl font-semibold mb-4">Add New Driver</h3>
-              <div className="space-y-4">
-                <input placeholder="Name" value={newDriver.name} onChange={e => setNewDriver(prev => ({...prev, name: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-                <input placeholder="Email" value={newDriver.email} onChange={e => setNewDriver(prev => ({...prev, email: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-                <input placeholder="Phone" value={newDriver.phone} onChange={e => setNewDriver(prev => ({...prev, phone: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-                <input type="password" placeholder="Password" value={newDriver.password} onChange={e => setNewDriver(prev => ({...prev, password: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-                <input placeholder="Vehicle (e.g. Toyota Hiace - RAB 123 A)" value={newDriver.vehicle} onChange={e => setNewDriver(prev => ({...prev, vehicle: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button onClick={() => setShowAddDriver(false)} className="flex-1 px-4 py-2 border rounded-xl">Cancel</button>
-                <button onClick={createDriver} className="flex-1 px-4 py-2 bg-blue-900 text-white rounded-xl">Create</button>
-              </div>
-            </div>
-          </div>
-        )}
+        
+        <div className="flex-1 p-8 overflow-auto">
+          {children}
+        </div>
       </div>
     </div>
   )
@@ -4030,13 +3970,15 @@ function DriverDashboard() {
   );
 }
 
+// ==============================
 // MAIN APP COMPONENT
+// ==============================
 function App() {
   const [confirmModal, setConfirmModal] = useState(null);
   const [toast, setToast] = useState(null);
   const [passwordResetModal, setPasswordResetModal] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token') || '');
-  const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
+  const [darkMode, setDarkMode] = useDarkMode();
 
   // Add CSS for animations
   useEffect(() => {
@@ -4062,6 +4004,15 @@ function App() {
         }
       }
       
+      @keyframes pulse {
+        0%, 100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+      
       .animate-slide-in {
         animation: slide-in 0.3s ease-out;
       }
@@ -4070,44 +4021,55 @@ function App() {
         animation: progress 5s linear forwards;
       }
       
+      .animate-pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+      
+      /* Dark mode custom properties */
       .dark {
-        background-color: #111827;
-        color: #f3f4f6;
+        color-scheme: dark;
       }
       
-      .dark .bg-white {
-        background-color: #1f2937;
+      .dark input,
+      .dark select,
+      .dark textarea {
+        background-color: #374151;
+        color: #f9fafb;
+        border-color: #4b5563;
       }
       
-      .dark .bg-gray-50 {
-        background-color: #111827;
+      .dark input:focus,
+      .dark select:focus,
+      .dark textarea:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
       }
       
-      .dark .text-gray-900 {
-        color: #f3f4f6;
+      /* Scrollbar styling for dark mode */
+      .dark ::-webkit-scrollbar {
+        width: 10px;
       }
       
-      .dark .text-gray-600 {
-        color: #d1d5db;
+      .dark ::-webkit-scrollbar-track {
+        background: #1f2937;
       }
       
-      .dark .border-gray-200 {
-        border-color: #374151;
+      .dark ::-webkit-scrollbar-thumb {
+        background: #4b5563;
+        border-radius: 5px;
+      }
+      
+      .dark ::-webkit-scrollbar-thumb:hover {
+        background: #6b7280;
       }
     `;
     document.head.appendChild(styleSheet);
     
-    // Apply dark mode
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    
     return () => {
       document.head.removeChild(styleSheet);
     };
-  }, [darkMode]);
+  }, []);
+
 
   // DELETE USER
   const deleteUser = async (userId, userName, type) => {
