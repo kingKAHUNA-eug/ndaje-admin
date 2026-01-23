@@ -1,6 +1,45 @@
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom"
 import axios from 'axios'
+
+// Simple logo fallback solution
+const useNdajeLogo = () => {
+  // Try multiple approaches to load the logo
+  const [logoPath, setLogoPath] = useState(null);
+  
+  useEffect(() => {
+    // Try different paths and methods
+    const tryLoadLogo = async () => {
+      // Method 1: Direct import (if webpack supports it)
+      try {
+        const logo = await import('./assets/Ndaje_logo.svg');
+        if (logo.default) {
+          setLogoPath(logo.default);
+          return;
+        }
+      } catch (e) {
+        console.log('SVG import failed, trying alternative methods...');
+      }
+      
+      // Method 2: Check public folder
+      const publicPath = '/Ndaje_logo.svg';
+      const img = new Image();
+      img.onload = () => {
+        setLogoPath(publicPath);
+      };
+      img.onerror = () => {
+        // Method 3: Use base64 fallback
+        setLogoPath(null);
+      };
+      img.src = publicPath;
+    };
+    
+    tryLoadLogo();
+  }, []);
+  
+  return logoPath;
+};
+
 import {
   ChartBarIcon, UsersIcon, TruckIcon, Cog6ToothIcon, PlusIcon,
   MagnifyingGlassIcon, EyeIcon, PencilSquareIcon, TrashIcon,
@@ -1180,13 +1219,14 @@ function ProtectedDashboard({ deleteUser, resetUserPassword, darkMode, setDarkMo
 }
 // Updated Login Component with Landscape Layout
 function Login() {
-  const [username, setUsername] = useState('amani@ndaje.rw')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showPassword, setShowPassword] = useState(false)
+  const logoPath = useNdajeLogo()
 
   // Update time every second
   useEffect(() => {
@@ -1275,19 +1315,20 @@ function Login() {
           {/* CRT scan lines effect */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-green-500/5 to-transparent opacity-20 pointer-events-none scanline"></div>
           
-          {/* Logo at top */}
+          {/* Logo at top - SIMPLIFIED */}
           <div className="mb-8">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-emerald-800 rounded-full flex items-center justify-center shadow-2xl">
-                <img 
-                  src={NdajeLogo} 
-                  alt="Ndaje Logo" 
-                  className="w-10 h-10"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.parentElement.innerHTML = '<span className="text-white text-2xl font-black">N</span>';
-                  }}
-                />
+                {logoPath && !logoError ? (
+                  <img 
+                    src={logoPath} 
+                    alt="Ndaje Logo" 
+                    className="w-10 h-10"
+                    onError={() => setLogoError(true)}
+                  />
+                ) : (
+                  <span className="text-white text-2xl font-black">N</span>
+                )}
               </div>
               <div>
                 <h1 className="text-4xl font-bold text-green-400 tracking-widest">NDAJE</h1>
