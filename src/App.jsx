@@ -1190,6 +1190,7 @@ function ProtectedDashboard({ deleteUser, resetUserPassword, darkMode, setDarkMo
     </DashboardLayout>
   );
 }
+
 // Updated Login Component with Landscape Layout
 function Login() {
   const [username, setUsername] = useState('')
@@ -1199,7 +1200,7 @@ function Login() {
   const navigate = useNavigate()
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showPassword, setShowPassword] = useState(false)
-  const logoPath = useNdajeLogo()
+
 
   // Update time every second
   useEffect(() => {
