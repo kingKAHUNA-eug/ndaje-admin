@@ -1419,18 +1419,9 @@ function Login() {
           {/* Logo at top - SIMPLIFIED */}
           <div className="mb-8">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-emerald-800 rounded-full flex items-center justify-center shadow-2xl">
-                {logoPath && !logoError ? (
-                  <img 
-                    src={logoPath} 
-                    alt="Ndaje Logo" 
-                    className="w-10 h-10"
-                    onError={() => setLogoError(true)}
-                  />
-                ) : (
-                  <span className="text-white text-2xl font-black">N</span>
-                )}
-              </div>
+             <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-emerald-800 rounded-full flex items-center justify-center shadow-2xl">
+  <span className="text-white text-2xl font-black">N</span>
+</div>
               <div>
                 <h1 className="text-4xl font-bold text-green-400 tracking-widest">NDAJE</h1>
                 <p className="text-sm text-gray-400 tracking-wider">SUPPLY CHAIN SYSTEM</p>
