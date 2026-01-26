@@ -1057,7 +1057,6 @@ function DriverHistoryPanel() {
 }
 
 // Admin Dashboard Component
-// Enhanced AdminDashboard Component
 function AdminDashboard() {
   const [dashboardData, setDashboardData] = useState({
     stats: {
@@ -1073,10 +1072,10 @@ function AdminDashboard() {
     recentQuotes: [],
     topManagers: [],
     revenueTrend: [],
-    quoteStatusDistribution: [],
     recentActivity: []
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [timeRange, setTimeRange] = useState('week');
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -1084,32 +1083,85 @@ function AdminDashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setError(null);
+
+      
       const headers = { Authorization: `Bearer ${token}` };
       
-      // Fetch all dashboard data in parallel
-      const [statsRes, quotesRes, managersRes, revenueRes, activityRes] = await Promise.all([
-        axios.get(`${API_BASE}/admin/dashboard/stats?range=${timeRange}`, { headers }),
-        axios.get(`${API_BASE}/admin/quotes/recent?limit=5`, { headers }),
-        axios.get(`${API_BASE}/admin/managers/top-performance`, { headers }),
-        axios.get(`${API_BASE}/admin/revenue/trend?range=${timeRange}`, { headers }),
-        axios.get(`${API_BASE}/admin/activity/recent`, { headers })
-      ]);
+      // Create all API requests with error handling for each
+      const requests = [
+        { key: 'stats', url: `${API_BASE}/admin/dashboard/stats?range=${timeRange}` },
+        { key: 'recentQuotes', url: `${API_BASE}/admin/quotes/recent?limit=5` },
+        { key: 'topManagers', url: `${API_BASE}/admin/managers/top-performance` },
+        { key: 'revenueTrend', url: `${API_BASE}/admin/revenue/trend?range=${timeRange}` },
+        { key: 'recentActivity', url: `${API_BASE}/admin/activity/recent` }
+      ];
+
+      // Execute all requests with individual error handling
+      const results = {};
+      
+      for (const request of requests) {
+        try {
+          const response = await axios.get(request.url, { headers });
+          results[request.key] = response.data.data || response.data;
+        } catch (err) {
+          console.warn(`Failed to fetch ${request.key}:`, err.message);
+          // Set default empty data for failed requests
+          if (request.key === 'stats') {
+            results[request.key] = {
+              totalRevenue: 0,
+              totalQuotes: 0,
+              activeQuotes: 0,
+              completedQuotes: 0,
+              conversionRate: 0,
+              averageQuoteValue: 0,
+              totalClients: 0,
+              newClientsThisMonth: 0
+            };
+          } else {
+            results[request.key] = [];
+          }
+        }
+      }
 
       setDashboardData({
-        stats: statsRes.data.data || statsRes.data,
-        recentQuotes: quotesRes.data.data || quotesRes.data,
-        topManagers: managersRes.data.data || managersRes.data,
-        revenueTrend: revenueRes.data.data || revenueRes.data,
-        recentActivity: activityRes.data.data || activityRes.data
+        stats: results.stats,
+        recentQuotes: results.recentQuotes || [],
+        topManagers: results.topManagers || [],
+        revenueTrend: results.revenueTrend || [],
+        recentActivity: results.recentActivity || []
       });
+
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err);
+      setError('Failed to load dashboard data. Please try again.');
+      
+      // Set default data structure
+      setDashboardData({
+        stats: {
+          totalRevenue: 0,
+          totalQuotes: 0,
+          activeQuotes: 0,
+          completedQuotes: 0,
+          conversionRate: 0,
+          averageQuoteValue: 0,
+          totalClients: 0,
+          newClientsThisMonth: 0
+        },
+        recentQuotes: [],
+        topManagers: [],
+        revenueTrend: [],
+        recentActivity: []
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // Function to export data
+ useEffect(() => {
+  fetchDashboardData();
+}, [fetchDashboardData]);
+
   const exportData = async (type) => {
     try {
       const response = await axios.get(`${API_BASE}/admin/export/${type}`, {
@@ -1134,7 +1186,29 @@ function AdminDashboard() {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">Loading dashboard...</p>
+          <p className="text-lg text-gray-600">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
+        <div className="text-center p-8 bg-white rounded-2xl shadow-lg max-w-md">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Error Loading Dashboard</h3>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={fetchDashboardData}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
