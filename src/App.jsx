@@ -1404,7 +1404,7 @@ function Login() {
   const userProfile = {
     name: "kahuna",
     role: "System Administrator",
-    avatar: " K"
+    avatar: "K"
   };
 
   return (
