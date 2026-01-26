@@ -1081,13 +1081,6 @@ function AdminDashboard() {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-  useEffect(() => {
-    fetchDashboardData();
-    // Refresh data every 30 seconds
-    const interval = setInterval(fetchDashboardData, 30000);
-    return () => clearInterval(interval);
-  }, [timeRange]);
-
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
@@ -3920,12 +3913,7 @@ function DriverDashboard() {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-  useEffect(() => {
-    fetchDriverData();
-    // Set up real-time updates (WebSocket or polling)
-    const interval = setInterval(fetchDriverData, 30000); // Every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
+ 
 
   const fetchDriverData = async () => {
     try {
