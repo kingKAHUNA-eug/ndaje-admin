@@ -1402,9 +1402,9 @@ function Login() {
 
   // User profile data (mock for display)
   const userProfile = {
-    name: "Amani Ndaje",
+    name: "kahuna",
     role: "System Administrator",
-    avatar: "AN"
+    avatar: " K"
   };
 
   return (
