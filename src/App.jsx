@@ -2059,7 +2059,7 @@ function DashboardLayout({ children, darkMode, setDarkMode }) {
 
       <div className="flex-1">
         <div className="bg-white shadow-sm border-b px-8 py-4 flex items-center justify-between">
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-2xl">Menu</button>
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-2xl">☰</button> 
           <div className="flex items-center gap-4">
             <button
               onClick={() => setDarkMode(!darkMode)}
