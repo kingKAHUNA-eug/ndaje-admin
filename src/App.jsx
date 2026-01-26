@@ -1057,128 +1057,506 @@ function DriverHistoryPanel() {
 }
 
 // Admin Dashboard Component
+// Enhanced AdminDashboard Component
 function AdminDashboard() {
-  const [stats, setStats] = useState({
-    totalProducts: 0,
-    totalManagers: 0,
-    totalDrivers: 0,
-    totalQuotes: 0,
-    totalOrders: 0,
-    totalRevenue: 0
+  const [dashboardData, setDashboardData] = useState({
+    stats: {
+      totalRevenue: 0,
+      totalQuotes: 0,
+      activeQuotes: 0,
+      completedQuotes: 0,
+      conversionRate: 0,
+      averageQuoteValue: 0,
+      totalClients: 0,
+      newClientsThisMonth: 0
+    },
+    recentQuotes: [],
+    topManagers: [],
+    revenueTrend: [],
+    quoteStatusDistribution: [],
+    recentActivity: []
   });
   const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState('week');
   const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
-    fetchDashboardStats();
-  }, []);
+    fetchDashboardData();
+    // Refresh data every 30 seconds
+    const interval = setInterval(fetchDashboardData, 30000);
+    return () => clearInterval(interval);
+  }, [timeRange]);
 
-  const fetchDashboardStats = async () => {
+  const fetchDashboardData = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/admin/dashboard/stats`, {
-        headers: { Authorization: `Bearer ${token}` }
+      setLoading(true);
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      // Fetch all dashboard data in parallel
+      const [statsRes, quotesRes, managersRes, revenueRes, activityRes] = await Promise.all([
+        axios.get(`${API_BASE}/admin/dashboard/stats?range=${timeRange}`, { headers }),
+        axios.get(`${API_BASE}/admin/quotes/recent?limit=5`, { headers }),
+        axios.get(`${API_BASE}/admin/managers/top-performance`, { headers }),
+        axios.get(`${API_BASE}/admin/revenue/trend?range=${timeRange}`, { headers }),
+        axios.get(`${API_BASE}/admin/activity/recent`, { headers })
+      ]);
+
+      setDashboardData({
+        stats: statsRes.data.data || statsRes.data,
+        recentQuotes: quotesRes.data.data || quotesRes.data,
+        topManagers: managersRes.data.data || managersRes.data,
+        revenueTrend: revenueRes.data.data || revenueRes.data,
+        recentActivity: activityRes.data.data || activityRes.data
       });
-      setStats(res.data.data || stats);
     } catch (err) {
-      console.error('Failed to fetch dashboard stats:', err);
+      console.error('Failed to fetch dashboard data:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  // Function to export data
+  const exportData = async (type) => {
+    try {
+      const response = await axios.get(`${API_BASE}/admin/export/${type}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${type}_export_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error('Export failed:', err);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="text-center py-20">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mb-4"></div>
-        <div className="text-2xl font-bold text-blue-900">Loading Dashboard...</div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">Loading dashboard...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-blue-900">Admin Dashboard</h1>
-        <p className="text-gray-600 mt-1">Overview of your supply chain management system</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+      {/* Header */}
+      <div className="bg-white border-b shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Products</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalProducts || 0}</p>
+              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+              <p className="text-gray-600 mt-1">
+                Welcome back, <span className="font-semibold text-blue-600">{user.name}</span>
+              </p>
             </div>
-            <div className="p-3 bg-blue-50 rounded-xl">
-              <CubeIcon className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Managers</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalManagers || 0}</p>
-            </div>
-            <div className="p-3 bg-green-50 rounded-xl">
-              <UsersIcon className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Drivers</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalDrivers || 0}</p>
-            </div>
-            <div className="p-3 bg-orange-50 rounded-xl">
-              <TruckIcon className="w-6 h-6 text-orange-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Quotes</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalQuotes || 0}</p>
-            </div>
-            <div className="p-3 bg-purple-50 rounded-xl">
-              <DocumentTextIcon className="w-6 h-6 text-purple-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Orders</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalOrders || 0}</p>
-            </div>
-            <div className="p-3 bg-yellow-50 rounded-xl">
-              <ClipboardDocumentListIcon className="w-6 h-6 text-yellow-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">RWF {(stats.totalRevenue || 0).toLocaleString()}</p>
-            </div>
-            <div className="p-3 bg-emerald-50 rounded-xl">
-              <CurrencyDollarIcon className="w-6 h-6 text-emerald-600" />
+            
+            <div className="flex items-center gap-4">
+              <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                {['day', 'week', 'month', 'quarter'].map((range) => (
+                  <button
+                    key={range}
+                    onClick={() => setTimeRange(range)}
+                    className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${
+                      timeRange === range
+                        ? 'bg-white text-blue-600 shadow'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    {range}
+                  </button>
+                ))}
+              </div>
+              
+              <button
+                onClick={fetchDashboardData}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+                title="Refresh"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl p-8 text-white">
-        <h2 className="text-2xl font-bold mb-2">Welcome to NDAJE Supply Chain System</h2>
-        <p className="text-blue-100">Manage your entire supply chain operation from this dashboard</p>
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Stats Grid - Similar to image's time tracking section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl shadow-lg p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-90">Total Revenue</p>
+                <p className="text-3xl font-bold mt-2">
+                  RWF {dashboardData.stats.totalRevenue.toLocaleString()}
+                </p>
+                <p className="text-sm opacity-90 mt-2">This {timeRange}</p>
+              </div>
+              <div className="p-3 bg-white/20 rounded-xl">
+                <CurrencyDollarIcon className="w-6 h-6" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-green-500 to-emerald-700 rounded-2xl shadow-lg p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-90">Total Quotes</p>
+                <p className="text-3xl font-bold mt-2">{dashboardData.stats.totalQuotes}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-sm opacity-90">
+                    {dashboardData.stats.activeQuotes} active
+                  </span>
+                  <span className="text-sm opacity-90">•</span>
+                  <span className="text-sm opacity-90">
+                    {dashboardData.stats.completedQuotes} completed
+                  </span>
+                </div>
+              </div>
+              <div className="p-3 bg-white/20 rounded-xl">
+                <DocumentTextIcon className="w-6 h-6" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl shadow-lg p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-90">Conversion Rate</p>
+                <p className="text-3xl font-bold mt-2">
+                  {dashboardData.stats.conversionRate}%
+                </p>
+                <p className="text-sm opacity-90 mt-2">
+                  Avg: RWF {dashboardData.stats.averageQuoteValue.toLocaleString()}
+                </p>
+              </div>
+              <div className="p-3 bg-white/20 rounded-xl">
+                <ArrowTrendingUpIcon className="w-6 h-6" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-lg p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-90">Total Clients</p>
+                <p className="text-3xl font-bold mt-2">{dashboardData.stats.totalClients}</p>
+                <p className="text-sm opacity-90 mt-2">
+                  +{dashboardData.stats.newClientsThisMonth} this month
+                </p>
+              </div>
+              <div className="p-3 bg-white/20 rounded-xl">
+                <UserGroupIcon className="w-6 h-6" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Two-column layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left column - 2/3 width */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Recent Quotes Table - Similar to Tasks Overview in image */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900">Recent Quotes</h2>
+                  <button
+                    onClick={() => exportData('quotes')}
+                    className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export
+                  </button>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Quote ID
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Client
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Manager
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {dashboardData.recentQuotes.map((quote) => (
+                      <tr key={quote.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-sm font-medium text-blue-600">
+                            #{quote.id?.slice(-8)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">
+                              {quote.client?.name || 'Unknown'}
+                            </p>
+                            <p className="text-sm text-gray-500">{quote.client?.email || ''}</p>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-sm text-gray-900">
+                            {quote.manager?.name || 'Unassigned'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-sm font-bold text-gray-900">
+                            RWF {quote.totalAmount?.toLocaleString() || '0'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                            quote.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                            quote.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                            quote.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {quote.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Revenue Trend Chart - Similar to Apps & URIs section */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold text-gray-900">Revenue Trend</h2>
+                <div className="flex items-center gap-2">
+                  {dashboardData.revenueTrend.map((item, index) => (
+                    <div key={index} className="flex items-center">
+                      <div className={`w-3 h-3 rounded-full mr-2 ${
+                        item.type === 'quote' ? 'bg-blue-500' : 'bg-green-500'
+                      }`}></div>
+                      <span className="text-sm text-gray-600 capitalize">{item.type}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="h-64">
+                {/* Simple bar chart representation */}
+                <div className="flex items-end h-48 gap-2 pt-6">
+                  {dashboardData.revenueTrend.slice(0, 7).map((item, index) => (
+                    <div key={index} className="flex-1 flex flex-col items-center">
+                      <div className="text-xs text-gray-500 mb-2">{item.label}</div>
+                      <div className="w-full flex justify-center gap-1">
+                        <div
+                          className="bg-blue-500 rounded-t w-3/4"
+                          style={{ height: `${(item.quoteRevenue / 1000) * 5}px` }}
+                          title={`Quotes: RWF ${item.quoteRevenue}`}
+                        ></div>
+                        <div
+                          className="bg-green-500 rounded-t w-3/4"
+                          style={{ height: `${(item.orderRevenue / 1000) * 5}px` }}
+                          title={`Orders: RWF ${item.orderRevenue}`}
+                        ></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between text-sm text-gray-500 mt-4 px-4">
+                  <span>Mon</span>
+                  <span>Tue</span>
+                  <span>Wed</span>
+                  <span>Thu</span>
+                  <span>Fri</span>
+                  <span>Sat</span>
+                  <span>Sun</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right column - 1/3 width */}
+          <div className="space-y-6">
+            {/* Top Managers - Similar to Milena Page section */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">Top Performing Managers</h2>
+                <p className="text-sm text-gray-600 mt-1">By revenue generated</p>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  {dashboardData.topManagers.map((manager, index) => (
+                    <div key={manager.id} className="flex items-center">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white font-bold">
+                        {manager.name.charAt(0)}
+                      </div>
+                      <div className="ml-4 flex-1">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-medium text-gray-900">{manager.name}</h3>
+                          <span className="text-sm font-bold text-blue-600">
+                            RWF {manager.revenueGenerated?.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-sm text-gray-500">
+                            {manager.quotesCompleted} quotes
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            {manager.conversionRate}% conversion
+                          </span>
+                        </div>
+                        <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-gradient-to-r from-blue-500 to-blue-700 h-2 rounded-full"
+                            style={{ width: `${Math.min(manager.conversionRate, 100)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions - Similar to Wish Browser section */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => window.location.href = '/dashboard/managers'}
+                  className="p-4 bg-blue-50 hover:bg-blue-100 rounded-xl flex flex-col items-center justify-center transition"
+                >
+                  <UsersIcon className="w-6 h-6 text-blue-600 mb-2" />
+                  <span className="text-sm font-medium text-blue-900">Add Manager</span>
+                </button>
+                <button
+                  onClick={() => window.location.href = '/dashboard/drivers'}
+                  className="p-4 bg-green-50 hover:bg-green-100 rounded-xl flex flex-col items-center justify-center transition"
+                >
+                  <TruckIcon className="w-6 h-6 text-green-600 mb-2" />
+                  <span className="text-sm font-medium text-green-900">Add Driver</span>
+                </button>
+                <button
+                  onClick={() => exportData('reports')}
+                  className="p-4 bg-purple-50 hover:bg-purple-100 rounded-xl flex flex-col items-center justify-center transition"
+                >
+                  <svg className="w-6 h-6 text-purple-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span className="text-sm font-medium text-purple-900">Export Report</span>
+                </button>
+                <button
+                  onClick={() => window.location.href = '/dashboard/settings'}
+                  className="p-4 bg-orange-50 hover:bg-orange-100 rounded-xl flex flex-col items-center justify-center transition"
+                >
+                  <Cog6ToothIcon className="w-6 h-6 text-orange-600 mb-2" />
+                  <span className="text-sm font-medium text-orange-900">Settings</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Recent Activity - Similar to Corporate Review section */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  {dashboardData.recentActivity.map((activity, index) => (
+                    <div key={index} className="flex items-start">
+                      <div className="flex-shrink-0">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          activity.type === 'quote' ? 'bg-blue-100' :
+                          activity.type === 'order' ? 'bg-green-100' :
+                          activity.type === 'user' ? 'bg-purple-100' : 'bg-gray-100'
+                        }`}>
+                          {activity.type === 'quote' && <DocumentTextIcon className="w-4 h-4 text-blue-600" />}
+                          {activity.type === 'order' && <ShoppingCartIcon className="w-4 h-4 text-green-600" />}
+                          {activity.type === 'user' && <UsersIcon className="w-4 h-4 text-purple-600" />}
+                        </div>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm text-gray-900">{activity.description}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Stats - Similar to Harder Premium section */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-lg p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-90">System Uptime</p>
+                <p className="text-2xl font-bold mt-2">99.9%</p>
+                <p className="text-sm opacity-90 mt-2">Last 30 days</p>
+              </div>
+              <div className="p-3 bg-white/20 rounded-xl">
+                <ClockIcon className="w-6 h-6" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-2xl shadow-lg p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-90">Automation Rate</p>
+                <p className="text-2xl font-bold mt-2">85%</p>
+                <p className="text-sm opacity-90 mt-2">Processes automated</p>
+              </div>
+              <div className="p-3 bg-white/20 rounded-xl">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-rose-600 to-pink-700 rounded-2xl shadow-lg p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm opacity-90">Client Satisfaction</p>
+                <p className="text-2xl font-bold mt-2">4.8/5.0</p>
+                <p className="text-sm opacity-90 mt-2">Based on 342 reviews</p>
+              </div>
+              <div className="p-3 bg-white/20 rounded-xl">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1587,7 +1965,7 @@ function Login() {
               <p className="text-center text-xs text-gray-500 font-mono tracking-wider">
                 NDAJE SUPPLY CHAIN MANAGEMENT SYSTEM
                 <br />
-                © 2024 NDAJE SYSTEMS • ALL RIGHTS RESERVED
+                © 2026 NDAJE SYSTEMS • ALL RIGHTS RESERVED
               </p>
             </div>
           </div>
