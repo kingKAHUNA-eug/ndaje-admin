@@ -23,7 +23,7 @@ import {
     </div>
   </div>
 </div>
-
+const navigate = useNavigate();
 // FIXED API BASE
 const API_BASE = import.meta.env.VITE_API_URL
   ? import.meta.env.VITE_API_URL
@@ -32,8 +32,8 @@ const API_BASE = import.meta.env.VITE_API_URL
       .replace(/\/\/auth/, '/auth')
   : 'http://localhost:10000/api';
 
-  // ==============================
-// ENHANCED DARK MODE THEME
+// ==============================
+// FIXED DARK MODE THEME - Simplified
 // ==============================
 const useDarkMode = () => {
   const [darkMode, setDarkMode] = useState(() => {
@@ -44,27 +44,14 @@ const useDarkMode = () => {
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
-      document.documentElement.style.setProperty('--primary-color', '#1e40af');
-      document.documentElement.style.setProperty('--secondary-color', '#3b82f6');
-      document.documentElement.style.setProperty('--bg-primary', '#0f172a');
-      document.documentElement.style.setProperty('--bg-secondary', '#1e293b');
-      document.documentElement.style.setProperty('--text-primary', '#f8fafc');
-      document.documentElement.style.setProperty('--text-secondary', '#cbd5e1');
     } else {
       document.documentElement.classList.remove('dark');
-      document.documentElement.style.removeProperty('--primary-color');
-      document.documentElement.style.removeProperty('--secondary-color');
-      document.documentElement.style.removeProperty('--bg-primary');
-      document.documentElement.style.removeProperty('--bg-secondary');
-      document.documentElement.style.removeProperty('--text-primary');
-      document.documentElement.style.removeProperty('--text-secondary');
     }
     localStorage.setItem('darkMode', JSON.stringify(darkMode));
   }, [darkMode]);
 
   return [darkMode, setDarkMode];
 };
-
 // Enhanced Toast Notification Component
 const EnhancedToast = ({ toast, onClose }) => {
   if (!toast) return null;
@@ -1058,6 +1045,9 @@ function DriverHistoryPanel() {
 
 // Admin Dashboard Component
 function AdminDashboard() {
+const [showAddManager, setShowAddManager] = useState(false);
+const [showAddDriver, setShowAddDriver] = useState(false);
+const [exportLoading, setExportLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState({
     stats: {
       totalRevenue: 0,
@@ -1158,6 +1148,50 @@ function AdminDashboard() {
   }
 }, [timeRange, token]);
 
+
+const handleAddManager = () => {
+  navigate('/dashboard/managers');
+};
+
+const handleAddDriver = () => {
+  navigate('/dashboard/drivers');
+};
+
+const handleExportReport = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await axios.get(`${API_BASE}/admin/export/report`, {
+      headers: { Authorization: `Bearer ${token}` },
+      responseType: 'blob'
+    });
+    
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    
+    // Show success toast
+    setToast({
+      type: 'success',
+      title: 'Export Successful',
+      message: 'Report downloaded successfully'
+    });
+  } catch (err) {
+    console.error('Export failed:', err);
+    setToast({
+      type: 'error',
+      title: 'Export Failed',
+      message: 'Failed to download report'
+    });
+  }
+};
+
+const handleSettings = () => {
+  navigate('/dashboard/settings');
+};
 // Fix the useEffect to prevent infinite loops
 useEffect(() => {
   fetchDashboardData();
@@ -1516,42 +1550,45 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* Quick Actions - Similar to Wish Browser section */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => window.location.href = '/dashboard/managers'}
-                  className="p-4 bg-blue-50 hover:bg-blue-100 rounded-xl flex flex-col items-center justify-center transition"
-                >
-                  <UsersIcon className="w-6 h-6 text-blue-600 mb-2" />
-                  <span className="text-sm font-medium text-blue-900">Add Manager</span>
-                </button>
-                <button
-                  onClick={() => window.location.href = '/dashboard/drivers'}
-                  className="p-4 bg-green-50 hover:bg-green-100 rounded-xl flex flex-col items-center justify-center transition"
-                >
-                  <TruckIcon className="w-6 h-6 text-green-600 mb-2" />
-                  <span className="text-sm font-medium text-green-900">Add Driver</span>
-                </button>
-                <button
-                  onClick={() => exportData('reports')}
-                  className="p-4 bg-purple-50 hover:bg-purple-100 rounded-xl flex flex-col items-center justify-center transition"
-                >
-                  <svg className="w-6 h-6 text-purple-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <span className="text-sm font-medium text-purple-900">Export Report</span>
-                </button>
-                <button
-                  onClick={() => window.location.href = '/dashboard/settings'}
-                  className="p-4 bg-orange-50 hover:bg-orange-100 rounded-xl flex flex-col items-center justify-center transition"
-                >
-                  <Cog6ToothIcon className="w-6 h-6 text-orange-600 mb-2" />
-                  <span className="text-sm font-medium text-orange-900">Settings</span>
-                </button>
-              </div>
-            </div>
+           {/* Quick Actions - Similar to Wish Browser section */}
+<div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+  <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
+  <div className="grid grid-cols-2 gap-3">
+    <button
+      onClick={handleAddManager}
+      className="p-4 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 rounded-xl flex flex-col items-center justify-center transition group"
+    >
+      <UsersIcon className="w-6 h-6 text-blue-600 dark:text-blue-400 mb-2 group-hover:scale-110 transition-transform" />
+      <span className="text-sm font-medium text-blue-900 dark:text-blue-300">Add Manager</span>
+    </button>
+    
+    <button
+      onClick={handleAddDriver}
+      className="p-4 bg-green-50 hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50 rounded-xl flex flex-col items-center justify-center transition group"
+    >
+      <TruckIcon className="w-6 h-6 text-green-600 dark:text-green-400 mb-2 group-hover:scale-110 transition-transform" />
+      <span className="text-sm font-medium text-green-900 dark:text-green-300">Add Driver</span>
+    </button>
+    
+    <button
+      onClick={handleExportReport}
+      className="p-4 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 rounded-xl flex flex-col items-center justify-center transition group"
+    >
+      <svg className="w-6 h-6 text-purple-600 dark:text-purple-400 mb-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span className="text-sm font-medium text-purple-900 dark:text-purple-300">Export Report</span>
+    </button>
+    
+    <button
+      onClick={handleSettings}
+      className="p-4 bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/30 dark:hover:bg-orange-900/50 rounded-xl flex flex-col items-center justify-center transition group"
+    >
+      <Cog6ToothIcon className="w-6 h-6 text-orange-600 dark:text-orange-400 mb-2 group-hover:scale-110 transition-transform" />
+      <span className="text-sm font-medium text-orange-900 dark:text-orange-300">Settings</span>
+    </button>
+  </div>
+</div>
 
             {/* Recent Activity - Similar to Corporate Review section */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
@@ -2184,9 +2221,18 @@ function ProductsPanel() {
   const [editing, setEditing] = useState(null)
   const token = localStorage.getItem('token')
   const [form, setForm] = useState({
-    name: '', sku: '', price: '', icon: 'cube', image: '', reference: '', description: '', category: '', active: true
+    name: '', 
+    sku: '', 
+    price: '', 
+    icon: 'cube', 
+    image: '', 
+    reference: '', 
+    description: '', 
+    category: '', 
+    active: true
   })
   const [toast, setToast] = useState(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   useEffect(() => {
     fetchProducts()
@@ -2196,16 +2242,19 @@ function ProductsPanel() {
     console.log('📦 Fetching products...')
     try {
       const res = await axios.get(`${API_BASE}/products`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache'
+        }
       })
-      console.log('✅ Products fetched:', res.data.data?.length || 0)
-      setProducts(res.data.data || [])
+      console.log('✅ Products fetched:', res.data)
+      setProducts(res.data.data || res.data || [])
     } catch (err) {
-      console.error('❌ Failed to fetch products:', err)
+      console.error('❌ Failed to fetch products:', err.response || err)
       setToast({
         type: 'error',
         title: 'Error',
-        message: 'Failed to load products'
+        message: 'Failed to load products. Please check your connection.'
       })
     } finally {
       setLoading(false)
@@ -2216,17 +2265,26 @@ function ProductsPanel() {
     console.log('🚀 Submitting product form...')
     console.log('📝 Form data:', form)
     
-    // Validation
-    if (!form.name || !form.sku || !form.price) {
+    // Enhanced validation
+    if (!form.name.trim()) {
       setToast({
         type: 'error',
         title: 'Validation Error',
-        message: 'Name, SKU and Price are required!'
+        message: 'Product name is required!'
       })
       return
     }
 
-    if (isNaN(form.price) || Number(form.price) <= 0) {
+    if (!form.sku.trim()) {
+      setToast({
+        type: 'error',
+        title: 'Validation Error',
+        message: 'SKU is required!'
+      })
+      return
+    }
+
+    if (!form.price || isNaN(form.price) || Number(form.price) <= 0) {
       setToast({
         type: 'error',
         title: 'Validation Error',
@@ -2236,45 +2294,68 @@ function ProductsPanel() {
     }
     
     try {
+      // Clean the payload - ensure no empty strings
       const payload = {
         name: form.name.trim(),
         sku: form.sku.trim(),
         price: Number(form.price),
         icon: form.icon.trim() || "cube",
-        image: form.image.trim() || null,
-        reference: form.reference.trim() || null,
-        description: form.description.trim() || null,
-        category: form.category.trim() || null,
+        description: form.description.trim() || "",
+        category: form.category.trim() || "",
         active: true
+      };
+
+      // Only include optional fields if they have values
+      if (form.image && form.image !== 'uploading') {
+        payload.image = form.image;
+      }
+      
+      if (form.reference && form.reference.trim()) {
+        payload.reference = form.reference.trim();
       }
 
-      console.log('📤 Payload to send:', payload)
+      console.log('📤 Payload to send:', JSON.stringify(payload))
 
       let response;
+      const headers = { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
       if (editing) {
         console.log('✏️ Updating product:', editing.id)
-        response = await axios.put(`${API_BASE}/products/${editing.id}`, payload, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        response = await axios.put(
+          `${API_BASE}/products/${editing.id}`, 
+          payload, 
+          { headers }
+        )
         console.log('✅ Product updated:', response.data)
       } else {
         console.log('🆕 Creating new product')
-        response = await axios.post(`${API_BASE}/products`, payload, {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        response = await axios.post(
+          `${API_BASE}/products`, 
+          payload, 
+          { headers }
+        )
         console.log('✅ Product created:', response.data)
       }
 
       setShowAdd(false)
       setEditing(null)
-      setForm({ name: '', sku: '', price: '', icon: 'cube', image: '', reference: '', description: '', category: '', active: true })
-      fetchProducts()
+      setForm({ 
+        name: '', 
+        sku: '', 
+        price: '', 
+        icon: 'cube', 
+        image: '', 
+        reference: '', 
+        description: '', 
+        category: '', 
+        active: true 
+      })
+      
+      // Refresh products
+      await fetchProducts()
       
       setToast({
         type: 'success',
@@ -2282,18 +2363,31 @@ function ProductsPanel() {
         message: editing ? 'Product updated successfully!' : 'Product created successfully!'
       })
     } catch (err) {
-      console.error('❌ Product submission failed:', err)
-      console.error('🔍 Error details:', err.response?.data)
+      console.error('❌ Product submission failed:', err.response || err)
       
       let errorMessage = "Failed to save product"
-      if (err.response?.status === 409) {
-        errorMessage = "Product with this SKU already exists!"
-      } else if (err.response?.status === 400) {
-        errorMessage = "Invalid product data. Please check all fields."
-      } else if (err.response?.status === 401) {
-        errorMessage = "Session expired. Please login again."
-      } else if (err.response?.data?.message) {
-        errorMessage = err.response.data.message
+      if (err.response) {
+        switch (err.response.status) {
+          case 400:
+            errorMessage = "Bad request. Please check all fields.";
+            break;
+          case 401:
+            errorMessage = "Session expired. Please login again.";
+            // Redirect to login
+            localStorage.clear();
+            window.location.href = '/';
+            break;
+          case 409:
+            errorMessage = "Product with this SKU already exists!";
+            break;
+          case 500:
+            errorMessage = "Server error. Please try again later.";
+            break;
+          default:
+            if (err.response.data?.message) {
+              errorMessage = err.response.data.message;
+            }
+        }
       }
       
       setToast({
@@ -2303,6 +2397,37 @@ function ProductsPanel() {
       })
     }
   }
+
+  // Test API connection
+  const testApiConnection = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/products/test`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      console.log('✅ API Test:', res.data);
+      return true;
+    } catch (err) {
+      console.error('❌ API Test failed:', err);
+      return false;
+    }
+  };
+
+  // Add a debug button to test API
+  const DebugApiButton = () => (
+    <button
+      onClick={async () => {
+        const connected = await testApiConnection();
+        setToast({
+          type: connected ? 'success' : 'error',
+          title: connected ? 'API Connected' : 'API Error',
+          message: connected ? 'API is working properly' : 'Cannot connect to API'
+        });
+      }}
+      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm"
+    >
+      Test API Connection
+    </button>
+  );
 
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this product?')) return
