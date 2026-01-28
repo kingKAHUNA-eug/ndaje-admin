@@ -12,18 +12,6 @@ import {
   BellIcon, XMarkIcon, SunIcon, MoonIcon
 } from '@heroicons/react/24/outline'
 
-<div className="mb-8">
-  <div className="flex items-center gap-4">
-    <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-emerald-800 rounded-full flex items-center justify-center shadow-2xl">
-      <span className="text-white text-2xl font-black">N</span>
-    </div>
-    <div>
-      <h1 className="text-4xl font-bold text-green-400 tracking-widest">NDAJE</h1>
-      <p className="text-sm text-gray-400 tracking-wider">SUPPLY CHAIN SYSTEM</p>
-    </div>
-  </div>
-</div>
-const navigate = useNavigate();
 // FIXED API BASE
 const API_BASE = import.meta.env.VITE_API_URL
   ? import.meta.env.VITE_API_URL
@@ -52,6 +40,7 @@ const useDarkMode = () => {
 
   return [darkMode, setDarkMode];
 };
+
 // Enhanced Toast Notification Component
 const EnhancedToast = ({ toast, onClose }) => {
   if (!toast) return null;
@@ -125,7 +114,6 @@ const EnhancedToast = ({ toast, onClose }) => {
     </div>
   );
 };
-
 
 // Password Reset Modal Component
 const PasswordResetModal = ({ isOpen, onClose, userId, userName, userEmail, onReset }) => {
@@ -1043,11 +1031,264 @@ function DriverHistoryPanel() {
   );
 }
 
+// Add CreateProductModal component
+function CreateProductModal({ wish, onClose, onCreate }) {
+  const [formData, setFormData] = useState({
+    name: '',
+    sku: `BOOKED-${Date.now()}`,
+    price: wish.estimatedPrice || '',
+    category: 'Booked Products',
+    description: wish.description || ''
+  });
+
+  const handleSubmit = () => {
+    if (!formData.name || !formData.price) {
+      alert('Name and price are required');
+      return;
+    }
+    onCreate(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md p-6">
+        <h3 className="text-xl font-bold mb-4">Create Booked Product</h3>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Product Name *</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              className="w-full px-4 py-3 border rounded-xl"
+              placeholder="Enter product name"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-2">SKU</label>
+            <input
+              type="text"
+              value={formData.sku}
+              onChange={(e) => setFormData({...formData, sku: e.target.value})}
+              className="w-full px-4 py-3 border rounded-xl bg-gray-50"
+              readOnly
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-2">Price (RWF) *</label>
+            <input
+              type="number"
+              value={formData.price}
+              onChange={(e) => setFormData({...formData, price: e.target.value})}
+              className="w-full px-4 py-3 border rounded-xl"
+              placeholder="0"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-2">Description</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              rows={3}
+              className="w-full px-4 py-3 border rounded-xl"
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border rounded-xl"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+          >
+            Create Product
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminProductWishesPanel() {
+  const [wishes, setWishes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedWish, setSelectedWish] = useState(null);
+  const [showCreateProductModal, setShowCreateProductModal] = useState(false);
+  const token = localStorage.getItem('token');
+
+  const fetchWishes = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/product-wishes/all`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setWishes(res.data.data);
+    } catch (error) {
+      console.error('Fetch wishes error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprove = async (wishId) => {
+    try {
+      await axios.post(
+        `${API_BASE}/product-wishes/${wishId}/approve`,
+        { adminNotes: 'We can source this product for you!' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert('Product wish approved! Client will be notified via WhatsApp.');
+      fetchWishes();
+    } catch (error) {
+      alert('Failed to approve wish');
+    }
+  };
+
+  const handleReject = async (wishId) => {
+    const reason = prompt('Reason for rejection:');
+    if (!reason) return;
+
+    try {
+      await axios.post(
+        `${API_BASE}/product-wishes/${wishId}/reject`,
+        { reason },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert('Product wish rejected');
+      fetchWishes();
+    } catch (error) {
+      alert('Failed to reject wish');
+    }
+  };
+
+  const handleCreateProduct = async (wishId, productData) => {
+    try {
+      await axios.post(
+        `${API_BASE}/product-wishes/${wishId}/create-product`,
+        productData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert('Booked product created successfully!');
+      setShowCreateProductModal(false);
+      fetchWishes();
+    } catch (error) {
+      alert('Failed to create product');
+    }
+  };
+
+  useEffect(() => {
+    fetchWishes();
+  }, []);
+
+  if (loading) {
+    return <div className="text-center py-20">Loading product wishes...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-blue-900">Product Wishes</h2>
+        <div className="flex gap-2">
+          {['PENDING', 'APPROVED', 'PRODUCT_CREATED'].map(status => (
+            <span key={status} className="px-3 py-1 bg-gray-100 rounded-full text-sm">
+              {status}: {wishes.filter(w => w.status === status).length}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {wishes.map(wish => (
+          <div key={wish.id} className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
+            <img
+              src={wish.imageUrl}
+              alt="Product wish"
+              className="w-full h-48 object-cover rounded-lg mb-4"
+            />
+            
+            <h3 className="font-bold text-lg mb-2">
+              {wish.description || 'Product Request'}
+            </h3>
+            
+            <div className="space-y-2 mb-4 text-sm text-gray-600">
+              <p>Client: {wish.client.name}</p>
+              <p>Email: {wish.client.email}</p>
+              <p>Phone: {wish.client.phone}</p>
+              {wish.quantity > 1 && <p>Quantity: {wish.quantity}</p>}
+              {wish.estimatedPrice && <p>Est. Price: RWF {wish.estimatedPrice}</p>}
+              <p>Status: <span className={`font-semibold ${
+                wish.status === 'PENDING' ? 'text-yellow-600' :
+                wish.status === 'APPROVED' ? 'text-green-600' :
+                wish.status === 'REJECTED' ? 'text-red-600' :
+                'text-blue-600'
+              }`}>{wish.status}</span></p>
+            </div>
+
+            {wish.status === 'PENDING' && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleReject(wish.id)}
+                  className="flex-1 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+                >
+                  Reject
+                </button>
+                <button
+                  onClick={() => handleApprove(wish.id)}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  Approve
+                </button>
+              </div>
+            )}
+
+            {wish.status === 'APPROVED' && (
+              <button
+                onClick={() => {
+                  setSelectedWish(wish);
+                  setShowCreateProductModal(true);
+                }}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Create Booked Product
+              </button>
+            )}
+
+            {wish.status === 'PRODUCT_CREATED' && wish.product && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <p className="text-sm text-green-800">
+                  ✓ Product created: {wish.product.name}
+                </p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Create Product Modal */}
+      {showCreateProductModal && selectedWish && (
+        <CreateProductModal
+          wish={selectedWish}
+          onClose={() => setShowCreateProductModal(false)}
+          onCreate={(productData) => handleCreateProduct(selectedWish.id, productData)}
+        />
+      )}
+    </div>
+  );
+}
+
 // Admin Dashboard Component
 function AdminDashboard() {
-const [showAddManager, setShowAddManager] = useState(false);
-const [showAddDriver, setShowAddDriver] = useState(false);
-const [exportLoading, setExportLoading] = useState(false);
+  const [showAddManager, setShowAddManager] = useState(false);
+  const [showAddDriver, setShowAddDriver] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
   const [dashboardData, setDashboardData] = useState({
     stats: {
       totalRevenue: 0,
@@ -1069,133 +1310,138 @@ const [exportLoading, setExportLoading] = useState(false);
   const [timeRange, setTimeRange] = useState('week');
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const navigate = useNavigate();
+  const [toast, setToast] = useState(null);
 
   const fetchDashboardData = useCallback(async () => {
-  try {
-    setLoading(true);
-    setError(null);
+    try {
+      setLoading(true);
+      setError(null);
 
-    const headers = { Authorization: `Bearer ${token}` };
-    
-    // Create all API requests with error handling for each
-    const requests = [
-      { key: 'stats', url: `${API_BASE}/admin/dashboard/stats?range=${timeRange}` },
-      { key: 'recentQuotes', url: `${API_BASE}/admin/quotes/recent?limit=5` },
-      { key: 'topManagers', url: `${API_BASE}/admin/managers/top-performance` },
-      { key: 'revenueTrend', url: `${API_BASE}/admin/revenue/trend?range=${timeRange}` },
-      { key: 'recentActivity', url: `${API_BASE}/admin/activity/recent` }
-    ];
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      // Create all API requests with error handling for each
+      const requests = [
+        { key: 'stats', url: `${API_BASE}/admin/dashboard/stats?range=${timeRange}` },
+        { key: 'recentQuotes', url: `${API_BASE}/admin/quotes/recent?limit=5` },
+        { key: 'topManagers', url: `${API_BASE}/admin/managers/top-performance` },
+        { key: 'revenueTrend', url: `${API_BASE}/admin/revenue/trend?range=${timeRange}` },
+        { key: 'recentActivity', url: `${API_BASE}/admin/activity/recent` }
+      ];
 
-    // Execute all requests with individual error handling
-    const results = {};
-    
-    for (const request of requests) {
-      try {
-        console.log(`Fetching ${request.key} from ${request.url}`);
-        const response = await axios.get(request.url, { headers, timeout: 10000 });
-        results[request.key] = response.data.data || response.data;
-      } catch (err) {
-        console.warn(`Failed to fetch ${request.key}:`, err.message);
-        // Set default empty data for failed requests
-        if (request.key === 'stats') {
-          results[request.key] = {
-            totalRevenue: 0,
-            totalQuotes: 0,
-            activeQuotes: 0,
-            completedQuotes: 0,
-            conversionRate: 0,
-            averageQuoteValue: 0,
-            totalClients: 0,
-            newClientsThisMonth: 0
-          };
-        } else {
-          results[request.key] = [];
+      // Execute all requests with individual error handling
+      const results = {};
+      
+      for (const request of requests) {
+        try {
+          console.log(`Fetching ${request.key} from ${request.url}`);
+          const response = await axios.get(request.url, { headers, timeout: 10000 });
+          results[request.key] = response.data.data || response.data;
+        } catch (err) {
+          console.warn(`Failed to fetch ${request.key}:`, err.message);
+          // Set default empty data for failed requests
+          if (request.key === 'stats') {
+            results[request.key] = {
+              totalRevenue: 0,
+              totalQuotes: 0,
+              activeQuotes: 0,
+              completedQuotes: 0,
+              conversionRate: 0,
+              averageQuoteValue: 0,
+              totalClients: 0,
+              newClientsThisMonth: 0
+            };
+          } else {
+            results[request.key] = [];
+          }
         }
       }
+
+      setDashboardData({
+        stats: results.stats,
+        recentQuotes: results.recentQuotes || [],
+        topManagers: results.topManagers || [],
+        revenueTrend: results.revenueTrend || [],
+        recentActivity: results.recentActivity || []
+      });
+
+    } catch (err) {
+      console.error('Failed to fetch dashboard data:', err);
+      setError('Failed to load dashboard data. Please check your connection or contact support.');
+      
+      // Set default data structure
+      setDashboardData({
+        stats: {
+          totalRevenue: 0,
+          totalQuotes: 0,
+          activeQuotes: 0,
+          completedQuotes: 0,
+          conversionRate: 0,
+          averageQuoteValue: 0,
+          totalClients: 0,
+          newClientsThisMonth: 0
+        },
+        recentQuotes: [],
+        topManagers: [],
+        revenueTrend: [],
+        recentActivity: []
+      });
+    } finally {
+      setLoading(false);
     }
+  }, [timeRange, token]);
 
-    setDashboardData({
-      stats: results.stats,
-      recentQuotes: results.recentQuotes || [],
-      topManagers: results.topManagers || [],
-      revenueTrend: results.revenueTrend || [],
-      recentActivity: results.recentActivity || []
-    });
+  const handleAddManager = () => {
+    navigate('/dashboard/managers');
+  };
 
-  } catch (err) {
-    console.error('Failed to fetch dashboard data:', err);
-    setError('Failed to load dashboard data. Please check your connection or contact support.');
-    
-    // Set default data structure
-    setDashboardData({
-      stats: {
-        totalRevenue: 0,
-        totalQuotes: 0,
-        activeQuotes: 0,
-        completedQuotes: 0,
-        conversionRate: 0,
-        averageQuoteValue: 0,
-        totalClients: 0,
-        newClientsThisMonth: 0
-      },
-      recentQuotes: [],
-      topManagers: [],
-      revenueTrend: [],
-      recentActivity: []
-    });
-  } finally {
-    setLoading(false);
-  }
-}, [timeRange, token]);
+  const handleAddDriver = () => {
+    navigate('/dashboard/drivers');
+  };
 
+  const handleExportReport = async () => {
+    try {
+      setExportLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE}/admin/export/report`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `report_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      // Show success toast
+      setToast({
+        type: 'success',
+        title: 'Export Successful',
+        message: 'Report downloaded successfully'
+      });
+    } catch (err) {
+      console.error('Export failed:', err);
+      setToast({
+        type: 'error',
+        title: 'Export Failed',
+        message: 'Failed to download report'
+      });
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
-const handleAddManager = () => {
-  navigate('/dashboard/managers');
-};
+  const handleSettings = () => {
+    navigate('/dashboard/settings');
+  };
 
-const handleAddDriver = () => {
-  navigate('/dashboard/drivers');
-};
-
-const handleExportReport = async () => {
-  try {
-    const token = localStorage.getItem('token');
-    const response = await axios.get(`${API_BASE}/admin/export/report`, {
-      headers: { Authorization: `Bearer ${token}` },
-      responseType: 'blob'
-    });
-    
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `report_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    
-    // Show success toast
-    setToast({
-      type: 'success',
-      title: 'Export Successful',
-      message: 'Report downloaded successfully'
-    });
-  } catch (err) {
-    console.error('Export failed:', err);
-    setToast({
-      type: 'error',
-      title: 'Export Failed',
-      message: 'Failed to download report'
-    });
-  }
-};
-
-const handleSettings = () => {
-  navigate('/dashboard/settings');
-};
-// Fix the useEffect to prevent infinite loops
-useEffect(() => {
-  fetchDashboardData();
-}, [timeRange]); // Only depend on timeRange, not fetchDashboardData
+  // Fix the useEffect to prevent infinite loops
+  useEffect(() => {
+    fetchDashboardData();
+  }, [timeRange, fetchDashboardData]); // Only depend on timeRange, not fetchDashboardData
 
   const exportData = async (type) => {
     try {
@@ -1227,7 +1473,7 @@ useEffect(() => {
     );
   }
 
- if (error) {
+  if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
         <div className="text-center p-8 bg-white rounded-2xl shadow-lg max-w-md">
@@ -1550,45 +1796,45 @@ useEffect(() => {
               </div>
             </div>
 
-           {/* Quick Actions - Similar to Wish Browser section */}
-<div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-  <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
-  <div className="grid grid-cols-2 gap-3">
-    <button
-      onClick={handleAddManager}
-      className="p-4 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 rounded-xl flex flex-col items-center justify-center transition group"
-    >
-      <UsersIcon className="w-6 h-6 text-blue-600 dark:text-blue-400 mb-2 group-hover:scale-110 transition-transform" />
-      <span className="text-sm font-medium text-blue-900 dark:text-blue-300">Add Manager</span>
-    </button>
-    
-    <button
-      onClick={handleAddDriver}
-      className="p-4 bg-green-50 hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50 rounded-xl flex flex-col items-center justify-center transition group"
-    >
-      <TruckIcon className="w-6 h-6 text-green-600 dark:text-green-400 mb-2 group-hover:scale-110 transition-transform" />
-      <span className="text-sm font-medium text-green-900 dark:text-green-300">Add Driver</span>
-    </button>
-    
-    <button
-      onClick={handleExportReport}
-      className="p-4 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 rounded-xl flex flex-col items-center justify-center transition group"
-    >
-      <svg className="w-6 h-6 text-purple-600 dark:text-purple-400 mb-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-      <span className="text-sm font-medium text-purple-900 dark:text-purple-300">Export Report</span>
-    </button>
-    
-    <button
-      onClick={handleSettings}
-      className="p-4 bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/30 dark:hover:bg-orange-900/50 rounded-xl flex flex-col items-center justify-center transition group"
-    >
-      <Cog6ToothIcon className="w-6 h-6 text-orange-600 dark:text-orange-400 mb-2 group-hover:scale-110 transition-transform" />
-      <span className="text-sm font-medium text-orange-900 dark:text-orange-300">Settings</span>
-    </button>
-  </div>
-</div>
+            {/* Quick Actions - Similar to Wish Browser section */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={handleAddManager}
+                  className="p-4 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 rounded-xl flex flex-col items-center justify-center transition group"
+                >
+                  <UsersIcon className="w-6 h-6 text-blue-600 dark:text-blue-400 mb-2 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-medium text-blue-900 dark:text-blue-300">Add Manager</span>
+                </button>
+                
+                <button
+                  onClick={handleAddDriver}
+                  className="p-4 bg-green-50 hover:bg-green-100 dark:bg-green-900/30 dark:hover:bg-green-900/50 rounded-xl flex flex-col items-center justify-center transition group"
+                >
+                  <TruckIcon className="w-6 h-6 text-green-600 dark:text-green-400 mb-2 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-medium text-green-900 dark:text-green-300">Add Driver</span>
+                </button>
+                
+                <button
+                  onClick={handleExportReport}
+                  className="p-4 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/30 dark:hover:bg-purple-900/50 rounded-xl flex flex-col items-center justify-center transition group"
+                >
+                  <svg className="w-6 h-6 text-purple-600 dark:text-purple-400 mb-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span className="text-sm font-medium text-purple-900 dark:text-purple-300">Export Report</span>
+                </button>
+                
+                <button
+                  onClick={handleSettings}
+                  className="p-4 bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/30 dark:hover:bg-orange-900/50 rounded-xl flex flex-col items-center justify-center transition group"
+                >
+                  <Cog6ToothIcon className="w-6 h-6 text-orange-600 dark:text-orange-400 mb-2 group-hover:scale-110 transition-transform" />
+                  <span className="text-sm font-medium text-orange-900 dark:text-orange-300">Settings</span>
+                </button>
+              </div>
+            </div>
 
             {/* Recent Activity - Similar to Corporate Review section */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
@@ -1673,7 +1919,7 @@ useEffect(() => {
       </div>
     </div>
   );
- }
+}
 
 // Settings Panel Component
 function SettingsPanel({ darkMode, setDarkMode }) {
@@ -1782,6 +2028,7 @@ function ProtectedDashboard({ deleteUser, resetUserPassword, darkMode, setDarkMo
             <Route path="/orders" element={<AdminOrdersPanel />} />
             <Route path="/settings" element={<SettingsPanel darkMode={darkMode} setDarkMode={setDarkMode} />} />
             <Route path="/" element={<Navigate to="/dashboard/overview" />} />
+            <Route path="/product-wishes" element={<AdminProductWishesPanel />} />
           </>
         )}
 
@@ -2207,7 +2454,7 @@ function DashboardLayout({ children, darkMode, setDarkMode }) {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 
@@ -2806,8 +3053,9 @@ function ProductsPanel() {
         </div>
       )}
     </div>
-  )
+  );
 }
+
 // Fixed Manager Dashboard Component - Replace your existing ManagerDashboard
 
 function ManagerDashboard() {
@@ -3566,8 +3814,6 @@ quote.lockedById = managerId;  // Just the MongoDB ID`}
     </div>
   );
 }
-
-ManagerIdDebug()
 
   if (loading) {
     return (
