@@ -1080,87 +1080,88 @@ function AdminDashboard() {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  const fetchDashboardData = useCallback(async () => {
+  try {
+    setLoading(true);
+    setError(null);
 
-      
-      const headers = { Authorization: `Bearer ${token}` };
-      
-      // Create all API requests with error handling for each
-      const requests = [
-        { key: 'stats', url: `${API_BASE}/admin/dashboard/stats?range=${timeRange}` },
-        { key: 'recentQuotes', url: `${API_BASE}/admin/quotes/recent?limit=5` },
-        { key: 'topManagers', url: `${API_BASE}/admin/managers/top-performance` },
-        { key: 'revenueTrend', url: `${API_BASE}/admin/revenue/trend?range=${timeRange}` },
-        { key: 'recentActivity', url: `${API_BASE}/admin/activity/recent` }
-      ];
+    const headers = { Authorization: `Bearer ${token}` };
+    
+    // Create all API requests with error handling for each
+    const requests = [
+      { key: 'stats', url: `${API_BASE}/admin/dashboard/stats?range=${timeRange}` },
+      { key: 'recentQuotes', url: `${API_BASE}/admin/quotes/recent?limit=5` },
+      { key: 'topManagers', url: `${API_BASE}/admin/managers/top-performance` },
+      { key: 'revenueTrend', url: `${API_BASE}/admin/revenue/trend?range=${timeRange}` },
+      { key: 'recentActivity', url: `${API_BASE}/admin/activity/recent` }
+    ];
 
-      // Execute all requests with individual error handling
-      const results = {};
-      
-      for (const request of requests) {
-        try {
-          const response = await axios.get(request.url, { headers });
-          results[request.key] = response.data.data || response.data;
-        } catch (err) {
-          console.warn(`Failed to fetch ${request.key}:`, err.message);
-          // Set default empty data for failed requests
-          if (request.key === 'stats') {
-            results[request.key] = {
-              totalRevenue: 0,
-              totalQuotes: 0,
-              activeQuotes: 0,
-              completedQuotes: 0,
-              conversionRate: 0,
-              averageQuoteValue: 0,
-              totalClients: 0,
-              newClientsThisMonth: 0
-            };
-          } else {
-            results[request.key] = [];
-          }
+    // Execute all requests with individual error handling
+    const results = {};
+    
+    for (const request of requests) {
+      try {
+        console.log(`Fetching ${request.key} from ${request.url}`);
+        const response = await axios.get(request.url, { headers, timeout: 10000 });
+        results[request.key] = response.data.data || response.data;
+      } catch (err) {
+        console.warn(`Failed to fetch ${request.key}:`, err.message);
+        // Set default empty data for failed requests
+        if (request.key === 'stats') {
+          results[request.key] = {
+            totalRevenue: 0,
+            totalQuotes: 0,
+            activeQuotes: 0,
+            completedQuotes: 0,
+            conversionRate: 0,
+            averageQuoteValue: 0,
+            totalClients: 0,
+            newClientsThisMonth: 0
+          };
+        } else {
+          results[request.key] = [];
         }
       }
-
-      setDashboardData({
-        stats: results.stats,
-        recentQuotes: results.recentQuotes || [],
-        topManagers: results.topManagers || [],
-        revenueTrend: results.revenueTrend || [],
-        recentActivity: results.recentActivity || []
-      });
-
-    } catch (err) {
-      console.error('Failed to fetch dashboard data:', err);
-      setError('Failed to load dashboard data. Please try again.');
-      
-      // Set default data structure
-      setDashboardData({
-        stats: {
-          totalRevenue: 0,
-          totalQuotes: 0,
-          activeQuotes: 0,
-          completedQuotes: 0,
-          conversionRate: 0,
-          averageQuoteValue: 0,
-          totalClients: 0,
-          newClientsThisMonth: 0
-        },
-        recentQuotes: [],
-        topManagers: [],
-        revenueTrend: [],
-        recentActivity: []
-      });
-    } finally {
-      setLoading(false);
     }
-  };
 
- useEffect(() => {
+    setDashboardData({
+      stats: results.stats,
+      recentQuotes: results.recentQuotes || [],
+      topManagers: results.topManagers || [],
+      revenueTrend: results.revenueTrend || [],
+      recentActivity: results.recentActivity || []
+    });
+
+  } catch (err) {
+    console.error('Failed to fetch dashboard data:', err);
+    setError('Failed to load dashboard data. Please check your connection or contact support.');
+    
+    // Set default data structure
+    setDashboardData({
+      stats: {
+        totalRevenue: 0,
+        totalQuotes: 0,
+        activeQuotes: 0,
+        completedQuotes: 0,
+        conversionRate: 0,
+        averageQuoteValue: 0,
+        totalClients: 0,
+        newClientsThisMonth: 0
+      },
+      recentQuotes: [],
+      topManagers: [],
+      revenueTrend: [],
+      recentActivity: []
+    });
+  } finally {
+    setLoading(false);
+  }
+}, [timeRange, token]);
+
+// Fix the useEffect to prevent infinite loops
+useEffect(() => {
   fetchDashboardData();
-}, [fetchDashboardData]);
+}, [timeRange]); // Only depend on timeRange, not fetchDashboardData
 
   const exportData = async (type) => {
     try {
@@ -1192,7 +1193,7 @@ function AdminDashboard() {
     );
   }
 
-  if (error) {
+ if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
         <div className="text-center p-8 bg-white rounded-2xl shadow-lg max-w-md">
@@ -1201,21 +1202,29 @@ function AdminDashboard() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Error Loading Dashboard</h3>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button
-            onClick={fetchDashboardData}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
-            Retry
-          </button>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Backend Connection Error</h3>
+          <p className="text-gray-600 mb-6">Unable to connect to the server. Please try again later.</p>
+          <div className="space-y-3">
+            <button
+              onClick={fetchDashboardData}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition w-full"
+            >
+              Retry Connection
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition w-full"
+            >
+              Reload Page
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
       {/* Header */}
       <div className="bg-white border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -1627,7 +1636,7 @@ function AdminDashboard() {
       </div>
     </div>
   );
-}
+ }
 
 // Settings Panel Component
 function SettingsPanel({ darkMode, setDarkMode }) {
