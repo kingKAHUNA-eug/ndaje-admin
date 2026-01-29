@@ -2508,143 +2508,168 @@ function ProductsPanel() {
     }
   }
 
-  const handleSubmit = async () => {
-    console.log('🚀 Submitting product form...')
-    console.log('📝 Form data:', form)
-    
-    // Enhanced validation
-    if (!form.name.trim()) {
-      setToast({
-        type: 'error',
-        title: 'Validation Error',
-        message: 'Product name is required!'
-      })
-      return
-    }
+ const handleSubmit = async () => {
+  console.log('🚀 Submitting product form...')
+  console.log('📝 Form data:', form)
+  
+  // ✅ SANITIZE form values - handle null/undefined
+  const safeName = (form.name ?? '').trim();
+  const safeSku = (form.sku ?? '').trim();
+  const safePrice = form.price;
+  const safeIcon = (form.icon ?? 'cube').trim();
+  const safeDescription = (form.description ?? '').trim();
+  const safeCategory = (form.category ?? '').trim();
+  const safeReference = (form.reference ?? '').trim();
+  const safeImage = (form.image ?? '').trim();
 
-    if (!form.sku.trim()) {
-      setToast({
-        type: 'error',
-        title: 'Validation Error',
-        message: 'SKU is required!'
-      })
-      return
-    }
-
-    if (!form.price || isNaN(form.price) || Number(form.price) <= 0) {
-      setToast({
-        type: 'error',
-        title: 'Validation Error',
-        message: 'Price must be a valid number greater than 0!'
-      })
-      return
-    }
-    
-    try {
-      // Clean the payload - ensure no empty strings
-      const payload = {
-        name: form.name.trim(),
-        sku: form.sku.trim(),
-        price: Number(form.price),
-        icon: form.icon.trim() || "cube",
-        description: form.description.trim() || "",
-        category: form.category.trim() || "",
-        active: true
-      };
-
-      // Only include optional fields if they have values
-      if (form.image && form.image !== 'uploading') {
-        payload.image = form.image;
-      }
-      
-      if (form.reference && form.reference.trim()) {
-        payload.reference = form.reference.trim();
-      }
-
-      console.log('📤 Payload to send:', JSON.stringify(payload))
-
-      let response;
-      const headers = { 
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      };
-
-      if (editing) {
-        console.log('✏️ Updating product:', editing.id)
-        response = await axios.put(
-          `${API_BASE}/products/${editing.id}`, 
-          payload, 
-          { headers }
-        )
-        console.log('✅ Product updated:', response.data)
-      } else {
-        console.log('🆕 Creating new product')
-        response = await axios.post(
-          `${API_BASE}/products`, 
-          payload, 
-          { headers }
-        )
-        console.log('✅ Product created:', response.data)
-      }
-
-      setShowAdd(false)
-      setEditing(null)
-      setForm({ 
-        name: '', 
-        sku: '', 
-        price: '', 
-        icon: 'cube', 
-        image: '', 
-        reference: '', 
-        description: '', 
-        category: '', 
-        active: true 
-      })
-      
-      // Refresh products
-      await fetchProducts()
-      
-      setToast({
-        type: 'success',
-        title: 'Success!',
-        message: editing ? 'Product updated successfully!' : 'Product created successfully!'
-      })
-    } catch (err) {
-      console.error('❌ Product submission failed:', err.response || err)
-      
-      let errorMessage = "Failed to save product"
-      if (err.response) {
-        switch (err.response.status) {
-          case 400:
-            errorMessage = "Bad request. Please check all fields.";
-            break;
-          case 401:
-            errorMessage = "Session expired. Please login again.";
-            // Redirect to login
-            localStorage.clear();
-            window.location.href = '/';
-            break;
-          case 409:
-            errorMessage = "Product with this SKU already exists!";
-            break;
-          case 500:
-            errorMessage = "Server error. Please try again later.";
-            break;
-          default:
-            if (err.response.data?.message) {
-              errorMessage = err.response.data.message;
-            }
-        }
-      }
-      
-      setToast({
-        type: 'error',
-        title: 'Error',
-        message: errorMessage
-      })
-    }
+  // Enhanced validation
+  if (!safeName) {
+    setToast({
+      type: 'error',
+      title: 'Validation Error',
+      message: 'Product name is required!'
+    })
+    return
   }
 
+  if (!safeSku) {
+    setToast({
+      type: 'error',
+      title: 'Validation Error',
+      message: 'SKU is required!'
+    })
+    return
+  }
+
+  if (!safePrice || isNaN(safePrice) || Number(safePrice) <= 0) {
+    setToast({
+      type: 'error',
+      title: 'Validation Error',
+      message: 'Price must be a valid number greater than 0!'
+    })
+    return
+  }
+
+  if (!safeIcon) {
+    setToast({
+      type: 'error',
+      title: 'Validation Error',
+      message: 'Icon is required!'
+    })
+    return
+  }
+  
+  try {
+    // ✅ Clean payload with sanitized values
+    const payload = {
+      name: safeName,
+      sku: safeSku,
+      price: Number(safePrice),
+      icon: safeIcon || "cube",
+      description: safeDescription,
+      category: safeCategory,
+      active: form.active !== false
+    };
+
+    // Only include optional fields if they have values
+    if (safeImage && safeImage !== 'uploading') {
+      payload.image = safeImage;
+    } else {
+      payload.image = '';  // ✅ Send empty string, not undefined
+    }
+    
+    if (safeReference) {
+      payload.reference = safeReference;
+    } else {
+      payload.reference = '';  // ✅ Send empty string, not undefined
+    }
+
+    console.log('📤 Payload to send:', JSON.stringify(payload))
+
+    let response;
+    const headers = { 
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
+
+    if (editing) {
+      console.log('✏️ Updating product:', editing.id)
+      response = await axios.put(
+        `${API_BASE}/products/${editing.id}`, 
+        payload, 
+        { headers }
+      )
+      console.log('✅ Product updated:', response.data)
+    } else {
+      console.log('🆕 Creating new product')
+      response = await axios.post(
+        `${API_BASE}/products`, 
+        payload, 
+        { headers }
+      )
+      console.log('✅ Product created:', response.data)
+    }
+
+    setShowAdd(false)
+    setEditing(null)
+    setForm({ 
+      name: '', 
+      sku: '', 
+      price: '', 
+      icon: 'cube', 
+      image: '', 
+      reference: '', 
+      description: '', 
+      category: '', 
+      active: true 
+    })
+    
+    // Refresh products
+    await fetchProducts()
+    
+    setToast({
+      type: 'success',
+      title: 'Success!',
+      message: editing ? 'Product updated successfully!' : 'Product created successfully!'
+    })
+  } catch (err) {
+    console.error('❌ Product submission failed:', err.response || err)
+    
+    let errorMessage = "Failed to save product"
+    if (err.response) {
+      switch (err.response.status) {
+        case 400:
+          errorMessage = err.response.data?.message || "Bad request. Please check all fields.";
+          if (err.response.data?.errors) {
+            const zodErrors = err.response.data.errors.map(e => e.message).join(', ');
+            errorMessage = zodErrors || errorMessage;
+          }
+          break;
+        case 401:
+          errorMessage = "Session expired. Please login again.";
+          localStorage.clear();
+          window.location.href = '/';
+          break;
+        case 409:
+          errorMessage = "Product with this SKU already exists!";
+          break;
+        case 500:
+          errorMessage = "Server error. Please try again later.";
+          break;
+        default:
+          if (err.response.data?.message) {
+            errorMessage = err.response.data.message;
+          }
+      }
+    }
+    
+    setToast({
+      type: 'error',
+      title: 'Error',
+      message: errorMessage
+    })
+  }
+}
   // Test API connection
   const testApiConnection = async () => {
     try {
@@ -2808,7 +2833,22 @@ function ProductsPanel() {
               )}
               <div className="flex gap-2 mt-4">
                 <button 
-                  onClick={() => { setEditing(p); setForm(p); setShowAdd(true) }} 
+                  onClick={() => { 
+  setEditing(p); 
+  // ✅ Sanitize null values before setting form
+  setForm({
+    name: p.name || '',
+    sku: p.sku || '',
+    price: p.price || '',
+    icon: p.icon || 'cube',
+    image: p.image || '',
+    reference: p.reference || '',
+    description: p.description || '',
+    category: p.category || '',
+    active: p.active !== false
+  }); 
+  setShowAdd(true) 
+}}
                   className="flex-1 py-2 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg transition flex items-center justify-center gap-1"
                 >
                   <PencilSquareIcon className="w-4 h-4" /> Edit
