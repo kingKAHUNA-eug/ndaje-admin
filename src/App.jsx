@@ -2141,7 +2141,12 @@ function Login() {
     });
   };
 
-  
+  // User profile data (mock for display)
+  const userProfile = {
+    name: "kahuna",
+    role: "System Administrator",
+    avatar: "K"
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center p-4 font-mono">
@@ -2184,10 +2189,22 @@ function Login() {
               </div>
               <div className="h-4 w-px bg-gray-700"></div>
               <div className="text-xs text-gray-500">
-                v2.5.1 • 2026
+                v2.5.1 • 2024
               </div>
             </div>
           </div>
+
+          {/* User Profile at Bottom Left */}
+          <div className="mt-auto pt-6 border-t border-gray-700">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold">{userProfile.avatar}</span>
+              </div>
+              <div>
+                <p className="text-white font-medium">{userProfile.name}</p>
+                <p className="text-sm text-gray-400">{userProfile.role}</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -2317,7 +2334,7 @@ function Login() {
           </div>
         </div>
       </div>
-    
+    </div>
   )
 }
 
