@@ -20,9 +20,6 @@ const API_BASE = import.meta.env.VITE_API_URL
       .replace(/\/\/auth/, '/auth')
   : 'http://localhost:10000/api';
 
-// ==============================
-// FIXED DARK MODE THEME - Simplified
-// ==============================
 const useDarkMode = () => {
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
@@ -32,8 +29,13 @@ const useDarkMode = () => {
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
+      document.body.classList.add('dark');
+      // Also add to root
+      document.getElementById('root')?.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
+      document.body.classList.remove('dark');
+      document.getElementById('root')?.classList.remove('dark');
     }
     localStorage.setItem('darkMode', JSON.stringify(darkMode));
   }, [darkMode]);
@@ -5069,51 +5071,57 @@ function App() {
         animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
       }
       
-      /* Dark mode custom properties */
-      .dark {
-        color-scheme: dark;
-      }
       
-      .dark input,
-      .dark select,
-      .dark textarea {
-        background-color: #374151;
-        color: #f9fafb;
-        border-color: #4b5563;
-      }
-      
-      .dark input:focus,
-      .dark select:focus,
-      .dark textarea:focus {
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
-      }
-      
-      /* Scrollbar styling for dark mode */
-      .dark ::-webkit-scrollbar {
-        width: 10px;
-      }
-      
-      .dark ::-webkit-scrollbar-track {
-        background: #1f2937;
-      }
-      
-      .dark ::-webkit-scrollbar-thumb {
-        background: #4b5563;
-        border-radius: 5px;
-      }
-      
-      .dark ::-webkit-scrollbar-thumb:hover {
-        background: #6b7280;
-      }
-        
-    `;
-    document.head.appendChild(styleSheet);
+
+    /* Dark mode global styles */
+    .dark {
+      color-scheme: dark;
+    }
     
-    return () => {
-      document.head.removeChild(styleSheet);
-    };
-  }, []);
+    .dark body {
+      background-color: #111827;
+      color: #f9fafb;
+    }
+    
+    .dark input,
+    .dark select,
+    .dark textarea {
+      background-color: #374151;
+      color: #f9fafb;
+      border-color: #4b5563;
+    }
+    
+    .dark input:focus,
+    .dark select:focus,
+    .dark textarea:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+    }
+    
+    /* Scrollbar styling for dark mode */
+    .dark ::-webkit-scrollbar {
+      width: 10px;
+    }
+    
+    .dark ::-webkit-scrollbar-track {
+      background: #1f2937;
+    }
+    
+    .dark ::-webkit-scrollbar-thumb {
+      background: #4b5563;
+      border-radius: 5px;
+    }
+    
+    .dark ::-webkit-scrollbar-thumb:hover {
+      background: #6b7280;
+    }
+  `;
+  document.head.appendChild(styleSheet);
+  
+  return () => {
+    document.head.removeChild(styleSheet);
+  };
+}, []);
 
 
   // DELETE USER
