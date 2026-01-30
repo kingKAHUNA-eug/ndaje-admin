@@ -169,7 +169,7 @@ const PasswordResetModal = ({ isOpen, onClose, userId, userName, userEmail, onRe
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">Reset Password</h2>
-              <p className="text-gray-600 mt-1">For {userName}</p>
+              <p className="text-gray-600 dark:text-gray-300 mt-1">For {userName}</p>
             </div>
             <button
               onClick={onClose}
@@ -407,13 +407,13 @@ function AdminQuotesPanel() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-blue-900">Quote Management</h2>
+        <h2 className="text-2xl font-bold text-blue-900 dark:text-white">Quote Management</h2>
         <button onClick={fetchQuotes} className="px-4 py-2 bg-blue-600 text-white rounded-lg">
           Refresh
         </button>
       </div>
 
-      <div className="bg-white p-4 rounded-xl shadow-sm space-y-4">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm space-y-4 dark:border dark:border-gray-700">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <select
             value={filters.status}
@@ -456,7 +456,7 @@ function AdminQuotesPanel() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden dark:border dark:border-gray-700">
         {loading ? (
           <div className="text-center py-8">Loading quotes...</div>
         ) : quotes.length === 0 ? (
@@ -464,7 +464,7 @@ function AdminQuotesPanel() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-gray-900/50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quote ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
@@ -474,7 +474,7 @@ function AdminQuotesPanel() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {quotes.map(quote => (
                   <tr key={quote.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
@@ -483,7 +483,7 @@ function AdminQuotesPanel() {
                     <td className="px-6 py-4">
                       <div>
                         <p className="font-medium">{quote.client?.name || 'Unknown'}</p>
-                        <p className="text-sm text-gray-500">{quote.client?.email || ''}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{quote.client?.email || ''}</p>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -586,29 +586,29 @@ function AdminManagerPanel({ deleteUser, resetUserPassword }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {managers.map(manager => (
-          <div key={manager.id} className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
+          <div key={manager.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-4 mb-4">
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                 <UsersIcon className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <h3 className="font-bold text-lg text-gray-900">{manager.name}</h3>
-                <p className="text-sm text-gray-500">{manager.email}</p>
+                <h3 className="font-bold text-lg text-gray-900 dark:text-white">{manager.name}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{manager.email}</p>
               </div>
             </div>
             
             <div className="space-y-2 mb-4">
-              <div className="flex items-center text-sm text-gray-600">
+              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                 <PhoneIcon className="w-4 h-4 mr-2" />
                 <span>{manager.phone}</span>
               </div>
-              <div className="flex items-center text-sm text-gray-600">
+              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                 <ClipboardDocumentListIcon className="w-4 h-4 mr-2" />
                 <span>Active Quotes: {manager.activeQuotes || 0}</span>
               </div>
             </div>
 
-            <div className="flex gap-2 pt-4 border-t border-gray-100">
+            <div className="flex gap-2 pt-4 border-t border-gray-100 dark:border-gray-700">
               <button
                 onClick={() => resetUserPassword(manager.id, manager.name, manager.email)}
                 className="flex-1 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
@@ -628,16 +628,16 @@ function AdminManagerPanel({ deleteUser, resetUserPassword }) {
 
       {showAddManager && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <h3 className="text-xl font-bold mb-4">Add New Manager</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold mb-4 dark:text-white">Add New Manager</h3>
             <div className="space-y-4">
-              <input placeholder="Name" value={newManager.name} onChange={e => setNewManager(prev => ({...prev, name: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-              <input placeholder="Email" value={newManager.email} onChange={e => setNewManager(prev => ({...prev, email: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-              <input placeholder="Phone" value={newManager.phone} onChange={e => setNewManager(prev => ({...prev, phone: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-              <input type="password" placeholder="Password" value={newManager.password} onChange={e => setNewManager(prev => ({...prev, password: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+              <input placeholder="Name" value={newManager.name} onChange={e => setNewManager(prev => ({...prev, name: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
+              <input placeholder="Email" value={newManager.email} onChange={e => setNewManager(prev => ({...prev, email: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
+              <input placeholder="Phone" value={newManager.phone} onChange={e => setNewManager(prev => ({...prev, phone: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
+              <input type="password" placeholder="Password" value={newManager.password} onChange={e => setNewManager(prev => ({...prev, password: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowAddManager(false)} className="flex-1 px-4 py-2 border rounded-xl">Cancel</button>
+              <button onClick={() => setShowAddManager(false)} className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-xl dark:text-gray-300 dark:hover:bg-gray-700">Cancel</button>
               <button onClick={createManager} className="flex-1 px-4 py-2 bg-blue-900 text-white rounded-xl">Create</button>
             </div>
           </div>
@@ -696,33 +696,33 @@ function AdminDriverPanel({ deleteUser, resetUserPassword }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {drivers.map(driver => (
-          <div key={driver.id} className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
+          <div key={driver.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-4 mb-4">
               <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
                 <TruckIcon className="w-6 h-6 text-orange-600" />
               </div>
               <div>
                 <h3 className="font-bold text-lg text-gray-900">{driver.name}</h3>
-                <p className="text-sm text-gray-500">{driver.email}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{driver.email}</p>
               </div>
             </div>
             
             <div className="space-y-2 mb-4">
-              <div className="flex items-center text-sm text-gray-600">
+              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                 <PhoneIcon className="w-4 h-4 mr-2" />
                 <span>{driver.phone}</span>
               </div>
-              <div className="flex items-center text-sm text-gray-600">
+              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                 <TruckIcon className="w-4 h-4 mr-2" />
                 <span>{driver.vehicle || 'No vehicle assigned'}</span>
               </div>
-              <div className="flex items-center text-sm text-gray-600">
+              <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                 <CheckCircleIcon className="w-4 h-4 mr-2" />
                 <span>Deliveries: {driver.completedDeliveries || 0}</span>
               </div>
             </div>
 
-            <div className="flex gap-2 pt-4 border-t border-gray-100">
+            <div className="flex gap-2 pt-4 border-t border-gray-100 dark:border-gray-700">
               <button
                 onClick={() => resetUserPassword(driver.id, driver.name, driver.email)}
                 className="flex-1 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
@@ -742,17 +742,17 @@ function AdminDriverPanel({ deleteUser, resetUserPassword }) {
 
       {showAddDriver && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md">
             <h3 className="text-xl font-bold mb-4">Add New Driver</h3>
             <div className="space-y-4">
-              <input placeholder="Name" value={newDriver.name} onChange={e => setNewDriver(prev => ({...prev, name: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-              <input placeholder="Email" value={newDriver.email} onChange={e => setNewDriver(prev => ({...prev, email: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-              <input placeholder="Phone" value={newDriver.phone} onChange={e => setNewDriver(prev => ({...prev, phone: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-              <input type="password" placeholder="Password" value={newDriver.password} onChange={e => setNewDriver(prev => ({...prev, password: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
-              <input placeholder="Vehicle" value={newDriver.vehicle} onChange={e => setNewDriver(prev => ({...prev, vehicle: e.target.value}))} className="w-full px-4 py-3 border rounded-xl" />
+              <input placeholder="Name" value={newDriver.name} onChange={e => setNewDriver(prev => ({...prev, name: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
+              <input placeholder="Email" value={newDriver.email} onChange={e => setNewDriver(prev => ({...prev, email: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
+              <input placeholder="Phone" value={newDriver.phone} onChange={e => setNewDriver(prev => ({...prev, phone: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
+              <input type="password" placeholder="Password" value={newDriver.password} onChange={e => setNewDriver(prev => ({...prev, password: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
+              <input placeholder="Vehicle" value={newDriver.vehicle} onChange={e => setNewDriver(prev => ({...prev, vehicle: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowAddDriver(false)} className="flex-1 px-4 py-2 border rounded-xl">Cancel</button>
+              <button onClick={() => setShowAddDriver(false)} className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-xl dark:text-gray-300 dark:hover:bg-gray-700">Cancel</button>
               <button onClick={createDriver} className="flex-1 px-4 py-2 bg-blue-900 text-white rounded-xl">Create</button>
             </div>
           </div>
@@ -833,9 +833,9 @@ function AdminOrdersPanel() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden dark:border dark:border-gray-700">
         <table className="w-full">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-gray-900/50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
@@ -846,7 +846,7 @@ function AdminOrdersPanel() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {filteredOrders.map(order => (
               <tr key={order.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4">
@@ -855,7 +855,7 @@ function AdminOrdersPanel() {
                 <td className="px-6 py-4">
                   <div>
                     <p className="font-medium">{order.client?.name || 'Unknown'}</p>
-                    <p className="text-sm text-gray-500">{order.client?.phone || ''}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{order.client?.phone || ''}</p>
                   </div>
                 </td>
                 <td className="px-6 py-4">
@@ -914,7 +914,7 @@ function ManagerOrdersPanel() {
       <h2 className="text-2xl font-bold text-blue-900">My Priced Orders</h2>
       <div className="grid grid-cols-1 gap-6">
         {orders.map(order => (
-          <div key={order.id} className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
+          <div key={order.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="font-bold text-lg text-gray-900">Order #{order.id?.slice(-8)}</h3>
@@ -931,17 +931,17 @@ function ManagerOrdersPanel() {
             
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <p className="text-sm text-gray-500">Total Amount</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Total Amount</p>
                 <p className="text-xl font-bold text-blue-900">RWF {order.totalAmount?.toLocaleString() || 0}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Items</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Items</p>
                 <p className="text-lg font-medium">{order.items?.length || 0} items</p>
               </div>
             </div>
             
             <div className="flex justify-between items-center pt-4 border-t border-gray-100">
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
                 Created: {new Date(order.createdAt).toLocaleDateString()}
               </span>
               <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
@@ -981,9 +981,9 @@ function DriverHistoryPanel() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-blue-900">Delivery History</h2>
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden dark:border dark:border-gray-700">
         <table className="w-full">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-gray-900/50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delivery #</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
@@ -993,7 +993,7 @@ function DriverHistoryPanel() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {deliveries.map(delivery => (
               <tr key={delivery.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4">
@@ -1001,7 +1001,7 @@ function DriverHistoryPanel() {
                 </td>
                 <td className="px-6 py-4">
                   <p className="font-medium">{delivery.client?.name || 'Unknown'}</p>
-                  <p className="text-sm text-gray-500">{delivery.client?.phone || ''}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{delivery.client?.phone || ''}</p>
                 </td>
                 <td className="px-6 py-4">
                   <div className="text-sm">
@@ -1209,7 +1209,7 @@ function AdminProductWishesPanel() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {wishes.map(wish => (
-          <div key={wish.id} className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
+          <div key={wish.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
             <img
               src={wish.imageUrl}
               alt="Product wish"
@@ -1506,29 +1506,29 @@ function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
       {/* Header */}
-      <div className="bg-white border-b shadow-sm">
+      <div className="bg-white dark:bg-gray-800 border-b shadow-sm dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-              <p className="text-gray-600 mt-1">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
+              <p className="text-gray-600 dark:text-gray-300 mt-1">
                 Welcome back, <span className="font-semibold text-blue-600">{user.name}</span>
               </p>
             </div>
             
             <div className="flex items-center gap-4">
-              <div className="flex items-center bg-gray-100 rounded-lg p-1">
+              <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
                 {['day', 'week', 'month', 'quarter'].map((range) => (
                   <button
                     key={range}
                     onClick={() => setTimeRange(range)}
                     className={`px-3 py-1 text-sm font-medium rounded-md capitalize ${
                       timeRange === range
-                        ? 'bg-white text-blue-600 shadow'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                       ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow'
+                       : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
+               }`}
                   >
                     {range}
                   </button>
@@ -1627,13 +1627,13 @@ function AdminDashboard() {
           {/* Left column - 2/3 width */}
           <div className="lg:col-span-2 space-y-6">
             {/* Recent Quotes Table - Similar to Tasks Overview in image */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-              <div className="px-6 py-4 border-b border-gray-200">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-900">Recent Quotes</h2>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Quotes</h2>
                   <button
                     onClick={() => exportData('quotes')}
-                    className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg flex items-center gap-2"
+                    className="px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg flex items-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1644,26 +1644,26 @@ function AdminDashboard() {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 dark:bg-gray-900/50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Quote ID
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Client
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Manager
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Amount
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Status
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {dashboardData.recentQuotes.map((quote) => (
                       <tr key={quote.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -1673,19 +1673,19 @@ function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                               {quote.client?.name || 'Unknown'}
                             </p>
-                            <p className="text-sm text-gray-500">{quote.client?.email || ''}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{quote.client?.email || ''}</p>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm text-gray-900">
+                          <span className="text-sm text-gray-900 dark:text-gray-100">
                             {quote.manager?.name || 'Unassigned'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm font-bold text-gray-900">
+                          <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
                             RWF {quote.totalAmount?.toLocaleString() || '0'}
                           </span>
                         </td>
@@ -1707,16 +1707,16 @@ function AdminDashboard() {
             </div>
 
             {/* Revenue Trend Chart - Similar to Apps & URIs section */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-gray-900">Revenue Trend</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Revenue Trend</h2>
                 <div className="flex items-center gap-2">
                   {dashboardData.revenueTrend.map((item, index) => (
                     <div key={index} className="flex items-center">
                       <div className={`w-3 h-3 rounded-full mr-2 ${
                         item.type === 'quote' ? 'bg-blue-500' : 'bg-green-500'
                       }`}></div>
-                      <span className="text-sm text-gray-600 capitalize">{item.type}</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400 capitalize">{item.type}</span>
                     </div>
                   ))}
                 </div>
@@ -1726,7 +1726,7 @@ function AdminDashboard() {
                 <div className="flex items-end h-48 gap-2 pt-6">
                   {dashboardData.revenueTrend.slice(0, 7).map((item, index) => (
                     <div key={index} className="flex-1 flex flex-col items-center">
-                      <div className="text-xs text-gray-500 mb-2">{item.label}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">{item.label}</div>
                       <div className="w-full flex justify-center gap-1">
                         <div
                           className="bg-blue-500 rounded-t w-3/4"
@@ -1742,7 +1742,7 @@ function AdminDashboard() {
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-between text-sm text-gray-500 mt-4 px-4">
+                <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400 mt-4 px-4">
                   <span>Mon</span>
                   <span>Tue</span>
                   <span>Wed</span>
@@ -1758,10 +1758,10 @@ function AdminDashboard() {
           {/* Right column - 1/3 width */}
           <div className="space-y-6">
             {/* Top Managers - Similar to Milena Page section */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Top Performing Managers</h2>
-                <p className="text-sm text-gray-600 mt-1">By revenue generated</p>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Top Performing Managers</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">By revenue generated</p>
               </div>
               <div className="p-6">
                 <div className="space-y-4">
@@ -1772,20 +1772,20 @@ function AdminDashboard() {
                       </div>
                       <div className="ml-4 flex-1">
                         <div className="flex items-center justify-between">
-                          <h3 className="font-medium text-gray-900">{manager.name}</h3>
-                          <span className="text-sm font-bold text-blue-600">
+                          <h3 className="font-medium text-gray-900 dark:text-gray-100">{manager.name}</h3>
+                          <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
                             RWF {manager.revenueGenerated?.toLocaleString()}
                           </span>
                         </div>
                         <div className="flex items-center justify-between mt-1">
-                          <span className="text-sm text-gray-500">
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
                             {manager.quotesCompleted} quotes
                           </span>
-                          <span className="text-sm text-gray-500">
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
                             {manager.conversionRate}% conversion
                           </span>
                         </div>
-                        <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                        <div className="mt-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                           <div
                             className="bg-gradient-to-r from-blue-500 to-blue-700 h-2 rounded-full"
                             style={{ width: `${Math.min(manager.conversionRate, 100)}%` }}
@@ -1839,9 +1839,9 @@ function AdminDashboard() {
             </div>
 
             {/* Recent Activity - Similar to Corporate Review section */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Activity</h2>
               </div>
               <div className="p-6">
                 <div className="space-y-4">
@@ -1849,9 +1849,10 @@ function AdminDashboard() {
                     <div key={index} className="flex items-start">
                       <div className="flex-shrink-0">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          activity.type === 'quote' ? 'bg-blue-100' :
-                          activity.type === 'order' ? 'bg-green-100' :
-                          activity.type === 'user' ? 'bg-purple-100' : 'bg-gray-100'
+                           activity.type === 'quote' ? 'bg-blue-100 dark:bg-blue-900/30' :
+                           activity.type === 'order' ? 'bg-green-100 dark:bg-green-900/30' :
+                           activity.type === 'user' ? 'bg-purple-100 dark:bg-purple-900/30' : 
+                           'bg-gray-100 dark:bg-gray-700'
                         }`}>
                           {activity.type === 'quote' && <DocumentTextIcon className="w-4 h-4 text-blue-600" />}
                           {activity.type === 'order' && <ShoppingCartIcon className="w-4 h-4 text-green-600" />}
@@ -1859,8 +1860,8 @@ function AdminDashboard() {
                         </div>
                       </div>
                       <div className="ml-3">
-                        <p className="text-sm text-gray-900">{activity.description}</p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-sm text-gray-900 dark:text-gray-100">{activity.description}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                           {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
@@ -1936,12 +1937,12 @@ function SettingsPanel({ darkMode, setDarkMode }) {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-blue-900">System Settings</h2>
       
-      <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">Appearance</h3>
-        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-xl mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Appearance</h3>
+        <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-xl mb-4 dark:bg-gray-700/30">
           <div>
-            <p className="font-medium">Dark Mode</p>
-            <p className="text-sm text-gray-500">Toggle between light and dark theme</p>
+            <p className="font-medium dark:text-white">Dark Mode</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Toggle between light and dark theme</p>
           </div>
           <button
             onClick={() => {
@@ -1955,7 +1956,7 @@ function SettingsPanel({ darkMode, setDarkMode }) {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
         <h3 className="text-lg font-semibold text-gray-900 mb-6">Notifications</h3>
         <div className="space-y-4">
           {[
@@ -1966,7 +1967,7 @@ function SettingsPanel({ darkMode, setDarkMode }) {
             <div key={item.key} className="flex items-center justify-between p-4 border border-gray-200 rounded-xl">
               <div>
                 <p className="font-medium">{item.label}</p>
-                <p className="text-sm text-gray-500">{item.description}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{item.description}</p>
               </div>
               <button
                 onClick={() => setSettings(prev => ({ ...prev, [item.key]: !prev[item.key] }))}
@@ -1979,7 +1980,7 @@ function SettingsPanel({ darkMode, setDarkMode }) {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
         <h3 className="text-lg font-semibold text-gray-900 mb-6">Language & Region</h3>
         <div className="space-y-4">
           <div>
@@ -2140,12 +2141,7 @@ function Login() {
     });
   };
 
-  // User profile data (mock for display)
-  const userProfile = {
-    name: "kahuna",
-    role: "System Administrator",
-    avatar: "K"
-  };
+  
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center p-4 font-mono">
@@ -2188,22 +2184,10 @@ function Login() {
               </div>
               <div className="h-4 w-px bg-gray-700"></div>
               <div className="text-xs text-gray-500">
-                v2.5.1 • 2024
+                v2.5.1 • 2026
               </div>
             </div>
           </div>
-
-          {/* User Profile at Bottom Left */}
-          <div className="mt-auto pt-6 border-t border-gray-700">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold">{userProfile.avatar}</span>
-              </div>
-              <div>
-                <p className="text-white font-medium">{userProfile.name}</p>
-                <p className="text-sm text-gray-400">{userProfile.role}</p>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -2333,7 +2317,7 @@ function Login() {
           </div>
         </div>
       </div>
-    </div>
+    
   )
 }
 
@@ -2384,16 +2368,16 @@ function DashboardLayout({ children, darkMode, setDarkMode }) {
 
   return (
     <div className={`min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex ${darkMode ? 'dark' : ''}`}>
-      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white shadow-lg transition-all duration-300 flex flex-col`}>
-        <div className="p-6 border-b border-blue-100">
+      <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white dark:bg-gray-800 shadow-lg transition-all duration-300 flex flex-col`}>
+        <div className="p-6 border-b border-blue-100 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-blue-900 rounded-xl flex items-center justify-center">
               <span className="text-white text-2xl font-black">N</span>
             </div>
             {sidebarOpen && (
               <div>
-                <h1 className="text-xl font-bold text-blue-900">NDAJE</h1>
-                <p className="text-xs text-gray-600">{user?.role} Portal</p>
+                <h1 className="text-xl font-bold text-blue-900 dark:text-white">NDAJE</h1>
+                <p className="text-xs text-gray-600 dark:text-gray-400">{user?.role} Portal</p>
               </div>
             )}
           </div>
@@ -2408,8 +2392,9 @@ function DashboardLayout({ children, darkMode, setDarkMode }) {
                 key={item.path}
                 onClick={() => navigate(item.path)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  active ? 'bg-blue-900 text-white shadow-lg' : 'text-gray-700 hover:bg-blue-50'
-                }`}
+                active  ? 'bg-blue-900 dark:bg-blue-700 text-white shadow-lg' 
+                : 'text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700'
+               }`}
               >
                 <Icon className="w-5 h-5" />
                 {sidebarOpen && <span className="font-medium">{item.name}</span>}
@@ -2418,7 +2403,7 @@ function DashboardLayout({ children, darkMode, setDarkMode }) {
           })}
         </nav>
 
-        <div className="p-4 border-t border-blue-100">
+        <div className="p-4 border-t border-blue-100 dark:border-gray-700">
           <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 text-red-600">
             <ArrowRightOnRectangleIcon className="w-5 h-5" />
             {sidebarOpen && <span className="font-medium">Logout</span>}
@@ -2427,17 +2412,17 @@ function DashboardLayout({ children, darkMode, setDarkMode }) {
       </div>
 
       <div className="flex-1">
-        <div className="bg-white shadow-sm border-b px-8 py-4 flex items-center justify-between">
+        <div className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700 px-8 py-4 flex items-center justify-between">
           <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-2xl">☰</button> 
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="p-2 rounded-lg hover:bg-gray-100"
-            >
+           <button
+            onClick={() => setDarkMode(!darkMode)}
+             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                 >
               {darkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
             </button>
             <div className="relative">
-              <button className="p-2 rounded-lg hover:bg-gray-100 relative">
+              <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 relative">
                 <BellIcon className="w-5 h-5" />
                 {notifications.length > 0 && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
@@ -2446,7 +2431,7 @@ function DashboardLayout({ children, darkMode, setDarkMode }) {
                 )}
               </button>
             </div>
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
               {user?.name || 'Staff'} • <span className="text-blue-900 font-bold">{user?.role}</span>
             </span>
           </div>
@@ -3775,7 +3760,7 @@ function ManagerIdDebug() {
                   <div key={idx} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex justify-between mb-2">
                       <span className="font-semibold">Quote #{quote.id?.slice(-8)}</span>
-                      <span className="text-sm text-gray-500">{quote.status}</span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">{quote.status}</span>
                     </div>
                     <div className="space-y-1 font-mono text-sm">
                       <div className="flex justify-between">
@@ -3877,7 +3862,7 @@ quote.lockedById = managerId;  // Just the MongoDB ID`}
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Lock Quote</h2>
-                  <p className="text-gray-600 mt-1">
+                  <p className="text-gray-600 dark:text-gray-300 mt-1">
                     #{quoteToLock.id?.slice(-8) || 'N/A'} • {quoteToLock.client?.name || 'Client'}
                   </p>
                 </div>
@@ -3938,7 +3923,7 @@ quote.lockedById = managerId;  // Just the MongoDB ID`}
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Manager Dashboard</h1>
-              <p className="text-gray-600 mt-1">
+              <p className="text-gray-600 dark:text-gray-300 mt-1">
                 Welcome back, <span className="font-semibold text-blue-600">{user.name}</span>
               </p>
             </div>
@@ -4127,7 +4112,7 @@ quote.lockedById = managerId;  // Just the MongoDB ID`}
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${status.color}`}>
                           {status.text}
                         </span>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
                           {new Date(quote.createdAt).toLocaleDateString()}
                         </span>
                       </div>
@@ -4253,7 +4238,7 @@ quote.lockedById = managerId;  // Just the MongoDB ID`}
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Price Quote</h2>
-                  <p className="text-gray-600 mt-1">
+                  <p className="text-gray-600 dark:text-gray-300 mt-1">
                     {selectedQuote.client?.name || 'Client'} • #{selectedQuote.id?.slice(-8) || 'N/A'}
                   </p>
                   {selectedQuote.lockedById === user.id && selectedQuote.lockExpiresAt && (
@@ -4299,7 +4284,7 @@ quote.lockedById = managerId;  // Just the MongoDB ID`}
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                           <div className="md:col-span-5">
                             <h4 className="font-medium text-gray-900 text-lg">{name}</h4>
-                            <p className="text-sm text-gray-500">SKU: {sku}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">SKU: {sku}</p>
                             <div className="flex items-center gap-4 mt-2">
                               <span className="text-sm text-gray-600">
                                 Quantity: <span className="font-bold">{item.quantity}</span>
@@ -4587,19 +4572,19 @@ function DriverDashboard() {
         </div>
 
         <div className="space-y-3 mb-4">
-          <div className="flex items-center text-sm text-gray-600">
+          <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
             <MapPinIcon className="w-4 h-4 mr-2" />
             <span>From: {delivery.pickupAddress}</span>
           </div>
-          <div className="flex items-center text-sm text-gray-600">
+          <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
             <MapPinIcon className="w-4 h-4 mr-2" />
             <span>To: {delivery.deliveryAddress}</span>
           </div>
-          <div className="flex items-center text-sm text-gray-600">
+          <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
             <PhoneIcon className="w-4 h-4 mr-2" />
             <span>Contact: {delivery.client?.phone || 'N/A'}</span>
           </div>
-          <div className="flex items-center text-sm text-gray-600">
+          <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
             <ClockIcon className="w-4 h-4 mr-2" />
             <span>Estimated: {new Date(delivery.estimatedDelivery).toLocaleString()}</span>
           </div>
@@ -4965,7 +4950,11 @@ function DriverDashboard() {
     </div>
   );
 }
-
+// SUMMARY: Apply these patterns to ALL components in your app!
+// The key is: Every white background needs dark:bg-gray-800
+// Every gray text needs dark:text-white or dark:text-gray-300
+// Every border needs dark:border-gray-700
+// Every hover state needs dark variants
 // ==============================
 // MAIN APP COMPONENT
 // ==============================
