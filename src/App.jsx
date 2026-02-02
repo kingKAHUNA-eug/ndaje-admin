@@ -2476,14 +2476,14 @@ function ProductsPanel() {
     sku: '', 
     price: '', 
     icon: 'cube', 
-    image: '', 
+    images: [], // Changed from image to images array
     reference: '', 
     description: '', 
     category: '', 
     active: true
   })
   const [toast, setToast] = useState(null)
-  const [uploadingImage, setUploadingImage] = useState(false)
+  const [uploadingImages, setUploadingImages] = useState([])
 
   useEffect(() => {
     fetchProducts()
@@ -2729,17 +2729,22 @@ function ProductsPanel() {
     }
   }
 
-  const handleImageUpload = async (file) => {
-    if (!file) return;
+  const handleImageUpload = async (files) => {
+    if (!files || files.length === 0) return;
+    
+    // Limit to 6 images
+    const filesToUpload = Array.from(files).slice(0, 6);
     
     try {
-      setForm(f => ({ ...f, image: 'uploading' }));
+      setUploadingImages(filesToUpload.map(f => f.name));
       
       const formData = new FormData();
-      formData.append('image', file);
+      filesToUpload.forEach(file => {
+        formData.append('images', file);
+      });
 
       const res = await axios.post(
-        `${API_BASE}/admin/upload/product-image`,
+        `${API_BASE}/admin/upload/multiple-product-images`, // New endpoint
         formData,
         {
           headers: {
@@ -2749,25 +2754,37 @@ function ProductsPanel() {
         }
       );
 
-      if (res.data.success && res.data.data?.url) {
-        setForm(f => ({ ...f, image: res.data.data.url }));
+      if (res.data.success && res.data.data) {
+        const newImages = res.data.data.map(img => img.url);
+        setForm(f => ({ 
+          ...f, 
+          images: [...f.images, ...newImages].slice(0, 6) // Limit to 6
+        }));
         setToast({
           type: 'success',
           title: 'Success',
-          message: 'Image uploaded successfully!'
+          message: `${newImages.length} image(s) uploaded successfully!`
         });
       } else {
         throw new Error('Upload failed');
       }
     } catch (err) {
       console.error('Upload failed:', err.response?.data || err);
-      setForm(f => ({ ...f, image: '' }));
       setToast({
         type: 'error',
         title: 'Upload Failed',
-        message: err.response?.data?.message || 'Failed to upload image. Try again.'
+        message: err.response?.data?.message || 'Failed to upload images. Try again.'
       });
+    } finally {
+      setUploadingImages([]);
     }
+  };
+
+  const removeImage = (index) => {
+    setForm(f => ({
+      ...f,
+      images: f.images.filter((_, i) => i !== index)
+    }));
   };
 
   if (loading) return (
@@ -2798,24 +2815,31 @@ function ProductsPanel() {
         {products.map(p => (
           <div key={p.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
             <div className="h-48 overflow-hidden bg-gray-100 dark:bg-gray-900 relative">
-              {p.image ? (
-                <img 
-                  src={p.image} 
-                  alt={p.name} 
-                  className="w-full h-full object-cover transition-transform hover:scale-105 duration-300"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.parentElement.innerHTML = `
-                      <div class="w-full h-full flex items-center justify-center">
-                        <div class="text-4xl">${p.icon || '📦'}</div>
-                      </div>
-                    `;
-                  }}
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <div className="text-6xl">{p.icon || '📦'}</div>
-                </div>
+    {p.images && p.images.length > 0 ? (
+      <>
+        <img 
+          src={p.images[0]} 
+          alt={p.name} 
+          className="w-full h-full object-cover transition-transform hover:scale-105 duration-300"
+          onError={(e) => {
+            e.target.style.display = 'none';
+            e.target.parentElement.innerHTML = `
+              <div class="w-full h-full flex items-center justify-center">
+                <div class="text-4xl">${p.icon || '📦'}</div>
+              </div>
+            `;
+          }}
+        />
+        {p.images.length > 1 && (
+          <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
+            +{p.images.length - 1} more
+          </div>
+        )}
+      </>
+    ) : (
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="text-6xl">{p.icon || '📦'}</div>
+      </div>
               )}
               <div className="absolute top-4 right-4">
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${
@@ -3010,70 +3034,85 @@ function ProductsPanel() {
               />
             </div>
             
-            <div className="mb-8">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Product Image
-              </label>
-              
-              {form.image === 'uploading' ? (
-                <div className="w-full h-64 border-2 border-dashed border-blue-500 rounded-2xl flex flex-col items-center justify-center bg-blue-50 dark:bg-blue-900/20">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-800 rounded-full animate-pulse mb-4">
-                    <svg className="w-8 h-8 text-blue-600 dark:text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                    </svg>
-                  </div>
-                  <p className="text-lg font-medium text-blue-900 dark:text-blue-300">Uploading...</p>
-                </div>
-              ) : form.image ? (
-                <div className="relative rounded-xl overflow-hidden border-2 border-green-500 dark:border-green-600 bg-green-50 dark:bg-green-900/20">
-                  <img
-                    src={form.image}
-                    alt="Product preview"
-                    className="w-full h-64 object-cover bg-gray-100 dark:bg-gray-800"
-                    onError={(e) => {
-                      e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="%23f3f4f6"/><text x="200" y="150" font-family="Arial" font-size="20" text-anchor="middle" fill="%236b7280">Image failed to load</text></svg>';
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setForm(f => ({ ...f, image: '' }))}
-                    className="absolute top-4 right-4 bg-red-600 hover:bg-red-700 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition"
-                  >
-                    <XMarkIcon className="w-5 h-5" />
-                  </button>
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                    <div className="flex items-center gap-2 text-white">
-                      <CheckCircleIcon className="w-5 h-5" />
-                      <span className="text-sm font-medium">Image uploaded successfully</span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <label className="w-full h-64 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0]
-                      if (!file) return;
-                      handleImageUpload(file);
-                    }}
-                  />
-                  <div className="text-center p-6">
-                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <p className="text-lg font-medium text-gray-900 dark:text-gray-300 mb-2">Upload product image</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Click to browse or drag & drop</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">PNG, JPG, GIF up to 5MB</p>
-                  </div>
-                </label>
-              )}
+              <div className="mb-8">
+    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+      Product Images (Max 6)
+    </label>
+    
+    {/* Image Preview Grid */}
+    {(form.images.length > 0 || uploadingImages.length > 0) && (
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        {form.images.map((img, index) => (
+          <div key={index} className="relative rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600">
+            <img
+              src={img}
+              alt={`Product ${index + 1}`}
+              className="w-full h-24 object-cover bg-gray-100 dark:bg-gray-800"
+              onError={(e) => {
+                e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" font-family="Arial" font-size="10" text-anchor="middle" fill="%236b7280">Image</text></svg>';
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => removeImage(index)}
+              className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        
+        {uploadingImages.map((fileName, index) => (
+          <div key={`uploading-${index}`} className="relative rounded-lg overflow-hidden border-2 border-dashed border-blue-300 bg-blue-50 dark:bg-blue-900/20">
+            <div className="w-full h-24 flex flex-col items-center justify-center">
+              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+              <p className="text-xs text-blue-600 dark:text-blue-400 truncate px-2">{fileName}</p>
             </div>
+          </div>
+        ))}
+      </div>
+    )}
+    
+    {form.images.length < 6 && (
+      <label className={`w-full h-32 border-2 border-dashed ${uploadingImages.length > 0 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600'} rounded-xl flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer`}>
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={async (e) => {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+            
+            const remainingSlots = 6 - form.images.length;
+            const filesToUpload = Array.from(files).slice(0, remainingSlots);
+            
+            if (filesToUpload.length < files.length) {
+              setToast({
+                type: 'warning',
+                title: 'Limit Reached',
+                message: `You can only upload up to 6 images. ${remainingSlots} slots remaining.`
+              });
+            }
+            
+            handleImageUpload(filesToUpload);
+            e.target.value = ''; // Reset input
+          }}
+        />
+        <div className="text-center p-4">
+          <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-3">
+            <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </div>
+          <p className="text-sm font-medium text-gray-900 dark:text-gray-300 mb-1">Add Images</p>
+          <p className="text-xs text-gray-600 dark:text-gray-400">
+            {form.images.length}/6 uploaded • Click or drag & drop
+          </p>
+        </div>
+      </label>
+    )}
+  </div>
             
             <div className="flex gap-4 mt-8">
               <button 
