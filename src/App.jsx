@@ -9,8 +9,14 @@ import {
   MapPinIcon, PhoneIcon, EnvelopeIcon, ArrowTrendingUpIcon,
   ClockIcon, CheckCircleIcon, ArrowRightOnRectangleIcon,
   CubeIcon, BuildingStorefrontIcon, DocumentTextIcon,
-  BellIcon, XMarkIcon, SunIcon, MoonIcon
+  BellIcon, XMarkIcon, SunIcon, MoonIcon,ChevronLeftIcon,
+  ChevronRightIcon
 } from '@heroicons/react/24/outline'
+
+import {
+  PlayIcon,
+  PauseIcon
+} from '@heroicons/react/24/solid';
 
 // FIXED API BASE
 const API_BASE = import.meta.env.VITE_API_URL
@@ -2476,7 +2482,7 @@ function ProductsPanel() {
     sku: '', 
     price: '', 
     icon: 'cube', 
-    images: [], // Changed from image to images array
+    images: [], // Changed from image
     reference: '', 
     description: '', 
     category: '', 
@@ -2489,191 +2495,234 @@ function ProductsPanel() {
     fetchProducts()
   }, [])
 
-  const fetchProducts = async () => {
-    console.log('📦 Fetching products...')
+ const fetchProducts = async () => {
+  try {
+    const res = await axios.get(`${API_BASE}/products`, {
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    // FIX: Ensure images array exists
+    const productsWithImages = res.data.data?.map(p => ({
+      ...p,
+      images: Array.isArray(p.images) ? p.images : (p.image ? [p.image] : [])
+    })) || [];
+    
+    setProducts(productsWithImages);
+  } catch (err) {
+    console.error('Failed to fetch products:', err);
+  }
+};
+
+// When editing product:
+const handleEdit = (product) => {
+  setEditing(product);
+  setForm({
+    name: product.name || '',
+    sku: product.sku || '',
+    price: product.price || '',
+    icon: product.icon || 'cube',
+    images: product.images || [], // Use images array
+    reference: product.reference || '',
+    description: product.description || '',
+    category: product.category || '',
+    active: product.active !== false
+  });
+  setShowAdd(true);
+};
+
+  const handleImageUpload = async (files) => {
+    if (!files || files.length === 0) return;
+    
+    // Limit to 6 images
+    const filesToUpload = Array.from(files).slice(0, 6);
+    
     try {
-      const res = await axios.get(`${API_BASE}/products`, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache'
+      setUploadingImages(filesToUpload.map(f => f.name));
+      
+      const formData = new FormData();
+      filesToUpload.forEach(file => {
+        formData.append('images', file);
+      });
+
+      const res = await axios.post(
+        `${API_BASE}/admin/upload/multiple-product-images`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
         }
-      })
-      console.log('✅ Products fetched:', res.data)
-      setProducts(res.data.data || res.data || [])
+      );
+
+      if (res.data.success && res.data.data) {
+        const newImages = res.data.data.map(img => img.url);
+        setForm(f => ({ 
+          ...f, 
+          images: [...f.images, ...newImages].slice(0, 6) // Limit to 6
+        }));
+        setToast({
+          type: 'success',
+          title: 'Success',
+          message: `${newImages.length} image(s) uploaded successfully!`
+        });
+      } else {
+        throw new Error('Upload failed');
+      }
     } catch (err) {
-      console.error('❌ Failed to fetch products:', err.response || err)
+      console.error('Upload failed:', err.response?.data || err);
+      setToast({
+        type: 'error',
+        title: 'Upload Failed',
+        message: err.response?.data?.message || 'Failed to upload images. Try again.'
+      });
+    } finally {
+      setUploadingImages([]);
+    }
+  };
+
+  const removeImage = (index) => {
+    setForm(f => ({
+      ...f,
+      images: f.images.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSubmit = async () => {
+    console.log('🚀 Submitting product form...')
+    console.log('📝 Form data:', form)
+    
+    // Validate
+    if (!form.name.trim()) {
+      setToast({
+        type: 'error',
+        title: 'Validation Error',
+        message: 'Product name is required!'
+      })
+      return
+    }
+
+    if (!form.sku.trim()) {
+      setToast({
+        type: 'error',
+        title: 'Validation Error',
+        message: 'SKU is required!'
+      })
+      return
+    }
+
+    if (!form.price || isNaN(form.price) || Number(form.price) <= 0) {
+      setToast({
+        type: 'error',
+        title: 'Validation Error',
+        message: 'Price must be a valid number greater than 0!'
+      })
+      return
+    }
+    
+    try {
+      // Prepare payload with images array
+      const payload = {
+        name: form.name.trim(),
+        sku: form.sku.trim(),
+        price: Number(form.price),
+        icon: form.icon || "cube",
+        description: form.description.trim() || null,
+        category: form.category.trim() || null,
+        images: form.images, // Send images array
+        active: form.active !== false
+      };
+
+      // Add optional fields
+      if (form.reference.trim()) {
+        payload.reference = form.reference.trim();
+      }
+
+      console.log('📤 Payload to send:', JSON.stringify(payload))
+
+      let response;
+      const headers = { 
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+
+      if (editing) {
+        console.log('✏️ Updating product:', editing.id)
+        response = await axios.put(
+          `${API_BASE}/products/${editing.id}`, 
+          payload, 
+          { headers }
+        )
+        console.log('✅ Product updated:', response.data)
+      } else {
+        console.log('🆕 Creating new product')
+        response = await axios.post(
+          `${API_BASE}/products`, 
+          payload, 
+          { headers }
+        )
+        console.log('✅ Product created:', response.data)
+      }
+
+      setShowAdd(false)
+      setEditing(null)
+      setForm({ 
+        name: '', 
+        sku: '', 
+        price: '', 
+        icon: 'cube', 
+        images: [], 
+        reference: '', 
+        description: '', 
+        category: '', 
+        active: true 
+      })
+      
+      // Refresh products
+      await fetchProducts()
+      
+      setToast({
+        type: 'success',
+        title: 'Success!',
+        message: editing ? 'Product updated successfully!' : 'Product created successfully!'
+      })
+    } catch (err) {
+      console.error('❌ Product submission failed:', err.response || err)
+      
+      let errorMessage = "Failed to save product"
+      if (err.response) {
+        switch (err.response.status) {
+          case 400:
+            errorMessage = err.response.data?.message || "Bad request. Please check all fields.";
+            break;
+          case 401:
+            errorMessage = "Session expired. Please login again.";
+            localStorage.clear();
+            window.location.href = '/';
+            break;
+          case 409:
+            errorMessage = "Product with this SKU already exists!";
+            break;
+          case 500:
+            errorMessage = "Server error. Please try again later.";
+            break;
+          default:
+            if (err.response.data?.message) {
+              errorMessage = err.response.data.message;
+            }
+        }
+      }
+      
       setToast({
         type: 'error',
         title: 'Error',
-        message: 'Failed to load products. Please check your connection.'
+        message: errorMessage
       })
-    } finally {
-      setLoading(false)
     }
   }
-
- const handleSubmit = async () => {
-  console.log('🚀 Submitting product form...')
-  console.log('📝 Form data:', form)
-  
-  // ✅ SANITIZE form values - handle null/undefined
-  const safeName = (form.name ?? '').trim();
-  const safeSku = (form.sku ?? '').trim();
-  const safePrice = form.price;
-  const safeIcon = (form.icon ?? 'cube').trim();
-  const safeDescription = (form.description ?? '').trim();
-  const safeCategory = (form.category ?? '').trim();
-  const safeReference = (form.reference ?? '').trim();
-  const safeImage = (form.image ?? '').trim();
-
-  // Enhanced validation
-  if (!safeName) {
-    setToast({
-      type: 'error',
-      title: 'Validation Error',
-      message: 'Product name is required!'
-    })
-    return
-  }
-
-  if (!safeSku) {
-    setToast({
-      type: 'error',
-      title: 'Validation Error',
-      message: 'SKU is required!'
-    })
-    return
-  }
-
-  if (!safePrice || isNaN(safePrice) || Number(safePrice) <= 0) {
-    setToast({
-      type: 'error',
-      title: 'Validation Error',
-      message: 'Price must be a valid number greater than 0!'
-    })
-    return
-  }
-
-  if (!safeIcon) {
-    setToast({
-      type: 'error',
-      title: 'Validation Error',
-      message: 'Icon is required!'
-    })
-    return
-  }
-  
-  try {
-    // ✅ Clean payload with sanitized values
-    const payload = {
-      name: safeName,
-      sku: safeSku,
-      price: Number(safePrice),
-      icon: safeIcon || "cube",
-      description: safeDescription,
-      category: safeCategory,
-      active: form.active !== false
-    };
-
-    // Only include optional fields if they have values
-    if (safeImage && safeImage !== 'uploading') {
-      payload.image = safeImage;
-    } else {
-      payload.image = '';  // ✅ Send empty string, not undefined
-    }
-    
-    if (safeReference) {
-      payload.reference = safeReference;
-    } else {
-      payload.reference = '';  // ✅ Send empty string, not undefined
-    }
-
-    console.log('📤 Payload to send:', JSON.stringify(payload))
-
-    let response;
-    const headers = { 
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    };
-
-    if (editing) {
-      console.log('✏️ Updating product:', editing.id)
-      response = await axios.put(
-        `${API_BASE}/products/${editing.id}`, 
-        payload, 
-        { headers }
-      )
-      console.log('✅ Product updated:', response.data)
-    } else {
-      console.log('🆕 Creating new product')
-      response = await axios.post(
-        `${API_BASE}/products`, 
-        payload, 
-        { headers }
-      )
-      console.log('✅ Product created:', response.data)
-    }
-
-    setShowAdd(false)
-    setEditing(null)
-    setForm({ 
-      name: '', 
-      sku: '', 
-      price: '', 
-      icon: 'cube', 
-      image: '', 
-      reference: '', 
-      description: '', 
-      category: '', 
-      active: true 
-    })
-    
-    // Refresh products
-    await fetchProducts()
-    
-    setToast({
-      type: 'success',
-      title: 'Success!',
-      message: editing ? 'Product updated successfully!' : 'Product created successfully!'
-    })
-  } catch (err) {
-    console.error('❌ Product submission failed:', err.response || err)
-    
-    let errorMessage = "Failed to save product"
-    if (err.response) {
-      switch (err.response.status) {
-        case 400:
-          errorMessage = err.response.data?.message || "Bad request. Please check all fields.";
-          if (err.response.data?.errors) {
-            const zodErrors = err.response.data.errors.map(e => e.message).join(', ');
-            errorMessage = zodErrors || errorMessage;
-          }
-          break;
-        case 401:
-          errorMessage = "Session expired. Please login again.";
-          localStorage.clear();
-          window.location.href = '/';
-          break;
-        case 409:
-          errorMessage = "Product with this SKU already exists!";
-          break;
-        case 500:
-          errorMessage = "Server error. Please try again later.";
-          break;
-        default:
-          if (err.response.data?.message) {
-            errorMessage = err.response.data.message;
-          }
-      }
-    }
-    
-    setToast({
-      type: 'error',
-      title: 'Error',
-      message: errorMessage
-    })
-  }
-}
   // Test API connection
   const testApiConnection = async () => {
     try {
@@ -2729,70 +2778,7 @@ function ProductsPanel() {
     }
   }
 
-  const handleImageUpload = async (files) => {
-    if (!files || files.length === 0) return;
-    
-    // Limit to 6 images
-    const filesToUpload = Array.from(files).slice(0, 6);
-    
-    try {
-      setUploadingImages(filesToUpload.map(f => f.name));
-      
-      const formData = new FormData();
-      filesToUpload.forEach(file => {
-        formData.append('images', file);
-      });
-
-      const res = await axios.post(
-        `${API_BASE}/admin/upload/multiple-product-images`, // New endpoint
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      );
-
-      if (res.data.success && res.data.data) {
-        const newImages = res.data.data.map(img => img.url);
-        setForm(f => ({ 
-          ...f, 
-          images: [...f.images, ...newImages].slice(0, 6) // Limit to 6
-        }));
-        setToast({
-          type: 'success',
-          title: 'Success',
-          message: `${newImages.length} image(s) uploaded successfully!`
-        });
-      } else {
-        throw new Error('Upload failed');
-      }
-    } catch (err) {
-      console.error('Upload failed:', err.response?.data || err);
-      setToast({
-        type: 'error',
-        title: 'Upload Failed',
-        message: err.response?.data?.message || 'Failed to upload images. Try again.'
-      });
-    } finally {
-      setUploadingImages([]);
-    }
-  };
-
-  const removeImage = (index) => {
-    setForm(f => ({
-      ...f,
-      images: f.images.filter((_, i) => i !== index)
-    }));
-  };
-
-  if (loading) return (
-    <div className="text-center py-20">
-      <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 dark:border-blue-400 mb-4"></div>
-      <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">Loading Products...</div>
-    </div>
-  )
+ 
 
   return (
     <div className="space-y-8">
