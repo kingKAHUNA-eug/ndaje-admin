@@ -2538,7 +2538,7 @@ const fetchProducts = async () => {
 };
 
   // ✅ FIXED: Proper handleEdit function with images array
-  const handleEdit = (product) => {
+const handleEdit = (product) => {
   console.log('═══════════════════════════════════════════════════════');
   console.log('✏️ EDIT: Opening product for editing');
   console.log('═══════════════════════════════════════════════════════');
@@ -2546,24 +2546,28 @@ const fetchProducts = async () => {
   console.log('✏️ EDIT: product.images:', product.images);
   console.log('✏️ EDIT: product.images is Array?:', Array.isArray(product.images));
   console.log('✏️ EDIT: product.images length:', product.images?.length || 0);
-    setEditing(product);
-    setForm({
-      name: product.name || '',
-      sku: product.sku || '',
-      price: product.price || '',
-      icon: product.icon || 'cube',
-      images: Array.isArray(product.images) ? product.images : [], // ✅ Use images array
-      reference: product.reference || '',
-      description: product.description || '',
-      category: product.category || '',
-      active: product.active !== false
-    });
-
-    console.log('✏️ EDIT: Form data being set:', formData);
-    console.log('✏️ EDIT: Images being loaded into form:', formData.images);
-
-    setShowAdd(true);
+  
+  // ✅ Create the form data object FIRST
+  const newFormData = {
+    name: product.name || '',
+    sku: product.sku || '',
+    price: product.price || '',
+    icon: product.icon || 'cube',
+    images: Array.isArray(product.images) ? product.images : [],
+    reference: product.reference || '',
+    description: product.description || '',
+    category: product.category || '',
+    active: product.active !== false
   };
+
+  console.log('✏️ EDIT: Form data being set:', newFormData);
+  console.log('✏️ EDIT: Images being loaded into form:', newFormData.images);
+
+  // ✅ Now set the states
+  setEditing(product);
+  setForm(newFormData);
+  setShowAdd(true);
+};
 
   const handleImageUpload = async (files) => {
     if (!files || files.length === 0) return;
@@ -2630,6 +2634,13 @@ const fetchProducts = async () => {
     setForm(f => ({
       ...f,
       images: f.images.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleRemoveImage = (index) => {
+    setForm(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
     }));
   };
 const handleSubmit = async () => {
@@ -3105,85 +3116,100 @@ const handleSubmit = async () => {
               />
             </div>
             
-            {/* ✅ Image upload section */}
-            <div className="mb-8">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            {/* Image Upload Section */}
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">
                 Product Images (Max 6)
               </label>
               
-              {/* Image Preview Grid */}
-              {(form.images.length > 0 || uploadingImages.length > 0) && (
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  {form.images.map((img, index) => (
-                    <div key={index} className="relative rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600">
+              {/* Current Images Preview */}
+              {form.images.length > 0 && (
+                <div className="grid grid-cols-3 gap-2">
+                  {form.images.map((url, index) => (
+                    <div key={index} className="relative group">
                       <img
-                        src={img}
+                        src={url}
                         alt={`Product ${index + 1}`}
-                        className="w-full h-24 object-cover bg-gray-100 dark:bg-gray-800"
+                        className="w-full h-24 object-cover rounded-lg border"
                         onError={(e) => {
-                          e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" font-family="Arial" font-size="10" text-anchor="middle" fill="%236b7280">Image</text></svg>';
+                          e.target.src = 'https://via.placeholder.com/150?text=Error';
                         }}
                       />
                       <button
                         type="button"
-                        onClick={() => removeImage(index)}
-                        className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs"
+                        onClick={() => handleRemoveImage(index)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         ×
                       </button>
                     </div>
                   ))}
-                  
-                  {uploadingImages.map((fileName, index) => (
-                    <div key={`uploading-${index}`} className="relative rounded-lg overflow-hidden border-2 border-dashed border-blue-300 bg-blue-50 dark:bg-blue-900/20">
-                      <div className="w-full h-24 flex flex-col items-center justify-center">
-                        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-                        <p className="text-xs text-blue-600 dark:text-blue-400 truncate px-2">{fileName}</p>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               )}
               
+              {/* Upload Button */}
               {form.images.length < 6 && (
-                <label className={`w-full h-32 border-2 border-dashed ${uploadingImages.length > 0 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600'} rounded-xl flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer`}>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => {
-                      const files = e.target.files;
-                      if (!files || files.length === 0) return;
-                      
-                      const remainingSlots = 6 - form.images.length;
-                      const filesToUpload = Array.from(files).slice(0, remainingSlots);
-                      
-                      if (filesToUpload.length < files.length) {
-                        setToast({
-                          type: 'warning',
-                          title: 'Limit Reached',
-                          message: `You can only upload up to 6 images. ${remainingSlots} slots remaining.`
-                        });
-                      }
-                      
-                      handleImageUpload(filesToUpload);
-                      e.target.value = '';
-                    }}
-                  />
-                  <div className="text-center p-4">
-                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(e.target.files)}
+                      className="hidden"
+                    />
+                    <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
+                      <span>Upload Images</span>
                     </div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-300 mb-1">Add Images</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                      {form.images.length}/6 uploaded • Click or drag & drop
-                    </p>
-                  </div>
-                </label>
+                  </label>
+                  <span className="text-sm text-gray-500">
+                    {form.images.length}/6 images
+                  </span>
+                </div>
               )}
+              
+              {/* Or Add URL Manually */}
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  placeholder="Or paste image URL..."
+                  className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const url = e.target.value.trim();
+                      if (url && form.images.length < 6) {
+                        setForm(prev => ({
+                          ...prev,
+                          images: [...prev.images, url]
+                        }));
+                        e.target.value = '';
+                        console.log('📸 Added image URL:', url);
+                      }
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    const input = e.target.previousSibling;
+                    const url = input.value.trim();
+                    if (url && form.images.length < 6) {
+                      setForm(prev => ({
+                        ...prev,
+                        images: [...prev.images, url]
+                      }));
+                      input.value = '';
+                    }
+                  }}
+                  className="px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200"
+                >
+                  Add
+                </button>
+              </div>
             </div>
             
             <div className="flex gap-4 mt-8">
