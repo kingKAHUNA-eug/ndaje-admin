@@ -2965,6 +2965,13 @@ const handleSubmit = async () => {
                 >
                   <TrashIcon className="w-4 h-4" /> Delete
                 </button>
+                <button
+                  onClick={() => console.log('DEBUG PRODUCT:', p)}
+                  className="py-2 px-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg transition flex items-center justify-center gap-1"
+                  title="Log product to console"
+                >
+                  Debug
+                </button>
               </div>
             </div>
           </div>
