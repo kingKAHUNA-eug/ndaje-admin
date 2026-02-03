@@ -2809,11 +2809,11 @@ function ProductsPanel() {
           <div key={p.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
             <div className="h-48 overflow-hidden bg-gray-100 dark:bg-gray-900 relative">
               {/* ✅ FIXED: Proper array check with Array.isArray() */}
-              {p.images && Array.isArray(p.images) && p.images.length > 0 ? (
-                <>
-                  <img 
-                    src={p.images[0]} 
-                    alt={p.name} 
+               {(p.images && Array.isArray(p.images) && p.images.length > 0) || p.image ? (
+          <>
+            <img 
+              src={p.images?.[0] || p.image} 
+              alt={p.name} 
                     className="w-full h-full object-cover transition-transform hover:scale-105 duration-300"
                     onError={(e) => {
                       console.error('Image failed to load:', p.images[0]);
