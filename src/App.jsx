@@ -2539,7 +2539,13 @@ const fetchProducts = async () => {
 
   // ✅ FIXED: Proper handleEdit function with images array
   const handleEdit = (product) => {
-    console.log('✏️ Editing product:', product);
+  console.log('═══════════════════════════════════════════════════════');
+  console.log('✏️ EDIT: Opening product for editing');
+  console.log('═══════════════════════════════════════════════════════');
+  console.log('✏️ EDIT: Full product object:', product);
+  console.log('✏️ EDIT: product.images:', product.images);
+  console.log('✏️ EDIT: product.images is Array?:', Array.isArray(product.images));
+  console.log('✏️ EDIT: product.images length:', product.images?.length || 0);
     setEditing(product);
     setForm({
       name: product.name || '',
@@ -2552,6 +2558,10 @@ const fetchProducts = async () => {
       category: product.category || '',
       active: product.active !== false
     });
+
+    console.log('✏️ EDIT: Form data being set:', formData);
+    console.log('✏️ EDIT: Images being loaded into form:', formData.images);
+
     setShowAdd(true);
   };
 
@@ -2623,9 +2633,28 @@ const fetchProducts = async () => {
     }));
   };
 const handleSubmit = async () => {
+  console.log('═══════════════════════════════════════════════════════');
   console.log('🚀 SUBMIT: Starting product submission');
+  console.log('═══════════════════════════════════════════════════════');
+  
+  // ✅ ENHANCED: Deep inspection of form.images
   console.log('📸 SUBMIT: Current form.images:', form.images);
-  console.log('📝 SUBMIT: Full form state:', form);
+  console.log('📸 SUBMIT: form.images type:', typeof form.images);
+  console.log('📸 SUBMIT: form.images is Array?:', Array.isArray(form.images));
+  console.log('📸 SUBMIT: form.images length:', form.images?.length || 0);
+  
+  // ✅ NEW: Log each image individually
+  if (form.images && form.images.length > 0) {
+    form.images.forEach((img, idx) => {
+      console.log(`📸 SUBMIT: Image[${idx}]:`, img);
+      console.log(`📸 SUBMIT: Image[${idx}] type:`, typeof img);
+    });
+  } else {
+    console.warn('⚠️ SUBMIT: form.images is EMPTY or undefined!');
+    console.warn('⚠️ SUBMIT: This means no images will be saved!');
+  }
+  
+  console.log('📝 SUBMIT: Full form state:', JSON.stringify(form, null, 2));
   
   // Validate
   if (!form.name.trim()) {
@@ -2656,6 +2685,10 @@ const handleSubmit = async () => {
   }
   
   try {
+    // ✅ ENHANCED: Ensure images is always an array
+    const imagesArray = Array.isArray(form.images) ? form.images : [];
+    console.log('📸 SUBMIT: imagesArray after validation:', imagesArray);
+    
     const payload = {
       name: form.name.trim(),
       sku: form.sku.trim(),
@@ -2663,7 +2696,7 @@ const handleSubmit = async () => {
       icon: form.icon || "cube",
       description: form.description.trim() || null,
       category: form.category.trim() || null,
-      images: form.images, // ✅ This is the images array
+      images: imagesArray, // ✅ Use validated array
       active: form.active !== false
     };
 
@@ -2671,9 +2704,14 @@ const handleSubmit = async () => {
       payload.reference = form.reference.trim();
     }
 
-    console.log('📤 SUBMIT: Payload being sent to backend:', JSON.stringify(payload, null, 2));
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('📤 SUBMIT: Payload being sent to backend:');
+    console.log('═══════════════════════════════════════════════════════');
+    console.log(JSON.stringify(payload, null, 2));
+    console.log('───────────────────────────────────────────────────────');
     console.log('📸 SUBMIT: Images in payload:', payload.images);
     console.log('📸 SUBMIT: Images array length:', payload.images.length);
+    console.log('📸 SUBMIT: Images stringified:', JSON.stringify(payload.images));
 
     let response;
     const headers = { 
@@ -2682,29 +2720,50 @@ const handleSubmit = async () => {
     };
 
     if (editing) {
-      console.log('✏️ SUBMIT: Updating product:', editing.id);
+      console.log('✏️ SUBMIT: Updating product ID:', editing.id);
+      console.log('✏️ SUBMIT: Original product images:', editing.images);
+      
       response = await axios.put(
         `${API_BASE}/products/${editing.id}`, 
         payload, 
         { headers }
       );
-      console.log('✅ SUBMIT: Product updated successfully:', response.data);
+      console.log('✅ SUBMIT: Product updated successfully');
     } else {
       console.log('🆕 SUBMIT: Creating new product');
+      
       response = await axios.post(
         `${API_BASE}/products`, 
         payload, 
         { headers }
       );
-      console.log('✅ SUBMIT: Product created successfully:', response.data);
+      console.log('✅ SUBMIT: Product created successfully');
     }
 
-    // ✅ Log the server's response to verify images were saved
-    console.log('🔍 SUBMIT: Server returned product:', response.data.data);
-    if (response.data.data?.images) {
-      console.log('✅ SUBMIT: Server confirmed images saved:', response.data.data.images);
+    // ✅ ENHANCED: Detailed server response inspection
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('🔍 SUBMIT: Server Response Analysis');
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('📦 Full response.data:', JSON.stringify(response.data, null, 2));
+    console.log('📦 response.data.data:', response.data.data);
+    
+    if (response.data.data) {
+      console.log('📸 Server returned images:', response.data.data.images);
+      console.log('📸 Server images is Array?:', Array.isArray(response.data.data.images));
+      console.log('📸 Server images length:', response.data.data.images?.length || 0);
+      
+      if (response.data.data.images && response.data.data.images.length > 0) {
+        console.log('✅ SUCCESS: Server confirmed images were saved!');
+        response.data.data.images.forEach((img, idx) => {
+          console.log(`✅ Saved Image[${idx}]:`, img);
+        });
+      } else {
+        console.warn('⚠️ WARNING: Server returned EMPTY images array!');
+        console.warn('⚠️ This means backend is NOT saving images!');
+        console.warn('⚠️ Check your backend Product controller!');
+      }
     } else {
-      console.warn('⚠️ SUBMIT: Server response has NO images field!');
+      console.error('❌ ERROR: response.data.data is undefined!');
     }
 
     // Reset form
@@ -2715,7 +2774,7 @@ const handleSubmit = async () => {
       sku: '', 
       price: '', 
       icon: 'cube', 
-      images: [], // ✅ Reset to empty array
+      images: [],
       reference: '', 
       description: '', 
       category: '', 
@@ -2730,7 +2789,12 @@ const handleSubmit = async () => {
       message: editing ? 'Product updated successfully!' : 'Product created successfully!'
     });
   } catch (err) {
-    console.error('❌ SUBMIT: Product submission failed:', err.response || err);
+    console.error('═══════════════════════════════════════════════════════');
+    console.error('❌ SUBMIT: Product submission failed');
+    console.error('═══════════════════════════════════════════════════════');
+    console.error('❌ Error object:', err);
+    console.error('❌ Error response:', err.response);
+    console.error('❌ Error response data:', err.response?.data);
     
     let errorMessage = "Failed to save product";
     if (err.response) {
