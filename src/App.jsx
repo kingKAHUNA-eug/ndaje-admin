@@ -2482,7 +2482,7 @@ function ProductsPanel() {
     sku: '', 
     price: '', 
     icon: 'cube', 
-    images: [], // Changed from image
+    images: [], // ✅ FIXED: Array for multiple images
     reference: '', 
     description: '', 
     category: '', 
@@ -2495,49 +2495,65 @@ function ProductsPanel() {
     fetchProducts()
   }, [])
 
- const fetchProducts = async () => {
-  try {
-    const res = await axios.get(`${API_BASE}/products`, {
-      headers: { 
-        Authorization: `Bearer ${token}`,
-        'Cache-Control': 'no-cache'
-      }
-    });
-    
-    // FIX: Ensure images array exists
-    const productsWithImages = res.data.data?.map(p => ({
-      ...p,
-      images: Array.isArray(p.images) ? p.images : (p.image ? [p.image] : [])
-    })) || [];
-    
-    setProducts(productsWithImages);
-  } catch (err) {
-    console.error('Failed to fetch products:', err);
-  }
-};
+  const fetchProducts = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/products`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      // ✅ FIX: Ensure images array exists for all products
+      const productsWithImages = res.data.data?.map(p => ({
+        ...p,
+        images: Array.isArray(p.images) && p.images.length > 0 
+          ? p.images 
+          : (p.image ? [p.image] : [])
+      })) || [];
+      
+      console.log('✅ Fetched products:', productsWithImages);
+      setProducts(productsWithImages);
+      setLoading(false);
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+      setLoading(false);
+    }
+  };
 
-// When editing product:
-const handleEdit = (product) => {
-  setEditing(product);
-  setForm({
-    name: product.name || '',
-    sku: product.sku || '',
-    price: product.price || '',
-    icon: product.icon || 'cube',
-    images: product.images || [], // Use images array
-    reference: product.reference || '',
-    description: product.description || '',
-    category: product.category || '',
-    active: product.active !== false
-  });
-  setShowAdd(true);
-};
+  // ✅ FIXED: Proper handleEdit function with images array
+  const handleEdit = (product) => {
+    console.log('✏️ Editing product:', product);
+    setEditing(product);
+    setForm({
+      name: product.name || '',
+      sku: product.sku || '',
+      price: product.price || '',
+      icon: product.icon || 'cube',
+      images: Array.isArray(product.images) ? product.images : [], // ✅ Use images array
+      reference: product.reference || '',
+      description: product.description || '',
+      category: product.category || '',
+      active: product.active !== false
+    });
+    setShowAdd(true);
+  };
 
   const handleImageUpload = async (files) => {
     if (!files || files.length === 0) return;
     
-    // Limit to 6 images
-    const filesToUpload = Array.from(files).slice(0, 6);
+    const currentImagesCount = form.images.length;
+    const remainingSlots = 6 - currentImagesCount;
+    const filesToUpload = Array.from(files).slice(0, remainingSlots);
+    
+    if (filesToUpload.length === 0) {
+      setToast({
+        type: 'warning',
+        title: 'Limit Reached',
+        message: 'You can only upload up to 6 images total.'
+      });
+      return;
+    }
     
     try {
       setUploadingImages(filesToUpload.map(f => f.name));
@@ -2562,7 +2578,7 @@ const handleEdit = (product) => {
         const newImages = res.data.data.map(img => img.url);
         setForm(f => ({ 
           ...f, 
-          images: [...f.images, ...newImages].slice(0, 6) // Limit to 6
+          images: [...f.images, ...newImages].slice(0, 6)
         }));
         setToast({
           type: 'success',
@@ -2624,7 +2640,6 @@ const handleEdit = (product) => {
     }
     
     try {
-      // Prepare payload with images array
       const payload = {
         name: form.name.trim(),
         sku: form.sku.trim(),
@@ -2632,11 +2647,10 @@ const handleEdit = (product) => {
         icon: form.icon || "cube",
         description: form.description.trim() || null,
         category: form.category.trim() || null,
-        images: form.images, // Send images array
+        images: form.images, // ✅ Send images array
         active: form.active !== false
       };
 
-      // Add optional fields
       if (form.reference.trim()) {
         payload.reference = form.reference.trim();
       }
@@ -2667,6 +2681,7 @@ const handleEdit = (product) => {
         console.log('✅ Product created:', response.data)
       }
 
+      // Reset form
       setShowAdd(false)
       setEditing(null)
       setForm({ 
@@ -2674,14 +2689,13 @@ const handleEdit = (product) => {
         sku: '', 
         price: '', 
         icon: 'cube', 
-        images: [], 
+        images: [], // ✅ FIXED: Reset to empty array
         reference: '', 
         description: '', 
         category: '', 
         active: true 
       })
       
-      // Refresh products
       await fetchProducts()
       
       setToast({
@@ -2723,36 +2737,6 @@ const handleEdit = (product) => {
       })
     }
   }
-  // Test API connection
-  const testApiConnection = async () => {
-    try {
-      const res = await axios.get(`${API_BASE}/products/test`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      console.log('✅ API Test:', res.data);
-      return true;
-    } catch (err) {
-      console.error('❌ API Test failed:', err);
-      return false;
-    }
-  };
-
-  // Add a debug button to test API
-  const DebugApiButton = () => (
-    <button
-      onClick={async () => {
-        const connected = await testApiConnection();
-        setToast({
-          type: connected ? 'success' : 'error',
-          title: connected ? 'API Connected' : 'API Error',
-          message: connected ? 'API is working properly' : 'Cannot connect to API'
-        });
-      }}
-      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm"
-    >
-      Test API Connection
-    </button>
-  );
 
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this product?')) return
@@ -2778,7 +2762,30 @@ const handleEdit = (product) => {
     }
   }
 
- 
+  // ✅ FIXED: Proper reset function with images array
+  const resetForm = () => {
+    setShowAdd(false);
+    setEditing(null);
+    setForm({
+      name: '', 
+      sku: '', 
+      price: '', 
+      icon: 'cube', 
+      images: [], // ✅ FIXED: Reset to empty array, not single image
+      reference: '', 
+      description: '', 
+      category: '', 
+      active: true
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -2801,31 +2808,32 @@ const handleEdit = (product) => {
         {products.map(p => (
           <div key={p.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-shadow duration-300">
             <div className="h-48 overflow-hidden bg-gray-100 dark:bg-gray-900 relative">
-    {p.images && p.images.length > 0 ? (
-      <>
-        <img 
-          src={p.images[0]} 
-          alt={p.name} 
-          className="w-full h-full object-cover transition-transform hover:scale-105 duration-300"
-          onError={(e) => {
-            e.target.style.display = 'none';
-            e.target.parentElement.innerHTML = `
-              <div class="w-full h-full flex items-center justify-center">
-                <div class="text-4xl">${p.icon || '📦'}</div>
-              </div>
-            `;
-          }}
-        />
-        {p.images.length > 1 && (
-          <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
-            +{p.images.length - 1} more
-          </div>
-        )}
-      </>
-    ) : (
-      <div className="w-full h-full flex items-center justify-center">
-        <div className="text-6xl">{p.icon || '📦'}</div>
-      </div>
+              {/* ✅ FIXED: Proper array check with Array.isArray() */}
+              {p.images && Array.isArray(p.images) && p.images.length > 0 ? (
+                <>
+                  <img 
+                    src={p.images[0]} 
+                    alt={p.name} 
+                    className="w-full h-full object-cover transition-transform hover:scale-105 duration-300"
+                    onError={(e) => {
+                      console.error('Image failed to load:', p.images[0]);
+                      e.target.style.display = 'none';
+                      const fallbackDiv = document.createElement('div');
+                      fallbackDiv.className = 'w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-800';
+                      fallbackDiv.innerHTML = `<div class="text-4xl">${p.icon || '📦'}</div>`;
+                      e.target.parentElement.appendChild(fallbackDiv);
+                    }}
+                  />
+                  {p.images.length > 1 && (
+                    <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
+                      +{p.images.length - 1} more
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="text-6xl">{p.icon || '📦'}</div>
+                </div>
               )}
               <div className="absolute top-4 right-4">
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${
@@ -2846,23 +2854,9 @@ const handleEdit = (product) => {
                 </span>
               )}
               <div className="flex gap-2 mt-4">
+                {/* ✅ CRITICAL FIX: Use handleEdit function - removed inline form setting with 'image' */}
                 <button 
-                  onClick={() => { 
-  setEditing(p); 
-  // ✅ Sanitize null values before setting form
-  setForm({
-    name: p.name || '',
-    sku: p.sku || '',
-    price: p.price || '',
-    icon: p.icon || 'cube',
-    image: p.image || '',
-    reference: p.reference || '',
-    description: p.description || '',
-    category: p.category || '',
-    active: p.active !== false
-  }); 
-  setShowAdd(true) 
-}}
+                  onClick={() => handleEdit(p)}
                   className="flex-1 py-2 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg transition flex items-center justify-center gap-1"
                 >
                   <PencilSquareIcon className="w-4 h-4" /> Edit
@@ -2900,8 +2894,9 @@ const handleEdit = (product) => {
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 w-full max-w-2xl max-h-screen overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{editing ? 'Edit' : 'Add'} Product</h2>
+              {/* ✅ FIXED: Use resetForm function */}
               <button
-                onClick={() => { setShowAdd(false); setEditing(null); setForm({name:'',sku:'',price:'',icon:'cube',image:'',reference:'',description:'',category:'',active:true}) }}
+                onClick={resetForm}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
               >
                 <XMarkIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
@@ -3020,93 +3015,91 @@ const handleEdit = (product) => {
               />
             </div>
             
-              <div className="mb-8">
-    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-      Product Images (Max 6)
-    </label>
-    
-    {/* Image Preview Grid */}
-    {(form.images.length > 0 || uploadingImages.length > 0) && (
-      <div className="grid grid-cols-3 gap-3 mb-4">
-        {form.images.map((img, index) => (
-          <div key={index} className="relative rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600">
-            <img
-              src={img}
-              alt={`Product ${index + 1}`}
-              className="w-full h-24 object-cover bg-gray-100 dark:bg-gray-800"
-              onError={(e) => {
-                e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" font-family="Arial" font-size="10" text-anchor="middle" fill="%236b7280">Image</text></svg>';
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => removeImage(index)}
-              className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs"
-            >
-              ×
-            </button>
-          </div>
-        ))}
-        
-        {uploadingImages.map((fileName, index) => (
-          <div key={`uploading-${index}`} className="relative rounded-lg overflow-hidden border-2 border-dashed border-blue-300 bg-blue-50 dark:bg-blue-900/20">
-            <div className="w-full h-24 flex flex-col items-center justify-center">
-              <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-              <p className="text-xs text-blue-600 dark:text-blue-400 truncate px-2">{fileName}</p>
+            {/* ✅ Image upload section */}
+            <div className="mb-8">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Product Images (Max 6)
+              </label>
+              
+              {/* Image Preview Grid */}
+              {(form.images.length > 0 || uploadingImages.length > 0) && (
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  {form.images.map((img, index) => (
+                    <div key={index} className="relative rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600">
+                      <img
+                        src={img}
+                        alt={`Product ${index + 1}`}
+                        className="w-full h-24 object-cover bg-gray-100 dark:bg-gray-800"
+                        onError={(e) => {
+                          e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f3f4f6"/><text x="50" y="50" font-family="Arial" font-size="10" text-anchor="middle" fill="%236b7280">Image</text></svg>';
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  
+                  {uploadingImages.map((fileName, index) => (
+                    <div key={`uploading-${index}`} className="relative rounded-lg overflow-hidden border-2 border-dashed border-blue-300 bg-blue-50 dark:bg-blue-900/20">
+                      <div className="w-full h-24 flex flex-col items-center justify-center">
+                        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                        <p className="text-xs text-blue-600 dark:text-blue-400 truncate px-2">{fileName}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {form.images.length < 6 && (
+                <label className={`w-full h-32 border-2 border-dashed ${uploadingImages.length > 0 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600'} rounded-xl flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer`}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      if (!files || files.length === 0) return;
+                      
+                      const remainingSlots = 6 - form.images.length;
+                      const filesToUpload = Array.from(files).slice(0, remainingSlots);
+                      
+                      if (filesToUpload.length < files.length) {
+                        setToast({
+                          type: 'warning',
+                          title: 'Limit Reached',
+                          message: `You can only upload up to 6 images. ${remainingSlots} slots remaining.`
+                        });
+                      }
+                      
+                      handleImageUpload(filesToUpload);
+                      e.target.value = '';
+                    }}
+                  />
+                  <div className="text-center p-4">
+                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-300 mb-1">Add Images</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      {form.images.length}/6 uploaded • Click or drag & drop
+                    </p>
+                  </div>
+                </label>
+              )}
             </div>
-          </div>
-        ))}
-      </div>
-    )}
-    
-    {form.images.length < 6 && (
-      <label className={`w-full h-32 border-2 border-dashed ${uploadingImages.length > 0 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600'} rounded-xl flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer`}>
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={async (e) => {
-            const files = e.target.files;
-            if (!files || files.length === 0) return;
-            
-            const remainingSlots = 6 - form.images.length;
-            const filesToUpload = Array.from(files).slice(0, remainingSlots);
-            
-            if (filesToUpload.length < files.length) {
-              setToast({
-                type: 'warning',
-                title: 'Limit Reached',
-                message: `You can only upload up to 6 images. ${remainingSlots} slots remaining.`
-              });
-            }
-            
-            handleImageUpload(filesToUpload);
-            e.target.value = ''; // Reset input
-          }}
-        />
-        <div className="text-center p-4">
-          <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-3">
-            <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          </div>
-          <p className="text-sm font-medium text-gray-900 dark:text-gray-300 mb-1">Add Images</p>
-          <p className="text-xs text-gray-600 dark:text-gray-400">
-            {form.images.length}/6 uploaded • Click or drag & drop
-          </p>
-        </div>
-      </label>
-    )}
-  </div>
             
             <div className="flex gap-4 mt-8">
+              {/* ✅ FIXED: Use resetForm function */}
               <button 
-                onClick={() => { 
-                  setShowAdd(false); 
-                  setEditing(null); 
-                  setForm({name:'',sku:'',price:'',icon:'cube',image:'',reference:'',description:'',category:'',active:true}) 
-                }} 
+                onClick={resetForm}
                 className="flex-1 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition"
               >
                 Cancel
@@ -3124,7 +3117,6 @@ const handleEdit = (product) => {
     </div>
   );
 }
-
 // Fixed Manager Dashboard Component - Replace your existing ManagerDashboard
 
 function ManagerDashboard() {
