@@ -2604,18 +2604,26 @@ const handleEdit = (product) => {
         }
       );
 
+      // Debug: log full upload response to help diagnose missing images
+      console.log('📤 UPLOAD RESPONSE:', res.data);
+
       if (res.data.success && res.data.data) {
         const newImages = res.data.data.map(img => img.url);
+        console.log('📤 NEW IMAGES FROM UPLOAD:', newImages);
+
         setForm(f => ({ 
           ...f, 
           images: [...f.images, ...newImages].slice(0, 6)
         }));
+
+        // Show the returned URLs in a toast for quick verification
         setToast({
           type: 'success',
           title: 'Success',
-          message: `${newImages.length} image(s) uploaded successfully!`
+          message: `${newImages.length} image(s) uploaded: ${newImages.join(', ')}`
         });
       } else {
+        console.error('📤 UPLOAD: unexpected response structure', res.data);
         throw new Error('Upload failed');
       }
     } catch (err) {
