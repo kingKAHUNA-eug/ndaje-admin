@@ -3217,6 +3217,14 @@ const handleSubmit = async () => {
               >
                 Cancel
               </button>
+              <button
+                type="button"
+                onClick={() => console.log('FORM STATE:', form)}
+                className="py-3 px-4 border border-gray-200 bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 text-sm rounded-xl"
+                title="Log current form state"
+              >
+                Log form
+              </button>
               <button 
                 onClick={handleSubmit} 
                 className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-xl font-bold transition"
