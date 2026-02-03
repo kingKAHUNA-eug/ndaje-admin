@@ -2495,31 +2495,47 @@ function ProductsPanel() {
     fetchProducts()
   }, [])
 
-  const fetchProducts = async () => {
-    try {
-      const res = await axios.get(`${API_BASE}/products`, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Cache-Control': 'no-cache'
-        }
+const fetchProducts = async () => {
+  try {
+    const res = await axios.get(`${API_BASE}/products`, {
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    // ✅ ADD THESE DEBUG LOGS
+    console.log('📦 ADMIN - Raw Products Response:', res.data);
+    console.log('📦 ADMIN - Products Array:', res.data.data);
+    
+    // Check each product in detail
+    if (res.data.data && res.data.data.length > 0) {
+      console.log('\n🔍 ADMIN - Checking first 3 products:');
+      res.data.data.slice(0, 3).forEach((p, index) => {
+        console.log(`\nProduct ${index + 1}: ${p.name}`);
+        console.log('  - images field:', p.images);
+        console.log('  - images is array?', Array.isArray(p.images));
+        console.log('  - images length:', p.images?.length);
+        console.log('  - image field (old):', p.image);
+        console.log('  - Full product object:', p);
       });
-      
-      // ✅ FIX: Ensure images array exists for all products
-      const productsWithImages = res.data.data?.map(p => ({
-        ...p,
-        images: Array.isArray(p.images) && p.images.length > 0 
-          ? p.images 
-          : (p.image ? [p.image] : [])
-      })) || [];
-      
-      console.log('✅ Fetched products:', productsWithImages);
-      setProducts(productsWithImages);
-      setLoading(false);
-    } catch (err) {
-      console.error('Failed to fetch products:', err);
-      setLoading(false);
     }
-  };
+    
+    const productsWithImages = res.data.data?.map(p => ({
+      ...p,
+      images: Array.isArray(p.images) && p.images.length > 0 
+        ? p.images 
+        : (p.image ? [p.image] : [])
+    })) || [];
+    
+    console.log('✅ ADMIN - Processed products:', productsWithImages);
+    setProducts(productsWithImages);
+    setLoading(false);
+  } catch (err) {
+    console.error('Failed to fetch products:', err);
+    setLoading(false);
+  }
+};
 
   // ✅ FIXED: Proper handleEdit function with images array
   const handleEdit = (product) => {
@@ -3118,6 +3134,46 @@ function ProductsPanel() {
   );
 }
 // Fixed Manager Dashboard Component - Replace your existing ManagerDashboard
+
+const fetchProducts = async () => {
+  try {
+    const res = await axios.get(`${API_BASE}/products`, {
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    // ✅ ADD THESE CONSOLE LOGS
+    console.log('📦 Raw API Response:', res.data);
+    console.log('📦 Products Data:', res.data.data);
+    
+    // Check each product
+    if (res.data.data) {
+      res.data.data.forEach(p => {
+        console.log(`\n🔍 Product: ${p.name}`);
+        console.log('  - images field:', p.images);
+        console.log('  - images is array?', Array.isArray(p.images));
+        console.log('  - images length:', p.images?.length);
+        console.log('  - image field:', p.image);
+      });
+    }
+    
+    const productsWithImages = res.data.data?.map(p => ({
+      ...p,
+      images: Array.isArray(p.images) && p.images.length > 0 
+        ? p.images 
+        : (p.image ? [p.image] : [])
+    })) || [];
+    
+    console.log('✅ Processed products:', productsWithImages);
+    setProducts(productsWithImages);
+    setLoading(false);
+  } catch (err) {
+    console.error('Failed to fetch products:', err);
+    setLoading(false);
+  }
+};
 
 function ManagerDashboard() {
   const [activeTab, setActiveTab] = useState('all');
