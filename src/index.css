@@ -5,21 +5,46 @@
 @layer base {
   :root {
     --color-scheme: light;
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8fafc;
+    --bg-tertiary: #f1f5f9;
+    --text-primary: #1e293b;
+    --text-secondary: #475569;
+    --text-tertiary: #94a3b8;
+    --border-color: #e2e8f0;
+    --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
   }
   
   .dark {
     --color-scheme: dark;
     color-scheme: dark;
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-tertiary: #94a3b8;
+    --border-color: #475569;
+    --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
   }
 }
 
 body { 
-  font-family: 'Source Sans 3', 'Inter', system-ui, -apple-system, sans-serif; 
+  font-family: 'Source Sans 3', 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 /* Ensure dark mode works properly */
 .dark {
   color-scheme: dark;
+  background-color: #0f172a;
+  color: #f8fafc;
 }
 
 .dark body {
@@ -44,8 +69,28 @@ body {
   color: #94a3b8 !important;
 }
 
+.dark .text-gray-500 {
+  color: #64748b !important;
+}
+
+.dark .text-gray-400 {
+  color: #475569 !important;
+}
+
 .dark .text-blue-900 {
   color: #dbeafe !important;
+}
+
+.dark .text-blue-600 {
+  color: #93c5fd !important;
+}
+
+.dark .text-green-600 {
+  color: #86efac !important;
+}
+
+.dark .text-red-600 {
+  color: #fca5a5 !important;
 }
 
 /* Fix dark mode backgrounds */
@@ -61,6 +106,38 @@ body {
   background-color: #1e293b !important;
 }
 
+.dark .bg-gray-200 {
+  background-color: #334155 !important;
+}
+
+.dark .bg-gray-300 {
+  background-color: #475569 !important;
+}
+
+.dark .bg-blue-50 {
+  background-color: #082f49 !important;
+}
+
+.dark .bg-blue-100 {
+  background-color: #0c3d66 !important;
+}
+
+.dark .bg-green-50 {
+  background-color: #051f15 !important;
+}
+
+.dark .bg-green-100 {
+  background-color: #064e3b !important;
+}
+
+.dark .bg-red-50 {
+  background-color: #1f0f0f !important;
+}
+
+.dark .bg-red-100 {
+  background-color: #3f1f1f !important;
+}
+
 /* Fix borders for dark mode */
 .dark .border-gray-200 {
   border-color: #374151 !important;
@@ -70,9 +147,115 @@ body {
   border-color: #4b5563 !important;
 }
 
+.dark .border-blue-600 {
+  border-color: #1e40af !important;
+}
+
+.dark .border-green-600 {
+  border-color: #059669 !important;
+}
+
+.dark .border-red-600 {
+  border-color: #dc2626 !important;
+}
+
+/* Input and form styling for dark mode */
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="number"],
+.dark textarea,
+.dark select {
+  background-color: #334155 !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+.dark input[type="text"]:focus,
+.dark input[type="email"]:focus,
+.dark input[type="password"]:focus,
+.dark input[type="number"]:focus,
+.dark textarea:focus,
+.dark select:focus {
+  background-color: #475569 !important;
+  border-color: #60a5fa !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1) !important;
+}
+
+.dark input::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Button styling for dark mode */
+.dark button {
+  transition: all 0.2s ease;
+}
+
+.dark .hover\:bg-gray-100:hover {
+  background-color: #334155 !important;
+}
+
+.dark .hover\:bg-gray-200:hover {
+  background-color: #475569 !important;
+}
+
+.dark .bg-blue-600 {
+  background-color: #2563eb !important;
+}
+
+.dark .bg-blue-600:hover {
+  background-color: #1d4ed8 !important;
+}
+
+/* Card styling for dark mode */
+.dark .rounded-xl,
+.dark .rounded-2xl,
+.dark .rounded-3xl {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+/* Table styling for dark mode */
+.dark thead {
+  background-color: #0f172a !important;
+}
+
+.dark tbody tr {
+  border-color: #334155 !important;
+}
+
+.dark tbody tr:hover {
+  background-color: #1e293b !important;
+}
+
+.dark tbody td {
+  color: #cbd5e1 !important;
+}
+
+.dark th {
+  color: #f8fafc !important;
+  background-color: #0f172a !important;
+}
+
+/* Modal and overlay styling */
+.dark .backdrop-blur-sm {
+  background-color: rgba(0, 0, 0, 0.85);
+}
+
+/* Divider styling */
+.dark .divide-gray-200 {
+  border-color: #334155 !important;
+}
+
+.dark .divide-gray-700 {
+  border-color: #1e293b !important;
+}
+
 /* Custom scrollbar for dark mode */
 .dark ::-webkit-scrollbar {
   width: 10px;
+  height: 10px;
 }
 
 .dark ::-webkit-scrollbar-track {
@@ -86,4 +269,36 @@ body {
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #64748b;
+}
+
+/* Animations and transitions */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes progress {
+  0% {
+    width: 0;
+  }
+  50% {
+    width: 100%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-progress {
+  animation: progress 3s ease-in-out infinite;
 }

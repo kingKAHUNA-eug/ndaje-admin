@@ -169,19 +169,19 @@ const PasswordResetModal = ({ isOpen, onClose, userId, userName, userEmail, onRe
   if (!isOpen) return null;
   
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 dark:bg-black/85">
+      <div className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl dark:shadow-2xl dark:border dark:border-gray-700 animate-in zoom-in">
         <div className="p-8">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Reset Password</h2>
-              <p className="text-gray-600 dark:text-gray-300 mt-1">For {userName}</p>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Reset Password</h2>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">For {userName}</p>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
             >
-              <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -189,26 +189,26 @@ const PasswordResetModal = ({ isOpen, onClose, userId, userName, userEmail, onRe
           
           {success ? (
             <div className="text-center py-8">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Password Reset!</h3>
-              <p className="text-gray-600">New password has been set successfully.</p>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Password Reset!</h3>
+              <p className="text-gray-600 dark:text-gray-400">New password has been set successfully.</p>
             </div>
           ) : (
             <>
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   Password Generation Method
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={() => setPasswordType('auto')}
                     className={`px-4 py-3 rounded-xl border-2 transition-all ${passwordType === 'auto' 
-                      ? 'border-blue-600 bg-blue-50 text-blue-700' 
-                      : 'border-gray-200 hover:border-gray-300'}`}
+                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' 
+                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}`}
                   >
                     <div className="flex items-center justify-center gap-2">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -220,8 +220,8 @@ const PasswordResetModal = ({ isOpen, onClose, userId, userName, userEmail, onRe
                   <button
                     onClick={() => setPasswordType('manual')}
                     className={`px-4 py-3 rounded-xl border-2 transition-all ${passwordType === 'manual' 
-                      ? 'border-blue-600 bg-blue-50 text-blue-700' 
-                      : 'border-gray-200 hover:border-gray-300'}`}
+                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' 
+                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}`}
                   >
                     <div className="flex items-center justify-center gap-2">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -235,7 +235,7 @@ const PasswordResetModal = ({ isOpen, onClose, userId, userName, userEmail, onRe
               
               {passwordType === 'auto' ? (
                 <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Generated Password
                   </label>
                   <div className="relative">
@@ -243,25 +243,25 @@ const PasswordResetModal = ({ isOpen, onClose, userId, userName, userEmail, onRe
                       type="text"
                       value={autoGenerated}
                       readOnly
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl font-mono text-lg pr-12"
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 dark:text-white rounded-xl font-mono text-lg pr-12"
                     />
                     <button
                       onClick={generatePassword}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 p-2 hover:bg-gray-100 rounded-lg"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg"
                       title="Generate new password"
                     >
-                      <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                       </svg>
                     </button>
                   </div>
-                  <p className="text-sm text-gray-500 mt-2">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                     This password will be automatically sent to the user's email
                   </p>
                 </div>
               ) : (
                 <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Enter New Password
                   </label>
                   <input
@@ -269,10 +269,10 @@ const PasswordResetModal = ({ isOpen, onClose, userId, userName, userEmail, onRe
                     value={manualPassword}
                     onChange={(e) => setManualPassword(e.target.value)}
                     placeholder="Enter custom password"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400"
                   />
-                  <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex items-center gap-2 mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                    Minimum 6 characters required
@@ -284,14 +284,14 @@ const PasswordResetModal = ({ isOpen, onClose, userId, userName, userEmail, onRe
                 <button
                   onClick={onClose}
                   disabled={loading}
-                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition disabled:opacity-50"
+                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleReset}
                   disabled={loading || (passwordType === 'manual' && manualPassword.length < 6)}
-                  className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <div className="flex items-center justify-center gap-2">
@@ -319,24 +319,24 @@ const ConfirmModal = ({ confirmModal, setConfirmModal }) => {
   if (!confirmModal) return null;
   
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 bg-black/70 dark:bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl dark:shadow-2xl dark:border dark:border-gray-700">
         <div className="p-8">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 bg-red-100">
-            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 bg-red-100 dark:bg-red-900/30">
+            <svg className="w-8 h-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.998-.833-2.732 0L4.346 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 text-center mb-3">
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-3">
             {confirmModal.title}
           </h3>
-          <p className="text-gray-600 text-center mb-8">
+          <p className="text-gray-600 dark:text-gray-400 text-center mb-8">
             {confirmModal.message}
           </p>
           <div className="flex gap-3">
             <button
               onClick={() => setConfirmModal(null)}
-              className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition"
+              className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition"
             >
               Cancel
             </button>
@@ -345,7 +345,7 @@ const ConfirmModal = ({ confirmModal, setConfirmModal }) => {
                 confirmModal.onConfirm();
                 setConfirmModal(null);
               }}
-              className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition"
+              className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white rounded-xl transition"
             >
               Delete
             </button>
@@ -424,7 +424,7 @@ function AdminQuotesPanel() {
           <select
             value={filters.status}
             onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-            className="px-4 py-2 border rounded-lg"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           >
             <option value="">All Statuses</option>
             <option value="PENDING_ITEMS">Pending Items</option>
@@ -441,14 +441,14 @@ function AdminQuotesPanel() {
             placeholder="Search by client or ID..."
             value={filters.search}
             onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-            className="px-4 py-2 border rounded-lg"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
           />
           
           <input
             type="date"
             value={filters.startDate}
             onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-            className="px-4 py-2 border rounded-lg"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             placeholder="Start Date"
           />
           
@@ -456,7 +456,7 @@ function AdminQuotesPanel() {
             type="date"
             value={filters.endDate}
             onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-            className="px-4 py-2 border rounded-lg"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             placeholder="End Date"
           />
         </div>
@@ -472,32 +472,32 @@ function AdminQuotesPanel() {
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-gray-900/50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quote ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Quote ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Client</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Created</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {quotes.map(quote => (
-                  <tr key={quote.id} className="hover:bg-gray-50">
+                  <tr key={quote.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <td className="px-6 py-4">
-                      <span className="font-medium text-blue-900">#{quote.id?.slice(-8)}</span>
+                      <span className="font-medium text-blue-900 dark:text-blue-400">#{quote.id?.slice(-8)}</span>
                     </td>
                     <td className="px-6 py-4">
                       <div>
-                        <p className="font-medium">{quote.client?.name || 'Unknown'}</p>
+                        <p className="font-medium dark:text-white">{quote.client?.name || 'Unknown'}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">{quote.client?.email || ''}</p>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        quote.status === 'PENDING_PRICING' ? 'bg-yellow-100 text-yellow-800' :
-                        quote.status === 'IN_PRICING' ? 'bg-blue-100 text-blue-800' :
-                        quote.status === 'AWAITING_CLIENT_APPROVAL' ? 'bg-purple-100 text-purple-800' :
-                        quote.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                        quote.status === 'PENDING_PRICING' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' :
+                        quote.status === 'IN_PRICING' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
+                        quote.status === 'AWAITING_CLIENT_APPROVAL' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300' :
+                        quote.status === 'APPROVED' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
                         quote.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
                         'bg-gray-100 text-gray-800'
                       }`}>
@@ -633,18 +633,18 @@ function AdminManagerPanel({ deleteUser, resetUserPassword }) {
       </div>
 
       {showAddManager && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md dark:border dark:border-gray-700">
             <h3 className="text-xl font-bold mb-4 dark:text-white">Add New Manager</h3>
             <div className="space-y-4">
-              <input placeholder="Name" value={newManager.name} onChange={e => setNewManager(prev => ({...prev, name: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
-              <input placeholder="Email" value={newManager.email} onChange={e => setNewManager(prev => ({...prev, email: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
-              <input placeholder="Phone" value={newManager.phone} onChange={e => setNewManager(prev => ({...prev, phone: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
-              <input type="password" placeholder="Password" value={newManager.password} onChange={e => setNewManager(prev => ({...prev, password: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
+              <input placeholder="Name" value={newManager.name} onChange={e => setNewManager(prev => ({...prev, name: e.target.value}))}  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400" />
+              <input placeholder="Email" value={newManager.email} onChange={e => setNewManager(prev => ({...prev, email: e.target.value}))}  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400" />
+              <input placeholder="Phone" value={newManager.phone} onChange={e => setNewManager(prev => ({...prev, phone: e.target.value}))}  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400" />
+              <input type="password" placeholder="Password" value={newManager.password} onChange={e => setNewManager(prev => ({...prev, password: e.target.value}))}  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400" />
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowAddManager(false)} className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-xl dark:text-gray-300 dark:hover:bg-gray-700">Cancel</button>
-              <button onClick={createManager} className="flex-1 px-4 py-2 bg-blue-900 text-white rounded-xl">Create</button>
+              <button onClick={() => setShowAddManager(false)} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
+              <button onClick={createManager} className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-xl">Create</button>
             </div>
           </div>
         </div>
@@ -747,19 +747,19 @@ function AdminDriverPanel({ deleteUser, resetUserPassword }) {
       </div>
 
       {showAddDriver && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md">
-            <h3 className="text-xl font-bold mb-4">Add New Driver</h3>
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md dark:border dark:border-gray-700">
+            <h3 className="text-xl font-bold mb-4 dark:text-white">Add New Driver</h3>
             <div className="space-y-4">
-              <input placeholder="Name" value={newDriver.name} onChange={e => setNewDriver(prev => ({...prev, name: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
-              <input placeholder="Email" value={newDriver.email} onChange={e => setNewDriver(prev => ({...prev, email: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
-              <input placeholder="Phone" value={newDriver.phone} onChange={e => setNewDriver(prev => ({...prev, phone: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
-              <input type="password" placeholder="Password" value={newDriver.password} onChange={e => setNewDriver(prev => ({...prev, password: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
-              <input placeholder="Vehicle" value={newDriver.vehicle} onChange={e => setNewDriver(prev => ({...prev, vehicle: e.target.value}))}  className="w-full px-4 py-3 border dark:border-gray-600 rounded-xl dark:bg-gray-700 dark:text-white" />
+              <input placeholder="Name" value={newDriver.name} onChange={e => setNewDriver(prev => ({...prev, name: e.target.value}))}  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400" />
+              <input placeholder="Email" value={newDriver.email} onChange={e => setNewDriver(prev => ({...prev, email: e.target.value}))}  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400" />
+              <input placeholder="Phone" value={newDriver.phone} onChange={e => setNewDriver(prev => ({...prev, phone: e.target.value}))}  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400" />
+              <input type="password" placeholder="Password" value={newDriver.password} onChange={e => setNewDriver(prev => ({...prev, password: e.target.value}))}  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400" />
+              <input placeholder="Vehicle" value={newDriver.vehicle} onChange={e => setNewDriver(prev => ({...prev, vehicle: e.target.value}))}  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400" />
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowAddDriver(false)} className="flex-1 px-4 py-2 border dark:border-gray-600 rounded-xl dark:text-gray-300 dark:hover:bg-gray-700">Cancel</button>
-              <button onClick={createDriver} className="flex-1 px-4 py-2 bg-blue-900 text-white rounded-xl">Create</button>
+              <button onClick={() => setShowAddDriver(false)} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
+              <button onClick={createDriver} className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-xl">Create</button>
             </div>
           </div>
         </div>
@@ -823,12 +823,12 @@ function AdminOrdersPanel() {
             placeholder="Search orders..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="px-4 py-2 border rounded-xl"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
           />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border rounded-xl"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           >
             <option value="ALL">All Statuses</option>
             <option value="PENDING">Pending</option>
