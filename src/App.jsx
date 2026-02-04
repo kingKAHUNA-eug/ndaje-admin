@@ -1490,7 +1490,7 @@ function AdminDashboard() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Backend Connection Error</h3>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Backend Connection Error</h3>
           <p className="text-gray-600 mb-6">Unable to connect to the server. Please try again later.</p>
           <div className="space-y-3">
             <button
@@ -2390,7 +2390,7 @@ function DashboardLayout({ children, darkMode, setDarkMode }) {
   }
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex ${darkMode ? 'dark' : ''}`}>
+    <div className={`min-h-screen ${darkMode ? 'dark bg-gray-900' : 'bg-gradient-to-br from-blue-50 via-white to-blue-50'} flex`}>
       <div className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white dark:bg-gray-800 shadow-lg transition-all duration-300 flex flex-col`}>
         <div className="p-6 border-b border-blue-100 dark:border-gray-700">
           <div className="flex items-center gap-3">
@@ -2459,7 +2459,7 @@ function DashboardLayout({ children, darkMode, setDarkMode }) {
             </span>
           </div>
         </div>
-        <div className="p-8">
+        <div className="p-8 bg-white dark:bg-gray-900 min-h-screen">
           {children}
         </div>
       </div>
@@ -3887,7 +3887,7 @@ function ManagerIdDebug() {
           <span className="text-white text-2xl">🐛</span>
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Manager ID Debug Report</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Manager ID Debug Report</h2>
           <p className="text-gray-600">Finding the ID mismatch problem</p>
         </div>
       </div>
@@ -3900,7 +3900,7 @@ function ManagerIdDebug() {
         <div className="space-y-6">
           {/* Frontend IDs */}
           <div className="bg-white rounded-lg p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">🖥️ Frontend (localStorage)</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">🖥️ Frontend (localStorage)</h3>
             <div className="space-y-2 font-mono text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">user.id:</span>
@@ -3923,7 +3923,7 @@ function ManagerIdDebug() {
 
           {/* Backend User */}
           <div className="bg-white rounded-lg p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">🖧 Backend (/auth/me)</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">🖧 Backend (/auth/me)</h3>
             <div className="space-y-2 font-mono text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">id:</span>
@@ -3946,7 +3946,7 @@ function ManagerIdDebug() {
 
           {/* Locked Quotes */}
           <div className="bg-white rounded-lg p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">🔒 Locked Quotes</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">🔒 Locked Quotes</h3>
             {debugInfo.lockedQuotes.length === 0 ? (
               <p className="text-gray-500 italic">No locked quotes found</p>
             ) : (
@@ -4056,7 +4056,7 @@ quote.lockedById = managerId;  // Just the MongoDB ID`}
             <div className="p-8">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Lock Quote</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Lock Quote</h2>
                   <p className="text-gray-600 dark:text-gray-300 mt-1">
                     #{quoteToLock.id?.slice(-8) || 'N/A'} • {quoteToLock.client?.name || 'Client'}
                   </p>
@@ -4117,7 +4117,7 @@ quote.lockedById = managerId;  // Just the MongoDB ID`}
         <div className="max-w-7xl mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Manager Dashboard</h1>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Manager Dashboard</h1>
               <p className="text-gray-600 dark:text-gray-300 mt-1">
                 Welcome back, <span className="font-semibold text-blue-600">{user.name}</span>
               </p>
@@ -4153,7 +4153,7 @@ quote.lockedById = managerId;  // Just the MongoDB ID`}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Available Quotes</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{stats.pending}</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stats.pending}</p>
               </div>
               <div className="p-3 bg-blue-50 rounded-xl">
                 <DocumentTextIcon className="w-6 h-6 text-blue-600" />
@@ -4165,7 +4165,7 @@ quote.lockedById = managerId;  // Just the MongoDB ID`}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Currently Pricing</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{stats.active}</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stats.active}</p>
               </div>
               <div className="p-3 bg-yellow-50 rounded-xl">
                 <ClockIcon className="w-6 h-6 text-yellow-600" />
@@ -4177,7 +4177,7 @@ quote.lockedById = managerId;  // Just the MongoDB ID`}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                   RWF {stats.totalRevenue.toLocaleString()}
                 </p>
               </div>
@@ -4191,7 +4191,7 @@ quote.lockedById = managerId;  // Just the MongoDB ID`}
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Completed Quotes</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">
+                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
                   {stats?.completed || 0}
                 </p>
               </div>
@@ -4299,10 +4299,10 @@ quote.lockedById = managerId;  // Just the MongoDB ID`}
               });
 
               return (
-                <div key={quote.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+                <div key={quote.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <h3 className="text-xl font-bold text-gray-900">Quote #{quote.id?.slice(-8)}</h3>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">Quote #{quote.id?.slice(-8)}</h3>
                       <div className="flex items-center gap-4 mt-2">
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${status.color}`}>
                           {status.text}
@@ -4311,7 +4311,7 @@ quote.lockedById = managerId;  // Just the MongoDB ID`}
                           {new Date(quote.createdAt).toLocaleDateString()}
                         </span>
                       </div>
-                      <p className="text-gray-600 mt-2">
+                      <p className="text-gray-600 dark:text-gray-400 mt-2">
                         Client: <span className="font-semibold">{quote.client?.name || 'Unknown'}</span>
                       </p>
                       
@@ -4432,7 +4432,7 @@ quote.lockedById = managerId;  // Just the MongoDB ID`}
             <div className="sticky top-0 bg-white border-b border-gray-200 px-8 py-6 rounded-t-3xl z-10">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Price Quote</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Price Quote</h2>
                   <p className="text-gray-600 dark:text-gray-300 mt-1">
                     {selectedQuote.client?.name || 'Client'} • #{selectedQuote.id?.slice(-8) || 'N/A'}
                   </p>
@@ -4893,7 +4893,7 @@ function DriverDashboard() {
                 <TruckIcon className="w-8 h-8 text-blue-600" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Driver Portal</h1>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Driver Portal</h1>
                 <p className="text-gray-600">
                   Welcome, <span className="font-semibold text-blue-600">{user.name}</span>
                 </p>
